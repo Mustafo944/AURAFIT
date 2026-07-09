@@ -25,6 +25,16 @@ const archivoNarrow = Archivo_Narrow({
 export const metadata: Metadata = {
   title: "AuraFit — AI-Powered Fitness",
   description: "Premium AI-driven fitness. Precision training, data-driven insights, futuristic interface for peak performance.",
+  manifest: "/manifest.json",
+  themeColor: "#C3F400",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "AuraFit",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default async function RootLayout({
@@ -48,6 +58,9 @@ export default async function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
         />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className="bg-background text-on-background min-h-screen font-body-md selection:bg-primary-container selection:text-on-primary-container antialiased">
         <AuthProvider initialUserId={userId} initialEmail={userEmail}>
@@ -57,6 +70,17 @@ export default async function RootLayout({
             </WorkoutSessionProvider>
           </UserProfileProvider>
         </AuthProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js');
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
