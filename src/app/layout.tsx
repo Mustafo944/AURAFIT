@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Archivo_Narrow } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 import { UserProfileProvider } from "@/context/user-profile-context";
 import { WorkoutSessionProvider } from "@/context/workout-session-context";
 import { AuthProvider } from "@/context/auth-context";
-import { createClient } from "@/lib/supabase/server";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -32,10 +32,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // proxy.ts allaqachon Supabase orqali sessiyani tekshirib bo'lgan — bu yerda
+  // qayta tarmoq so'rovi yubormasdan, u qoldirgan header'dan foydalanuvchini o'qiymiz.
+  const headersList = await headers();
+  const userId = headersList.get("x-supabase-user-id");
+  const userEmail = headersList.get("x-supabase-user-email");
 
   return (
     <html
@@ -49,7 +50,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="bg-background text-on-background min-h-screen font-body-md selection:bg-primary-container selection:text-on-primary-container antialiased">
-        <AuthProvider initialUserId={user?.id ?? null} initialEmail={user?.email ?? null}>
+        <AuthProvider initialUserId={userId} initialEmail={userEmail}>
           <UserProfileProvider>
             <WorkoutSessionProvider>
               <AppShell>{children}</AppShell>
