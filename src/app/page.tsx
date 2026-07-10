@@ -12,7 +12,7 @@ const DEFAULT_ADVICE =
   "Bugungi mashg'ulotdan so'ng uglevodlarni to'ldirishga e'tibor bering. Kechagi yuklama tufayli mushaklar tiklanishi uchun protein qabuli muhim.";
 
 export default function DashboardPage() {
-  const { profile } = useUserProfile();
+  const { profile, loading: profileLoading } = useUserProfile();
   const metrics = calculateFitnessMetrics(
     profile.age,
     profile.gender,
@@ -59,7 +59,11 @@ export default function DashboardPage() {
             <div className="md:col-span-6 flex flex-col items-center md:items-start border-b md:border-b-0 md:border-r border-white/10 pb-4 md:pb-0 md:pr-6">
               <span className="font-label-mono text-label-mono text-on-surface-variant uppercase mb-1">Kunlik Maqsad</span>
               <div className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-primary font-bold leading-none">
-                {metrics.targetCalories}
+                {profileLoading ? (
+                  <span className="inline-block w-28 h-10 rounded bg-white/10 animate-pulse align-middle" />
+                ) : (
+                  metrics.targetCalories
+                )}
               </div>
               <span className="font-label-mono text-label-mono text-tertiary-fixed-dim mt-1 text-center md:text-left">
                 KCAL &middot; {GOAL_LABELS[profile.goal].toUpperCase()}
@@ -69,17 +73,25 @@ export default function DashboardPage() {
             {/* BMR / TDEE / BMI */}
             <div className="md:col-span-6 grid grid-cols-3 gap-3">
               <div className="text-center">
-                <div className="font-headline-md text-[22px] text-primary font-bold">{metrics.bmr}</div>
+                <div className="font-headline-md text-[22px] text-primary font-bold">
+                  {profileLoading ? <span className="inline-block w-10 h-5 rounded bg-white/10 animate-pulse" /> : metrics.bmr}
+                </div>
                 <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">BMR</div>
               </div>
               <div className="text-center">
-                <div className="font-headline-md text-[22px] text-primary font-bold">{metrics.tdee}</div>
+                <div className="font-headline-md text-[22px] text-primary font-bold">
+                  {profileLoading ? <span className="inline-block w-10 h-5 rounded bg-white/10 animate-pulse" /> : metrics.tdee}
+                </div>
                 <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">TDEE</div>
               </div>
               <div className="text-center">
-                <div className="font-headline-md text-[22px] text-primary font-bold">{metrics.bmi}</div>
+                <div className="font-headline-md text-[22px] text-primary font-bold">
+                  {profileLoading ? <span className="inline-block w-10 h-5 rounded bg-white/10 animate-pulse" /> : metrics.bmi}
+                </div>
                 <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">BMI</div>
-                <div className="font-label-mono text-[9px] text-tertiary-fixed-dim mt-0.5">{metrics.bmiCategory}</div>
+                <div className="font-label-mono text-[9px] text-tertiary-fixed-dim mt-0.5">
+                  {profileLoading ? "" : metrics.bmiCategory}
+                </div>
               </div>
             </div>
           </div>

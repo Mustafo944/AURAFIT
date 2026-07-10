@@ -3,13 +3,19 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useUserProfile, type Gender, type Goal } from "@/context/user-profile-context";
+import { useUserProfile, DEFAULT_PROFILE, type Gender, type Goal } from "@/context/user-profile-context";
 import { calculateFitnessMetrics } from "@/lib/fitness";
 import { useProfileInsight } from "@/lib/profile-insight";
 
+type ProfileFormState = Omit<typeof DEFAULT_PROFILE, "age" | "weightKg" | "heightCm"> & {
+  age: number | "";
+  weightKg: number | "";
+  heightCm: number | "";
+};
+
 export default function ProfilePage() {
   const { profile, setProfile } = useUserProfile();
-  const [form, setForm] = useState(profile);
+  const [form, setForm] = useState<ProfileFormState>(profile);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -17,7 +23,15 @@ export default function ProfilePage() {
   }, [profile]);
 
   const handleSave = () => {
-    setProfile(form);
+    const next = {
+      age: form.age === "" ? profile.age : form.age,
+      gender: form.gender,
+      weightKg: form.weightKg === "" ? profile.weightKg : form.weightKg,
+      heightCm: form.heightCm === "" ? profile.heightCm : form.heightCm,
+      goal: form.goal,
+    };
+    setProfile(next);
+    setForm(next);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -141,7 +155,7 @@ export default function ProfilePage() {
                   min={10}
                   max={100}
                   value={form.age}
-                  onChange={(e) => setForm({ ...form, age: Number(e.target.value) })}
+                  onChange={(e) => setForm({ ...form, age: e.target.value === "" ? "" : Number(e.target.value) })}
                 />
               </div>
               <div>
@@ -163,7 +177,7 @@ export default function ProfilePage() {
                   min={30}
                   max={300}
                   value={form.weightKg}
-                  onChange={(e) => setForm({ ...form, weightKg: Number(e.target.value) })}
+                  onChange={(e) => setForm({ ...form, weightKg: e.target.value === "" ? "" : Number(e.target.value) })}
                 />
               </div>
               <div>
@@ -174,7 +188,7 @@ export default function ProfilePage() {
                   min={100}
                   max={250}
                   value={form.heightCm}
-                  onChange={(e) => setForm({ ...form, heightCm: Number(e.target.value) })}
+                  onChange={(e) => setForm({ ...form, heightCm: e.target.value === "" ? "" : Number(e.target.value) })}
                 />
               </div>
               <div className="md:col-span-2">
