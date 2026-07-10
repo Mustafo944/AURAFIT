@@ -1,5 +1,42 @@
 @import "tailwindcss";
 
+/* Cursor (caret) faqat input va textarea elementlarida ko'rinsin */
+* {
+  caret-color: transparent;
+}
+input,
+textarea,
+[contenteditable="true"] {
+  caret-color: auto;
+}
+
+/* Google Fonts CDN'ga tashqi bog'liqlikni olib tashlash uchun mahalliy
+   o'rnatilgan (self-hosted) — sekin/beqaror ulanishda ikonkalar matn
+   ko'rinishida ("grid_view" kabi) qolib ketmasligi uchun. */
+@font-face {
+  font-family: "Material Symbols Outlined";
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url("/fonts/material-symbols-outlined.woff2") format("woff2");
+}
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+}
+
 @theme inline {
   --color-on-secondary-fixed: #1c1b1b;
   --color-inverse-on-surface: #2f3131;

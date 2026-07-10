@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Archivo_Narrow } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
@@ -26,7 +26,6 @@ export const metadata: Metadata = {
   title: "AuraFit — AI-Powered Fitness",
   description: "Premium AI-driven fitness. Precision training, data-driven insights, futuristic interface for peak performance.",
   manifest: "/manifest.json",
-  themeColor: "#C3F400",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -35,6 +34,10 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#C3F400",
 };
 
 export default async function RootLayout({
@@ -54,10 +57,6 @@ export default async function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} ${archivoNarrow.variable} dark`}
     >
       <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-          rel="stylesheet"
-        />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -72,13 +71,25 @@ export default async function RootLayout({
         </AuthProvider>
         <script
           dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js');
-                });
-              }
-            `,
+            __html:
+              process.env.NODE_ENV === "production"
+                ? `
+                  if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                      navigator.serviceWorker.register('/sw.js');
+                    });
+                  }
+                `
+                : `
+                  if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then((regs) => {
+                      regs.forEach((reg) => reg.unregister());
+                    });
+                    if (window.caches) {
+                      caches.keys().then((keys) => keys.forEach((key) => caches.delete(key)));
+                    }
+                  }
+                `,
           }}
         />
       </body>
