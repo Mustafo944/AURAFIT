@@ -25,12 +25,13 @@ export default function ProfilePage() {
   const recoveryStatuses = useMemo(() => muscleRecoveryStatus(sessions), [sessions]);
   const [form, setForm] = useState<ProfileFormState>({ ...profile, targetWeightKg: profile.targetWeightKg ?? "" });
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     setForm({ ...profile, targetWeightKg: profile.targetWeightKg ?? "" });
   }, [profile]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const nextWeightKg = form.weightKg === "" ? profile.weightKg : form.weightKg;
     const next = {
       age: form.age === "" ? profile.age : form.age,
@@ -40,7 +41,12 @@ export default function ProfilePage() {
       goal: form.goal,
       targetWeightKg: form.targetWeightKg === "" ? null : form.targetWeightKg,
     };
-    setProfile(next);
+    setSaveError(null);
+    const { error } = await setProfile(next);
+    if (error) {
+      setSaveError("Saqlab bo'lmadi: " + error);
+      return;
+    }
     setForm({ ...next, targetWeightKg: next.targetWeightKg ?? "" });
     if (nextWeightKg !== profile.weightKg) {
       addWeightEntry(nextWeightKg);
@@ -222,6 +228,11 @@ export default function ProfilePage() {
                 </span>
               )}
             </div>
+            {saveError && (
+              <p className="mt-3 font-body-md text-[13px] text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">
+                {saveError}
+              </p>
+            )}
           </div>
 
           {/* Muskul Charchog'i Xaritasi */}

@@ -27,15 +27,15 @@ export const DEFAULT_PROFILE: UserProfile = {
 
 interface UserProfileContextValue {
   profile: UserProfile;
-  setProfile: (profile: UserProfile) => void;
+  setProfile: (profile: UserProfile) => Promise<{ error: string | null }>;
   loading: boolean;
 }
 
 const UserProfileContext = createContext<UserProfileContextValue | null>(null);
 
-async function persistProfile(userId: string, profile: UserProfile) {
+async function persistProfile(userId: string, profile: UserProfile): Promise<{ error: string | null }> {
   const supabase = createClient();
-  await supabase.from("profiles").upsert({
+  const { error } = await supabase.from("profiles").upsert({
     id: userId,
     age: profile.age,
     gender: profile.gender,
@@ -45,6 +45,14 @@ async function persistProfile(userId: string, profile: UserProfile) {
     target_weight_kg: profile.targetWeightKg,
     updated_at: new Date().toISOString(),
   });
+  if (error) {
+    // Xatoni yutib yubormaslik uchun — masalan bazada ustun/jadval hali
+    // yaratilmagan bo'lsa (schema.sql to'liq bajarilmagan), foydalanuvchi
+    // "Saqlandi" ko'rib, aslida hech narsa saqlanmagani bilmay qolmasligi kerak.
+    console.error("Profilni saqlashda xatolik:", error.message);
+    return { error: error.message };
+  }
+  return { error: null };
 }
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
@@ -66,9 +74,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       .select("age, gender, weight_kg, height_cm, goal, target_weight_kg")
       .eq("id", userId)
       .single()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (cancelled) return;
-        if (data) {
+        if (error) {
+          console.error("Profilni o'qishda xatolik:", error.message);
+        } else if (data) {
           setProfileState({
             age: data.age,
             gender: data.gender,
@@ -85,10 +95,10 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     };
   }, [userId]);
 
-  const setProfile = (next: UserProfile) => {
+  const setProfile = async (next: UserProfile) => {
     setProfileState(next);
-    if (!userId) return;
-    void persistProfile(userId, next);
+    if (!userId) return { error: null };
+    return persistProfile(userId, next);
   };
 
   return (

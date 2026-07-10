@@ -54,12 +54,18 @@ export default async function RootLayout({
   return (
     <html
       lang="uz"
+      translate="no"
       className={`${inter.variable} ${jetbrainsMono.variable} ${archivoNarrow.variable} dark`}
     >
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        {/* Brauzer (Chrome) sahifani boshqa tilga tarjima qilishni har safar
+            qayta taklif qilib turishining oldini oladi — dinamik/skeleton
+            kontent DOM'ni o'zgartirganda tarjima paneli takroran chiqib
+            qolmasin uchun. */}
+        <meta name="google" content="notranslate" />
       </head>
       <body className="bg-background text-on-background min-h-screen font-body-md selection:bg-primary-container selection:text-on-primary-container antialiased">
         <AuthProvider initialUserId={userId} initialEmail={userEmail}>

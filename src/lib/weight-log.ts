@@ -12,12 +12,13 @@ export interface WeightEntry {
 
 async function insertWeightEntry(userId: string, entry: WeightEntry) {
   const supabase = createClient();
-  await supabase.from("body_weight_logs").insert({
+  const { error } = await supabase.from("body_weight_logs").insert({
     id: entry.id,
     user_id: userId,
     weight_kg: entry.weightKg,
     logged_at: entry.loggedAt,
   });
+  if (error) console.error("Vazn yozuvini saqlashda xatolik:", error.message);
 }
 
 async function deleteWeightEntryRow(id: string) {
@@ -47,8 +48,10 @@ export function useWeightHistory() {
       .select("id, weight_kg, logged_at")
       .eq("user_id", userId)
       .order("logged_at", { ascending: true })
-      .then(({ data }) => {
-        if (cancelled || !data) return;
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) console.error("Vazn tarixini o'qishda xatolik:", error.message);
+        if (!data) return;
         setEntries(
           data.map((row) => ({
             id: row.id,
