@@ -13,6 +13,7 @@ export interface UserProfile {
   weightKg: number;
   heightCm: number;
   goal: Goal;
+  targetWeightKg: number | null;
 }
 
 export const DEFAULT_PROFILE: UserProfile = {
@@ -21,6 +22,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   weightKg: 78,
   heightCm: 178,
   goal: "maintain",
+  targetWeightKg: null,
 };
 
 interface UserProfileContextValue {
@@ -40,6 +42,7 @@ async function persistProfile(userId: string, profile: UserProfile) {
     weight_kg: profile.weightKg,
     height_cm: profile.heightCm,
     goal: profile.goal,
+    target_weight_kg: profile.targetWeightKg,
     updated_at: new Date().toISOString(),
   });
 }
@@ -60,7 +63,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     supabase
       .from("profiles")
-      .select("age, gender, weight_kg, height_cm, goal")
+      .select("age, gender, weight_kg, height_cm, goal, target_weight_kg")
       .eq("id", userId)
       .single()
       .then(({ data }) => {
@@ -72,6 +75,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             weightKg: data.weight_kg,
             heightCm: data.height_cm,
             goal: data.goal,
+            targetWeightKg: data.target_weight_kg ?? null,
           });
         }
         setLoading(false);

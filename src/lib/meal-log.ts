@@ -21,6 +21,35 @@ function startOfTodayIso(): string {
   return date.toISOString();
 }
 
+function daysAgoIso(days: number): string {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() - days);
+  return date.toISOString();
+}
+
+function mapMealRow(row: {
+  id: string;
+  meal_name: string;
+  calories: number;
+  protein_g: number;
+  fat_g: number;
+  carb_g: number;
+  items: string[];
+  logged_at: string;
+}): MealEntry {
+  return {
+    id: row.id,
+    mealName: row.meal_name,
+    calories: row.calories,
+    proteinG: row.protein_g,
+    fatG: row.fat_g,
+    carbG: row.carb_g,
+    items: row.items,
+    timestamp: row.logged_at,
+  };
+}
+
 async function insertMeal(userId: string, id: string, meal: Omit<MealEntry, "id" | "timestamp">, timestamp: string) {
   const supabase = createClient();
   await supabase.from("meals").insert({
@@ -60,18 +89,7 @@ export function useMealLog() {
       .order("logged_at", { ascending: true })
       .then(({ data }) => {
         if (cancelled || !data) return;
-        setMeals(
-          data.map((row) => ({
-            id: row.id,
-            mealName: row.meal_name,
-            calories: row.calories,
-            proteinG: row.protein_g,
-            fatG: row.fat_g,
-            carbG: row.carb_g,
-            items: row.items,
-            timestamp: row.logged_at,
-          }))
-        );
+        setMeals(data.map(mapMealRow));
       });
     return () => {
       cancelled = true;
@@ -92,6 +110,41 @@ export function useMealLog() {
   };
 
   return { meals, addMeal, removeMeal };
+}
+
+// Kalibrlangan TDEE hisobi (forecast.ts) uchun oxirgi N kunlik ovqat tarixini
+// oladi — useMealLog()dan farqli, bugungi kun bilan cheklanmaydi.
+export function useMealHistory(days: number) {
+  const { userId } = useAuth();
+  const [meals, setMeals] = useState<MealEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) {
+      setMeals([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    const supabase = createClient();
+    supabase
+      .from("meals")
+      .select("id, meal_name, calories, protein_g, fat_g, carb_g, items, logged_at")
+      .eq("user_id", userId)
+      .gte("logged_at", daysAgoIso(days))
+      .order("logged_at", { ascending: true })
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (data) setMeals(data.map(mapMealRow));
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, days]);
+
+  return { meals, loading };
 }
 
 export function sumMeals(meals: MealEntry[]) {

@@ -2,36 +2,49 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useUserProfile, DEFAULT_PROFILE, type Gender, type Goal } from "@/context/user-profile-context";
 import { calculateFitnessMetrics } from "@/lib/fitness";
 import { useProfileInsight } from "@/lib/profile-insight";
+import { useWeightHistory } from "@/lib/weight-log";
+import { useWorkoutHistory } from "@/lib/workout-log";
+import { muscleRecoveryStatus } from "@/lib/muscle-recovery";
+import { BodyHeatmap } from "@/components/body-heatmap";
 
-type ProfileFormState = Omit<typeof DEFAULT_PROFILE, "age" | "weightKg" | "heightCm"> & {
+type ProfileFormState = Omit<typeof DEFAULT_PROFILE, "age" | "weightKg" | "heightCm" | "targetWeightKg"> & {
   age: number | "";
   weightKg: number | "";
   heightCm: number | "";
+  targetWeightKg: number | "";
 };
 
 export default function ProfilePage() {
   const { profile, setProfile } = useUserProfile();
-  const [form, setForm] = useState<ProfileFormState>(profile);
+  const { addWeightEntry } = useWeightHistory();
+  const { sessions } = useWorkoutHistory();
+  const recoveryStatuses = useMemo(() => muscleRecoveryStatus(sessions), [sessions]);
+  const [form, setForm] = useState<ProfileFormState>({ ...profile, targetWeightKg: profile.targetWeightKg ?? "" });
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setForm(profile);
+    setForm({ ...profile, targetWeightKg: profile.targetWeightKg ?? "" });
   }, [profile]);
 
   const handleSave = () => {
+    const nextWeightKg = form.weightKg === "" ? profile.weightKg : form.weightKg;
     const next = {
       age: form.age === "" ? profile.age : form.age,
       gender: form.gender,
-      weightKg: form.weightKg === "" ? profile.weightKg : form.weightKg,
+      weightKg: nextWeightKg,
       heightCm: form.heightCm === "" ? profile.heightCm : form.heightCm,
       goal: form.goal,
+      targetWeightKg: form.targetWeightKg === "" ? null : form.targetWeightKg,
     };
     setProfile(next);
-    setForm(next);
+    setForm({ ...next, targetWeightKg: next.targetWeightKg ?? "" });
+    if (nextWeightKg !== profile.weightKg) {
+      addWeightEntry(nextWeightKg);
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -97,17 +110,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Quick Stats Mini-HUD */}
-          <div className="w-full md:w-auto grid grid-cols-2 md:grid-cols-1 gap-4 mt-6 md:mt-0">
-            <div className="bg-surface-container/50 border border-white/10 rounded px-4 py-3 flex flex-col items-center md:items-end">
-              <span className="font-label-mono text-label-mono text-on-surface-variant">KEYINGI BOSQICH</span>
-              <span className="font-headline-md text-headline-md text-primary">ELITA DARAJASI</span>
-            </div>
-            <div className="bg-surface-container/50 border border-white/10 rounded px-4 py-3 flex flex-col items-center md:items-end">
-              <span className="font-label-mono text-label-mono text-on-surface-variant">MASHG&apos;ULOTLAR DAVOMIYLIGI</span>
-              <span className="font-headline-md text-headline-md text-primary">14 KUN</span>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -115,21 +117,9 @@ export default function ProfilePage() {
         {/* Side Navigation (Desktop) */}
         <div className="hidden md:flex flex-col col-span-3 glass-card rounded-xl overflow-hidden h-fit">
           <nav className="flex flex-col py-stack-md w-full">
-            <Link className="flex items-center gap-3 px-6 py-4 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="#">
-              <span className="material-symbols-outlined">history</span>
-              <span className="font-body-md text-body-md">Mashg&apos;ulotlar Tarixi</span>
-            </Link>
-            <Link className="flex items-center gap-3 px-6 py-4 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="#">
-              <span className="material-symbols-outlined">sync</span>
-              <span className="font-body-md text-body-md">Bio-Ma&apos;lumotlarni Sinxronlash</span>
-            </Link>
             <Link className="flex items-center gap-3 px-6 py-4 bg-primary/10 text-primary border-l-4 border-primary" href="/profile">
               <span className="material-symbols-outlined">psychology</span>
               <span className="font-body-md text-body-md">AI Murabbiy Sozlamalari</span>
-            </Link>
-            <Link className="flex items-center gap-3 px-6 py-4 text-on-surface-variant hover:bg-white/5 transition-colors duration-200" href="#">
-              <span className="material-symbols-outlined">workspace_premium</span>
-              <span className="font-body-md text-body-md">Obuna</span>
             </Link>
             <Link className="flex items-center gap-3 px-6 py-4 text-on-surface-variant hover:bg-white/5 transition-colors duration-200 mt-stack-md border-t border-white/5" href="#">
               <span className="material-symbols-outlined">logout</span>
@@ -191,6 +181,21 @@ export default function ProfilePage() {
                   onChange={(e) => setForm({ ...form, heightCm: e.target.value === "" ? "" : Number(e.target.value) })}
                 />
               </div>
+              <div>
+                <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">
+                  MAQSAD VAZNI (KG) <span className="normal-case text-on-surface-variant/60">— ixtiyoriy</span>
+                </label>
+                <input
+                  className="w-full bg-[#000000] border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
+                  type="number"
+                  min={30}
+                  max={300}
+                  value={form.targetWeightKg}
+                  onChange={(e) =>
+                    setForm({ ...form, targetWeightKg: e.target.value === "" ? "" : Number(e.target.value) })
+                  }
+                />
+              </div>
               <div className="md:col-span-2">
                 <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">MAQSAD</label>
                 <select
@@ -217,6 +222,15 @@ export default function ProfilePage() {
                 </span>
               )}
             </div>
+          </div>
+
+          {/* Muskul Charchog'i Xaritasi */}
+          <div className="glass-card ai-accent-border rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+              <span className="material-symbols-outlined text-primary-fixed-dim">local_fire_department</span>
+              <h3 className="font-headline-md text-headline-md text-primary uppercase">Muskul Charchog&apos;i Xaritasi</h3>
+            </div>
+            <BodyHeatmap statuses={recoveryStatuses} />
           </div>
 
           {/* AI Tahlili: formula + AI hybrid */}

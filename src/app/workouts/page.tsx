@@ -1,8 +1,14 @@
+"use client";
+
 import { EXERCISES } from "@/lib/exercises";
 import { WorkoutsBrowser } from "@/components/workouts-browser";
 import { WorkoutSessionPanel } from "@/components/workout-session-panel";
+import { WorkoutCalendar } from "@/components/workout-calendar";
+import { useWorkoutHistory } from "@/lib/workout-log";
 
 export default function WorkoutsPage() {
+  const { sessions } = useWorkoutHistory();
+
   return (
     <div className="space-y-stack-lg max-w-7xl mx-auto">
       <div>
@@ -15,6 +21,18 @@ export default function WorkoutsPage() {
       </div>
 
       <WorkoutSessionPanel />
+
+      {/* Mashg'ulotlar Kalendari */}
+      <section className="glass-card rounded-xl p-6 border-l-[4px] border-l-error">
+        <h3 className="font-headline-md text-headline-md text-primary uppercase italic mb-stack-sm flex items-center gap-2">
+          <span className="material-symbols-outlined text-error">event</span>
+          Mashg&apos;ulotlar Kalendari
+        </h3>
+        <p className="font-body-md text-[13px] text-on-surface-variant mb-5">
+          Mashq qilingan kunlar qizil bilan belgilangan — batafsil ma&apos;lumot uchun bosing.
+        </p>
+        <WorkoutCalendar sessions={sessions} />
+      </section>
 
       <WorkoutsBrowser exercises={EXERCISES} />
 

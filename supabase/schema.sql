@@ -79,6 +79,41 @@ create policy "Foydalanuvchi faqat o'z taomini o'chiradi"
   using (auth.uid() = user_id);
 
 -- ============================================================================
+-- BODY_WEIGHT_LOGS — vazn tarixi (dinamika grafigi va prognoz uchun)
+-- ============================================================================
+create table if not exists public.body_weight_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  weight_kg numeric not null,
+  logged_at timestamptz not null default now()
+);
+
+create index if not exists body_weight_logs_user_id_logged_at_idx
+  on public.body_weight_logs (user_id, logged_at desc);
+
+alter table public.body_weight_logs enable row level security;
+
+drop policy if exists "Foydalanuvchi faqat o'z vazn tarixini ko'radi" on public.body_weight_logs;
+create policy "Foydalanuvchi faqat o'z vazn tarixini ko'radi"
+  on public.body_weight_logs for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Foydalanuvchi faqat o'ziga vazn yozuvi qo'shadi" on public.body_weight_logs;
+create policy "Foydalanuvchi faqat o'ziga vazn yozuvi qo'shadi"
+  on public.body_weight_logs for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Foydalanuvchi faqat o'z vazn yozuvini o'chiradi" on public.body_weight_logs;
+create policy "Foydalanuvchi faqat o'z vazn yozuvini o'chiradi"
+  on public.body_weight_logs for delete
+  using (auth.uid() = user_id);
+
+-- Ixtiyoriy maqsad vazni — "Aqlli Tahlil" bo'limida necha haftada maqsadga
+-- yetish prognozini hisoblash uchun. NULL bo'lsa faqat oddiy trend proyeksiyasi
+-- ko'rsatiladi (ETA hisoblanmaydi).
+alter table public.profiles add column if not exists target_weight_kg numeric;
+
+-- ============================================================================
 -- WORKOUT_SESSIONS — yakunlangan mashg'ulotlar tarixi
 -- ============================================================================
 create table if not exists public.workout_sessions (

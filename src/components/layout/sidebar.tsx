@@ -13,11 +13,6 @@ const navItems = [
   { href: "/analytics", label: "TAHLIL", icon: "restaurant" },
 ];
 
-const secondaryItems = [
-  { href: "#", label: "Mashg'ulot Tarixi", icon: "history" },
-  { href: "#", label: "Bio-Ma'lumot Sinxronizatsiyasi", icon: "sync" },
-  { href: "#", label: "AI Murabbiy Sozlamalari", icon: "psychology" },
-];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -88,18 +83,6 @@ export function Sidebar() {
           );
         })}
 
-        <div className="my-4 border-t border-white/5" />
-
-        {secondaryItems.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/5 transition-colors duration-200"
-          >
-            <span className="material-symbols-outlined">{item.icon}</span>
-            <span className="font-body-md text-body-md">{item.label}</span>
-          </Link>
-        ))}
       </nav>
 
       {/* Bottom */}

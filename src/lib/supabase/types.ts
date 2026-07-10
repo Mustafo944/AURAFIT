@@ -15,6 +15,7 @@ export interface Database {
           weight_kg: number;
           height_cm: number;
           goal: "lose" | "maintain" | "gain";
+          target_weight_kg: number | null;
           updated_at: string;
         };
         Insert: {
@@ -24,9 +25,26 @@ export interface Database {
           weight_kg?: number;
           height_cm?: number;
           goal?: "lose" | "maintain" | "gain";
+          target_weight_kg?: number | null;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+        Relationships: [];
+      };
+      body_weight_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          weight_kg: number;
+          logged_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          weight_kg: number;
+          logged_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["body_weight_logs"]["Insert"]>;
         Relationships: [];
       };
       meals: {
