@@ -51,7 +51,7 @@ function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }>
 }
 
 export default function AnalyticsPage() {
-  const { profile } = useUserProfile();
+  const { profile, loading: profileLoading } = useUserProfile();
   const metrics = calculateFitnessMetrics(
     profile.age,
     profile.gender,
@@ -84,9 +84,9 @@ export default function AnalyticsPage() {
   // Aqlli Tahlil — vazn dinamikasi, haftalik faollik, kuch progressi va
   // formula/kalibrlangan TDEE'ni birlashtiruvchi bo'limlar uchun ma'lumotlar.
   // ==========================================================================
-  const { entries: weightEntries, addWeightEntry } = useWeightHistory();
-  const { sessions } = useWorkoutHistory();
-  const { meals: mealHistory } = useMealHistory(30);
+  const { entries: weightEntries, loading: weightsLoading, addWeightEntry } = useWeightHistory();
+  const { sessions, loading: sessionsLoading } = useWorkoutHistory();
+  const { meals: mealHistory, loading: mealHistoryLoading } = useMealHistory(30);
 
   const wForecast = weightForecast(weightEntries, profile.targetWeightKg);
   const weightDiscrepancy =
@@ -147,7 +147,10 @@ export default function AnalyticsPage() {
     hasGoalDiscrepancy: weightDiscrepancy,
     weeklyActivity: { avgSessionsPerWeek, weeksTracked: weeklyActivity.length },
     muscleBalance: muscleBalance.slice(0, 4),
-  });
+    // Barcha manba ma'lumotlar (profil, vazn, mashg'ulot, ovqat tarixi)
+    // yuklanmaguncha AI chaqirilmaydi — bo'sh ma'lumot bilan ortiqcha
+    // so'rov ketmasligi uchun.
+  }, !profileLoading && !weightsLoading && !sessionsLoading && !mealHistoryLoading);
 
   const resetScan = () => {
     setPreviewUrl(null);

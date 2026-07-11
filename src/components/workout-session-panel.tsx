@@ -5,7 +5,7 @@ import { useWorkoutSession } from "@/context/workout-session-context";
 import { useUserProfile } from "@/context/user-profile-context";
 import { calculateFitnessMetrics } from "@/lib/fitness";
 import { useMealLog, sumMeals } from "@/lib/meal-log";
-import { useWorkoutHistory, compareExercises, type ExerciseComparison, type WorkoutSession } from "@/lib/workout-log";
+import { compareExercises, type ExerciseComparison, type WorkoutSession } from "@/lib/workout-log";
 import { fetchWorkoutRecovery } from "@/lib/workout-recovery";
 import { MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
 import { VolumeChart } from "@/components/volume-chart";
@@ -25,13 +25,24 @@ function formatElapsed(startedAt: string): string {
   return hours > 0 ? `${hours}s ${rest}d` : `${rest}d`;
 }
 
-export function WorkoutSessionPanel() {
+// `sessions`/`addSession`/`updateSessionAdvice` prop sifatida keladi — sahifa
+// (workouts/page.tsx) useWorkoutHistory'ni allaqachon chaqiradi; panel uni
+// qayta chaqirsa bir xil to'liq tarix bitta sahifa ochilishida IKKI marta
+// yuklanardi.
+export function WorkoutSessionPanel({
+  sessions,
+  addSession,
+  updateSessionAdvice,
+}: {
+  sessions: WorkoutSession[];
+  addSession: (session: WorkoutSession) => void;
+  updateSessionAdvice: (id: string, advice: { recoveryAdvice: string; progressAdvice: string }) => void;
+}) {
   const { activeSession, startSession, discardSession, finishSession } = useWorkoutSession();
   const { profile } = useUserProfile();
   const metrics = calculateFitnessMetrics(profile.age, profile.gender, profile.weightKg, profile.heightCm, profile.goal);
   const { meals } = useMealLog();
   const consumed = sumMeals(meals);
-  const { sessions, addSession, updateSessionAdvice } = useWorkoutHistory();
 
   const [, forceTick] = useState(0);
   useEffect(() => {

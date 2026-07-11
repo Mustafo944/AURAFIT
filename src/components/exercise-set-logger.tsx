@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useWorkoutSession } from "@/context/workout-session-context";
-import { useWorkoutHistory, getExerciseHistory } from "@/lib/workout-log";
+import { useWorkoutHistory, getExerciseHistory, type ExercisePerformance } from "@/lib/workout-log";
 import type { Exercise } from "@/lib/exercises";
 
 function formatDate(iso: string): string {
@@ -22,13 +22,14 @@ export function ExerciseSetLogger({ exercise }: { exercise: Exercise }) {
   // Oxirgi safar shu mashqda bajarilgan eng og'ir podxod ma'lum bo'lishi bilan
   // maydonlarni shu qiymatlar bilan oldindan to'ldiradi — foydalanuvchi qayta
   // eslab, qayta yozib o'tirmasin. Faqat maydonlar hali bo'sh bo'lsagina ishlaydi.
-  useEffect(() => {
-    if (lastPerformance && weight === "" && reps === "") {
-      setWeight(String(lastPerformance.bestSet.weightKg));
-      setReps(String(lastPerformance.bestSet.reps));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastPerformance]);
+  // Effect o'rniga render vaqtida moslash — sync setState effect'da kaskadli
+  // qo'shimcha render chiqaradi (React docs'dagi "adjust state on change" naqshi).
+  const [prefilledFor, setPrefilledFor] = useState<ExercisePerformance | null>(null);
+  if (lastPerformance && prefilledFor !== lastPerformance && weight === "" && reps === "") {
+    setPrefilledFor(lastPerformance);
+    setWeight(String(lastPerformance.bestSet.weightKg));
+    setReps(String(lastPerformance.bestSet.reps));
+  }
 
   const handleAdd = () => {
     const weightKg = Number(weight);

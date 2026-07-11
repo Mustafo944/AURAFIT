@@ -58,16 +58,20 @@ async function persistProfile(userId: string, profile: UserProfile): Promise<{ e
 export function UserProfileProvider({ children }: { children: ReactNode }) {
   const { userId } = useAuth();
   const [profile, setProfileState] = useState<UserProfile>(DEFAULT_PROFILE);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => userId != null);
+
+  // Foydalanuvchi o'zgarganda (login/logout) holat render vaqtida moslanadi —
+  // effect ichidagi sync setState kaskadli qo'shimcha render chiqarardi.
+  const [prevUserId, setPrevUserId] = useState(userId);
+  if (prevUserId !== userId) {
+    setPrevUserId(userId);
+    setProfileState(DEFAULT_PROFILE);
+    setLoading(userId != null);
+  }
 
   useEffect(() => {
-    if (!userId) {
-      setProfileState(DEFAULT_PROFILE);
-      setLoading(false);
-      return;
-    }
+    if (!userId) return;
     let cancelled = false;
-    setLoading(true);
     const supabase = createClient();
     supabase
       .from("profiles")

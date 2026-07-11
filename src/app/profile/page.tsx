@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useAuth } from "@/context/auth-context";
 import { useUserProfile, DEFAULT_PROFILE, type Gender, type Goal } from "@/context/user-profile-context";
 import { calculateFitnessMetrics } from "@/lib/fitness";
 import { useProfileInsight } from "@/lib/profile-insight";
-import { useWeightHistory } from "@/lib/weight-log";
+import { logWeightEntry } from "@/lib/weight-log";
 import { useWorkoutHistory } from "@/lib/workout-log";
 import { muscleRecoveryStatus } from "@/lib/muscle-recovery";
 import { BodyHeatmap } from "@/components/body-heatmap";
@@ -19,17 +20,22 @@ type ProfileFormState = Omit<typeof DEFAULT_PROFILE, "age" | "weightKg" | "heigh
 };
 
 export default function ProfilePage() {
-  const { profile, setProfile } = useUserProfile();
-  const { addWeightEntry } = useWeightHistory();
+  const { userId } = useAuth();
+  const { profile, setProfile, loading: profileLoading } = useUserProfile();
   const { sessions } = useWorkoutHistory();
   const recoveryStatuses = useMemo(() => muscleRecoveryStatus(sessions), [sessions]);
   const [form, setForm] = useState<ProfileFormState>({ ...profile, targetWeightKg: profile.targetWeightKg ?? "" });
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  useEffect(() => {
+  // Profil (Supabase'dan) yangilanganda formani render vaqtida moslaymiz —
+  // effect ichidagi sync setState kaskadli qo'shimcha render chiqarardi
+  // (React docs: "adjusting state when props change" naqshi).
+  const [prevProfile, setPrevProfile] = useState(profile);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
     setForm({ ...profile, targetWeightKg: profile.targetWeightKg ?? "" });
-  }, [profile]);
+  }
 
   const handleSave = async () => {
     const nextWeightKg = form.weightKg === "" ? profile.weightKg : form.weightKg;
@@ -48,8 +54,8 @@ export default function ProfilePage() {
       return;
     }
     setForm({ ...next, targetWeightKg: next.targetWeightKg ?? "" });
-    if (nextWeightKg !== profile.weightKg) {
-      addWeightEntry(nextWeightKg);
+    if (nextWeightKg !== profile.weightKg && userId) {
+      logWeightEntry(userId, nextWeightKg);
     }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -82,7 +88,9 @@ export default function ProfilePage() {
       fatG: metrics.fatG,
       carbG: metrics.carbG,
     },
-  });
+    // Profil Supabase'dan yuklanmaguncha AI chaqirilmaydi — aks holda
+    // DEFAULT_PROFILE bilan bitta ortiqcha (noto'g'ri) so'rov ketadi.
+  }, !profileLoading);
 
   return (
     <div className="space-y-stack-lg max-w-7xl mx-auto">

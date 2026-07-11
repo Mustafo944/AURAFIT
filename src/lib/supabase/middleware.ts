@@ -45,25 +45,32 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getUser() o'rniga getClaims(): JWT imzosi JWKS orqali LOKAL tekshiriladi
+  // (kalitlar xotirada keshlanadi) — har bir sahifa almashishida Supabase Auth
+  // serveriga alohida tarmoq so'rovi ketmaydi. Token muddati tugagan bo'lsa,
+  // klient uni avtomatik yangilaydi (yangi cookie'lar setAll orqali yoziladi).
+  // Eski (HS256, legacy secret) loyihalarda getClaims o'zi getUser'ga
+  // qaytadi — xavfsizlik jihatidan hech narsa yo'qolmaydi.
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims ?? null;
 
-  if (!user && !isPublicPath) {
+  if (!claims && !isPublicPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && (pathname === "/login" || pathname === "/signup")) {
+  if (claims && (pathname === "/login" || pathname === "/signup")) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);
   }
 
-  if (user) {
-    requestHeaders.set("x-supabase-user-id", user.id);
-    if (user.email) requestHeaders.set("x-supabase-user-email", user.email);
+  if (claims) {
+    requestHeaders.set("x-supabase-user-id", claims.sub);
+    if (typeof claims.email === "string" && claims.email) {
+      requestHeaders.set("x-supabase-user-email", claims.email);
+    }
     const withUserHeaders = NextResponse.next({ request: { headers: requestHeaders } });
     supabaseResponse.cookies.getAll().forEach((cookie) => withUserHeaders.cookies.set(cookie));
     supabaseResponse = withUserHeaders;

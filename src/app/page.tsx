@@ -20,7 +20,7 @@ export default function DashboardPage() {
     profile.heightCm,
     profile.goal
   );
-  const { meals } = useMealLog();
+  const { meals, loading: mealsLoading } = useMealLog();
   const consumed = sumMeals(meals);
   const proteinPct = metrics.proteinG > 0 ? (consumed.proteinG / metrics.proteinG) * 100 : 0;
   const fatPct = metrics.fatG > 0 ? (consumed.fatG / metrics.fatG) * 100 : 0;
@@ -46,7 +46,9 @@ export default function DashboardPage() {
     consumed,
     meals: meals.map((m) => ({ mealName: m.mealName, calories: m.calories })),
     mealCount: meals.length,
-  });
+    // Profil va bugungi taomlar to'liq yuklanmaguncha AI chaqirilmaydi —
+    // aks holda standart/bo'sh qiymatlar bilan bitta ortiqcha so'rov ketadi.
+  }, !profileLoading && !mealsLoading);
 
   return (
     <div className="space-y-stack-lg">

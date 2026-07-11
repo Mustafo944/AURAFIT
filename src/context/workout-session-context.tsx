@@ -58,11 +58,11 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
   const storageKey = `${STORAGE_PREFIX}_${userId ?? "anon"}`;
 
   useEffect(() => {
-    if (!userId) {
-      setActiveSession(null);
-      return;
-    }
-    setActiveSession(readDraft(`${STORAGE_PREFIX}_${userId}`));
+    // Qoralama localStorage'da saqlanadi — u serverda mavjud emas, shuning
+    // uchun hydration mosligini buzmaslik uchun faqat mount'dan keyin o'qiladi;
+    // bu yerda sync setState muqarrar (renderda localStorage o'qib bo'lmaydi).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveSession(userId ? readDraft(`${STORAGE_PREFIX}_${userId}`) : null);
   }, [userId]);
 
   const startSession = () => {

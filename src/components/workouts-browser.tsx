@@ -49,6 +49,9 @@ export function WorkoutsBrowser({ exercises }: { exercises: Exercise[] }) {
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-gutter">
         {MUSCLE_GROUPS.map((group) => {
           const groupExercises = exercises.filter((exercise) => exercise.muscleGroup === group.id);
+          // Mashqsiz guruh ko'rsatilmaydi — aks holda groupExercises[0].image
+          // undefined bo'lib butun sahifa crash bo'lardi.
+          if (groupExercises.length === 0) return null;
           return (
             <MuscleGroupTile
               key={group.id}

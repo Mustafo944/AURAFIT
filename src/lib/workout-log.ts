@@ -79,15 +79,32 @@ function byFinishedAtAsc(a: WorkoutSession, b: WorkoutSession) {
   return a.finishedAt.localeCompare(b.finishedAt);
 }
 
+// Modul darajasidagi kesh (stale-while-revalidate) — navigatsiyada oldingi
+// natija darhol ko'rsatiladi, fonda yangilanadi.
+const sessionCache = new Map<string, WorkoutSession[]>();
+
+// Tarix o'sgan sari sahifa sekinlashmasligi uchun faqat oxirgi 200 ta
+// mashg'ulot yuklanadi (har qatorda to'liq `exercises` JSON bor — cheklovsiz
+// so'rov vaqt o'tishi bilan og'irlashib boradi). Grafik/trend hisoblari uchun
+// 200 ta so'nggi sessiya yetarli.
+const SESSION_FETCH_LIMIT = 200;
+
 export function useWorkoutHistory() {
   const { userId } = useAuth();
-  const [sessions, setSessions] = useState<WorkoutSession[]>([]);
+  const [sessions, setSessions] = useState<WorkoutSession[]>(() => (userId && sessionCache.get(userId)) || []);
+  const [loading, setLoading] = useState(() => userId != null && !sessionCache.has(userId));
+
+  // Foydalanuvchi o'zgarganda holat render vaqtida moslanadi — effect
+  // ichidagi sync setState kaskadli qo'shimcha render chiqarardi.
+  const [prevUserId, setPrevUserId] = useState(userId);
+  if (prevUserId !== userId) {
+    setPrevUserId(userId);
+    setSessions((userId && sessionCache.get(userId)) || []);
+    setLoading(userId != null && !sessionCache.has(userId));
+  }
 
   useEffect(() => {
-    if (!userId) {
-      setSessions([]);
-      return;
-    }
+    if (!userId) return;
     let cancelled = false;
     const supabase = createClient();
     supabase
@@ -96,11 +113,14 @@ export function useWorkoutHistory() {
         "id, started_at, finished_at, exercises, total_volume_kg, total_sets, calories_burned, recovery_advice, progress_advice"
       )
       .eq("user_id", userId)
-      .order("finished_at", { ascending: true })
+      .order("finished_at", { ascending: false })
+      .limit(SESSION_FETCH_LIMIT)
       .then(({ data }) => {
-        if (cancelled || !data) return;
-        setSessions(
-          data.map((row) => ({
+        if (cancelled) return;
+        if (data) {
+          // So'rov eng yangi 200 tani olish uchun descending — iste'molchilar
+          // (grafik, trend) esa ascending kutadi, shuning uchun teskari qilamiz.
+          const mapped = data.reverse().map((row) => ({
             id: row.id,
             startedAt: row.started_at,
             finishedAt: row.finished_at,
@@ -110,26 +130,40 @@ export function useWorkoutHistory() {
             caloriesBurned: row.calories_burned,
             recoveryAdvice: row.recovery_advice ?? undefined,
             progressAdvice: row.progress_advice ?? undefined,
-          }))
-        );
+          }));
+          sessionCache.set(userId, mapped);
+          setSessions(mapped);
+        }
+        setLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, [userId]);
 
+  // Funksional update — addSession'dan keyin (await orqasidan) chaqirilganda
+  // ham eskirgan closure ro'yxatni ustidan yozib yubormasligi uchun. Kesh
+  // yangilash idempotent, shuning uchun updater ichida xavfsiz.
   const addSession = (session: WorkoutSession) => {
-    setSessions((prev) => [...prev, session].sort(byFinishedAtAsc));
+    setSessions((prev) => {
+      const next = [...prev, session].sort(byFinishedAtAsc);
+      if (userId) sessionCache.set(userId, next);
+      return next;
+    });
     if (!userId) return;
     void insertSession(userId, session);
   };
 
   const updateSessionAdvice = (id: string, advice: { recoveryAdvice: string; progressAdvice: string }) => {
-    setSessions((prev) => prev.map((s) => (s.id === id ? { ...s, ...advice } : s)));
+    setSessions((prev) => {
+      const next = prev.map((s) => (s.id === id ? { ...s, ...advice } : s));
+      if (userId) sessionCache.set(userId, next);
+      return next;
+    });
     void updateAdvice(id, advice);
   };
 
-  return { sessions, addSession, updateSessionAdvice };
+  return { sessions, loading, addSession, updateSessionAdvice };
 }
 
 export interface ExercisePerformance {

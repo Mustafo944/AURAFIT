@@ -70,15 +70,30 @@ async function deleteMeal(id: string) {
   await supabase.from("meals").delete().eq("id", id);
 }
 
+// Modul darajasidagi kesh (stale-while-revalidate): bir sahifadan ikkinchisiga
+// o'tilganda oldingi natija darhol ko'rsatiladi, yangisi fonda tortib olinib
+// keshni yangilaydi. Shu hook bir nechta komponentda ishlatilganda ham har
+// navigatsiyada foydalanuvchi bo'sh holat/kutishni ko'rmaydi.
+const mealCache = new Map<string, MealEntry[]>();
+
 export function useMealLog() {
   const { userId } = useAuth();
-  const [meals, setMeals] = useState<MealEntry[]>([]);
+  // Kunga bog'langan kalit — yarim tundan keyin kechagi taomlar keshi ishlatilmaydi.
+  const cacheKey = `${userId}|${startOfTodayIso()}`;
+  const [meals, setMeals] = useState<MealEntry[]>(() => mealCache.get(cacheKey) ?? []);
+  const [loading, setLoading] = useState(() => userId != null && !mealCache.has(cacheKey));
+
+  // Kalit (foydalanuvchi yoki kun) o'zgarganda holat render vaqtida moslanadi —
+  // effect ichidagi sync setState kaskadli qo'shimcha render chiqarardi.
+  const [prevKey, setPrevKey] = useState(cacheKey);
+  if (prevKey !== cacheKey) {
+    setPrevKey(cacheKey);
+    setMeals(mealCache.get(cacheKey) ?? []);
+    setLoading(userId != null && !mealCache.has(cacheKey));
+  }
 
   useEffect(() => {
-    if (!userId) {
-      setMeals([]);
-      return;
-    }
+    if (!userId) return;
     let cancelled = false;
     const supabase = createClient();
     supabase
@@ -88,45 +103,64 @@ export function useMealLog() {
       .gte("logged_at", startOfTodayIso())
       .order("logged_at", { ascending: true })
       .then(({ data }) => {
-        if (cancelled || !data) return;
-        setMeals(data.map(mapMealRow));
+        if (cancelled) return;
+        if (data) {
+          const mapped = data.map(mapMealRow);
+          mealCache.set(cacheKey, mapped);
+          setMeals(mapped);
+        }
+        setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, cacheKey]);
 
   const addMeal = (meal: Omit<MealEntry, "id" | "timestamp">) => {
     if (!userId) return;
     const timestamp = new Date().toISOString();
     const id = crypto.randomUUID();
-    setMeals((prev) => [...prev, { ...meal, id, timestamp }]);
+    setMeals((prev) => {
+      const next = [...prev, { ...meal, id, timestamp }];
+      mealCache.set(cacheKey, next);
+      return next;
+    });
     void insertMeal(userId, id, meal, timestamp);
   };
 
   const removeMeal = (id: string) => {
-    setMeals((prev) => prev.filter((m) => m.id !== id));
+    setMeals((prev) => {
+      const next = prev.filter((m) => m.id !== id);
+      mealCache.set(cacheKey, next);
+      return next;
+    });
     void deleteMeal(id);
   };
 
-  return { meals, addMeal, removeMeal };
+  return { meals, loading, addMeal, removeMeal };
 }
 
 // Kalibrlangan TDEE hisobi (forecast.ts) uchun oxirgi N kunlik ovqat tarixini
 // oladi — useMealLog()dan farqli, bugungi kun bilan cheklanmaydi.
+const mealHistoryCache = new Map<string, MealEntry[]>();
+
 export function useMealHistory(days: number) {
   const { userId } = useAuth();
-  const [meals, setMeals] = useState<MealEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `${userId}|${days}`;
+  const [meals, setMeals] = useState<MealEntry[]>(() => mealHistoryCache.get(cacheKey) ?? []);
+  const [loading, setLoading] = useState(() => userId != null && !mealHistoryCache.has(cacheKey));
+
+  // Kalit o'zgarganda holat render vaqtida moslanadi (useMealLog'dagi kabi).
+  const [prevKey, setPrevKey] = useState(cacheKey);
+  if (prevKey !== cacheKey) {
+    setPrevKey(cacheKey);
+    setMeals(mealHistoryCache.get(cacheKey) ?? []);
+    setLoading(userId != null && !mealHistoryCache.has(cacheKey));
+  }
 
   useEffect(() => {
-    if (!userId) {
-      setMeals([]);
-      setLoading(false);
-      return;
-    }
+    if (!userId) return;
     let cancelled = false;
-    setLoading(true);
     const supabase = createClient();
     supabase
       .from("meals")
@@ -136,13 +170,17 @@ export function useMealHistory(days: number) {
       .order("logged_at", { ascending: true })
       .then(({ data }) => {
         if (cancelled) return;
-        if (data) setMeals(data.map(mapMealRow));
+        if (data) {
+          const mapped = data.map(mapMealRow);
+          mealHistoryCache.set(cacheKey, mapped);
+          setMeals(mapped);
+        }
         setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [userId, days]);
+  }, [userId, days, cacheKey]);
 
   return { meals, loading };
 }

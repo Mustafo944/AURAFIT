@@ -7,7 +7,7 @@ import { WorkoutCalendar } from "@/components/workout-calendar";
 import { useWorkoutHistory } from "@/lib/workout-log";
 
 export default function WorkoutsPage() {
-  const { sessions } = useWorkoutHistory();
+  const { sessions, addSession, updateSessionAdvice } = useWorkoutHistory();
 
   return (
     <div className="space-y-stack-lg max-w-7xl mx-auto">
@@ -20,7 +20,7 @@ export default function WorkoutsPage() {
         </p>
       </div>
 
-      <WorkoutSessionPanel />
+      <WorkoutSessionPanel sessions={sessions} addSession={addSession} updateSessionAdvice={updateSessionAdvice} />
 
       {/* Mashg'ulotlar Kalendari */}
       <section className="glass-card rounded-xl p-6 border-l-[4px] border-l-error">

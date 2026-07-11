@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Gender, Goal } from "@/context/user-profile-context";
+import { useHydrated } from "@/lib/use-hydrated";
 
 const STORAGE_KEY = "aurafit_daily_advice";
 
@@ -46,29 +47,39 @@ function signatureOf(params: AdviceParams) {
   ].join("|");
 }
 
-export function useDailyAdvice(params: AdviceParams) {
-  const [advice, setAdvice] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+function readCachedAdvice(signature: string): string | null {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const cached = JSON.parse(raw) as CachedAdvice;
+    return cached.signature === signature && typeof cached.advice === "string" ? cached.advice : null;
+  } catch {
+    return null;
+  }
+}
+
+// `enabled=false` bo'lsa hech qanday so'rov yuborilmaydi — profil/ovqat
+// ma'lumotlari Supabase'dan hali yuklanmagan paytda standart (noto'g'ri)
+// qiymatlar bilan AI chaqirilib, kvota ikki barobar sarflanishining oldini oladi.
+//
+// Kesh (localStorage) render vaqtida o'qiladi (hydration'dan keyingina —
+// serverda localStorage yo'q), `advice`/`loading` esa holatdan hisoblab
+// chiqariladi: effect'da sync setState yo'q, kaskadli render bo'lmaydi.
+export function useDailyAdvice(params: AdviceParams, enabled = true) {
+  const hydrated = useHydrated();
   const signature = signatureOf(params);
+  const [fetched, setFetched] = useState<CachedAdvice | null>(null);
+  // Muvaffaqiyatsiz urinishda ham signatura belgilanadi — aks holda loading
+  // abadiy true qolib, effect qayta-qayta so'rov yuborishga urinardi.
+  const [attemptedSignature, setAttemptedSignature] = useState<string | null>(null);
+
+  const cachedAdvice = useMemo(() => (hydrated ? readCachedAdvice(signature) : null), [hydrated, signature]);
+  const advice = cachedAdvice ?? (fetched?.signature === signature ? fetched.advice : null);
+  const loading = enabled && hydrated && advice === null && attemptedSignature !== signature;
 
   useEffect(() => {
+    if (!enabled || !hydrated || advice !== null || attemptedSignature === signature) return;
     let cancelled = false;
-    const raw = localStorage.getItem(STORAGE_KEY);
-    let cached: CachedAdvice | null = null;
-    if (raw) {
-      try {
-        cached = JSON.parse(raw);
-      } catch {
-        cached = null;
-      }
-    }
-
-    if (cached && cached.signature === signature && typeof cached.advice === "string") {
-      setAdvice(cached.advice);
-      return;
-    }
-
-    setLoading(true);
     fetch("/api/coach-advice", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -77,19 +88,19 @@ export function useDailyAdvice(params: AdviceParams) {
       .then(async (res) => {
         const data = await res.json();
         if (cancelled || !res.ok || typeof data.advice !== "string") return;
-        setAdvice(data.advice);
+        setFetched({ signature, advice: data.advice });
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ signature, advice: data.advice }));
       })
       .catch(() => {})
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setAttemptedSignature(signature);
       });
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature]);
+  }, [signature, enabled, hydrated, advice, attemptedSignature]);
 
   return { advice, loading };
 }

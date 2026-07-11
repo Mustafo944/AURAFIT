@@ -12,7 +12,11 @@ textarea,
 
 /* Google Fonts CDN'ga tashqi bog'liqlikni olib tashlash uchun mahalliy
    o'rnatilgan (self-hosted) — sekin/beqaror ulanishda ikonkalar matn
-   ko'rinishida ("grid_view" kabi) qolib ketmasligi uchun. */
+   ko'rinishida ("grid_view" kabi) qolib ketmasligi uchun.
+   DIQQAT: fayl faqat loyihada ishlatiladigan ikonlarga subset qilingan
+   (~44KB; to'liq shrift 1.1MB). YANGI ikon qo'shsangiz, uni Google Fonts
+   icon_names API orqali qayta subset qilib yuklab olish kerak:
+   https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=<vergul_bilan_ikon_nomlari>&display=block */
 @font-face {
   font-family: "Material Symbols Outlined";
   font-style: normal;
@@ -142,12 +146,22 @@ textarea,
 }
 
 @layer utilities {
+  /* backdrop-filter har scroll kadrida GPU'da qayta hisoblanadi — sahifada
+     5-8 ta karta bo'lganda telefonlarda scroll qotishining (jank) asosiy
+     sababi. Shuning uchun mobil ekranlarda blur o'rniga zichroq yarim-shaffof
+     fon ishlatiladi; desktopda esa yengilroq 12px blur qoladi. */
   .glass-card {
-    background-color: rgba(26, 26, 26, 0.6);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background-color: rgba(26, 26, 26, 0.88);
     border-top: 1px solid rgba(255, 255, 255, 0.2);
     border-left: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  @media (min-width: 768px) {
+    .glass-card {
+      background-color: rgba(26, 26, 26, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
   }
   
   .ai-accent-border {

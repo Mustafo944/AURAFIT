@@ -24,6 +24,14 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
   const detectedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
+  // onDetected ref orqali o'qiladi: ota-komponent har render'da yangi funksiya
+  // bersa ham (odatiy holat) kamera effekti QAYTA ISHGA TUSHMAYDI. Aks holda
+  // sahifadagi istalgan state o'zgarishi kamerani o'chirib-yoqib yuborardi.
+  const onDetectedRef = useRef(onDetected);
+  useEffect(() => {
+    onDetectedRef.current = onDetected;
+  }, [onDetected]);
+
   useEffect(() => {
     let stopped = false;
     let stream: MediaStream | null = null;
@@ -46,7 +54,7 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
       const report = (code: string) => {
         if (detectedRef.current || stopped) return;
         detectedRef.current = true;
-        onDetected(code);
+        onDetectedRef.current(code);
       };
 
       if (typeof window !== "undefined" && window.BarcodeDetector) {
@@ -87,7 +95,7 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
       zxingControls?.stop();
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [onDetected]);
+  }, []);
 
   return (
     <div className="space-y-3">

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Goal } from "@/context/user-profile-context";
 import type { CalibratedTdeeResult, WeightForecast } from "@/lib/forecast";
+import { useHydrated } from "@/lib/use-hydrated";
 
 const STORAGE_KEY = "aurafit_analytics_forecast";
 
@@ -44,34 +45,40 @@ function signatureOf(params: AnalyticsForecastParams) {
   ].join("|");
 }
 
-export function useAnalyticsForecast(params: AnalyticsForecastParams) {
-  const [insight, setInsight] = useState<AnalyticsInsight | null>(null);
-  const [loading, setLoading] = useState(false);
+function readCachedInsight(signature: string): AnalyticsInsight | null {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const cached = JSON.parse(raw) as CachedInsight;
+    if (cached.signature === signature && typeof cached.summary === "string" && typeof cached.forecast === "string") {
+      return { summary: cached.summary, forecast: cached.forecast, tips: cached.tips, warnings: cached.warnings };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// `enabled=false` bo'lsa so'rov yuborilmaydi — vazn/mashg'ulot/ovqat tarixi
+// Supabase'dan hali yuklanmagan paytda bo'sh ma'lumot bilan AI chaqirilib,
+// kvota ikki barobar sarflanishining oldini oladi.
+//
+// Kesh (localStorage) render vaqtida o'qiladi (hydration'dan keyingina),
+// `insight`/`loading` holatdan hisoblab chiqariladi — effect'da sync setState
+// yo'q, kaskadli render bo'lmaydi (daily-advice.ts bilan bir xil naqsh).
+export function useAnalyticsForecast(params: AnalyticsForecastParams, enabled = true) {
+  const hydrated = useHydrated();
   const signature = signatureOf(params);
+  const [fetched, setFetched] = useState<{ signature: string; insight: AnalyticsInsight } | null>(null);
+  const [attemptedSignature, setAttemptedSignature] = useState<string | null>(null);
+
+  const cachedInsight = useMemo(() => (hydrated ? readCachedInsight(signature) : null), [hydrated, signature]);
+  const insight = cachedInsight ?? (fetched?.signature === signature ? fetched.insight : null);
+  const loading = enabled && hydrated && insight === null && attemptedSignature !== signature;
 
   useEffect(() => {
+    if (!enabled || !hydrated || insight !== null || attemptedSignature === signature) return;
     let cancelled = false;
-    const raw = localStorage.getItem(STORAGE_KEY);
-    let cached: CachedInsight | null = null;
-    if (raw) {
-      try {
-        cached = JSON.parse(raw);
-      } catch {
-        cached = null;
-      }
-    }
-
-    if (
-      cached &&
-      cached.signature === signature &&
-      typeof cached.summary === "string" &&
-      typeof cached.forecast === "string"
-    ) {
-      setInsight({ summary: cached.summary, forecast: cached.forecast, tips: cached.tips, warnings: cached.warnings });
-      return;
-    }
-
-    setLoading(true);
     fetch("/api/analytics-forecast", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -83,19 +90,19 @@ export function useAnalyticsForecast(params: AnalyticsForecastParams) {
         const tips = Array.isArray(data.tips) ? data.tips.filter((t: unknown) => typeof t === "string") : [];
         const warnings = Array.isArray(data.warnings) ? data.warnings.filter((w: unknown) => typeof w === "string") : [];
         const next: AnalyticsInsight = { summary: data.summary, forecast: data.forecast, tips, warnings };
-        setInsight(next);
+        setFetched({ signature, insight: next });
         localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...next, signature }));
       })
       .catch(() => {})
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setAttemptedSignature(signature);
       });
 
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signature]);
+  }, [signature, enabled, hydrated, insight, attemptedSignature]);
 
   return { insight, loading };
 }
