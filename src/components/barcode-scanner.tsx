@@ -55,17 +55,47 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
     let rafId: number | null = null;
 
     async function start() {
+      // Standart cheklovlar (faqat facingMode) ba'zi kameralarda past
+      // aniqlikda va fokussiz oqim ochadi — shtrix-kod/QR o'qish uchun
+      // deyarli imkonsiz. Yuqori o'lcham va davomiy avtofokusni so'raymiz;
+      // "focusMode" TS turlarida yo'q (kengaytirilgan, standart bo'lmagan
+      // Image Capture cheklovi), lekin "advanced" ichida qo'llab-quvvatlamaydigan
+      // brauzerlar jimgina e'tiborsiz qoldiradi.
+      const enhancedConstraints: MediaStreamConstraints = {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          ...({ advanced: [{ focusMode: "continuous" }] } as object),
+        },
+      };
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        stream = await navigator.mediaDevices.getUserMedia(enhancedConstraints);
       } catch {
-        if (!stopped) setError("Kameraga ruxsat berilmadi yoki kamera topilmadi.");
-        return;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        } catch {
+          if (!stopped) setError("Kameraga ruxsat berilmadi yoki kamera topilmadi.");
+          return;
+        }
       }
       if (stopped) {
         stream.getTracks().forEach((t) => t.stop());
         return;
       }
       if (videoRef.current) videoRef.current.srcObject = stream;
+
+      // Ba'zi brauzerlarda avtofokus faqat trek olingandan keyin
+      // applyConstraints orqali yoqiladi (getUserMedia paytida e'tiborsiz
+      // qoldirilgan bo'lishi mumkin). Qo'llab-quvvatlanmasa jimgina o'tkaziladi.
+      const [track] = stream.getVideoTracks();
+      if (track) {
+        try {
+          await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] } as unknown as MediaTrackConstraints);
+        } catch {
+          // fokus rejimi qo'llab-quvvatlanmaydi — sukut bo'yicha davom etiladi
+        }
+      }
 
       const report = (code: string) => {
         if (detectedRef.current || stopped) return;

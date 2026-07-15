@@ -1,15 +1,64 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useUserProfile } from "@/context/user-profile-context";
 import { calculateFitnessMetrics, GOAL_LABELS } from "@/lib/fitness";
 import { ProgressRing } from "@/components/progress-ring";
 import { useMealLog, sumMeals } from "@/lib/meal-log";
-import { useDailyAdvice } from "@/lib/daily-advice";
+import { useWorkoutHistory, type WorkoutSession } from "@/lib/workout-log";
+import { MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
 
-const DEFAULT_ADVICE =
-  "Bugungi mashg'ulotdan so'ng uglevodlarni to'ldirishga e'tibor bering. Kechagi yuklama tufayli mushaklar tiklanishi uchun protein qabuli muhim.";
+const UZ_MONTHS_SHORT = ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"];
+
+function formatSessionDate(iso: string): string {
+  const d = new Date(iso);
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000);
+  if (diffDays === 0) return "Bugun";
+  if (diffDays === 1) return "Kecha";
+  return `${d.getDate()}-${UZ_MONTHS_SHORT[d.getMonth()]}`;
+}
+
+// To'liq class satrlari — Tailwind qurish vaqtida faqat matnda so'zma-so'z
+// uchraydigan klasslarni generatsiya qiladi, shuning uchun rangni
+// `text-${accent}` kabi qismlardan yig'ib bo'lmaydi (build vaqtida yo'qolib
+// qoladi). O'rniga ikkita tayyor variant orasida tanlaymiz.
+const CARD_ACCENTS = [
+  {
+    border: "border-l-primary-fixed-dim",
+    heroBg: "bg-gradient-to-br from-primary-fixed-dim/20 to-transparent",
+    icon: "text-primary-fixed-dim",
+    badge: "bg-primary-fixed-dim/20 text-primary-fixed-dim border-primary-fixed-dim/50",
+    titleHover: "group-hover:text-primary-fixed-dim",
+    button: "bg-primary-fixed-dim",
+  },
+  {
+    border: "border-l-tertiary-fixed-dim",
+    heroBg: "bg-gradient-to-br from-tertiary-fixed-dim/20 to-transparent",
+    icon: "text-tertiary-fixed-dim",
+    badge: "bg-tertiary-fixed-dim/20 text-tertiary-fixed-dim border-tertiary-fixed-dim/50",
+    titleHover: "group-hover:text-tertiary-fixed-dim",
+    button: "bg-tertiary-fixed-dim",
+  },
+] as const;
+
+// Sessiyada eng ko'p podxod bajarilgan mushak guruhini "kun mavzusi" sifatida
+// tanlaydi (mas. asosan ko'krak mashqlari bo'lsa — "Ko'krak Kuni").
+function dominantMuscleGroup(session: WorkoutSession) {
+  const setsByGroup = new Map<MuscleGroupId, number>();
+  for (const exercise of session.exercises) {
+    setsByGroup.set(exercise.muscleGroup, (setsByGroup.get(exercise.muscleGroup) ?? 0) + exercise.sets.length);
+  }
+  let bestGroup: MuscleGroupId = session.exercises[0]?.muscleGroup ?? "chest";
+  let bestCount = -1;
+  for (const [group, count] of setsByGroup) {
+    if (count > bestCount) {
+      bestGroup = group;
+      bestCount = count;
+    }
+  }
+  return MUSCLE_GROUPS.find((g) => g.id === bestGroup) ?? MUSCLE_GROUPS[0];
+}
 
 export default function DashboardPage() {
   const { profile, loading: profileLoading } = useUserProfile();
@@ -20,35 +69,16 @@ export default function DashboardPage() {
     profile.heightCm,
     profile.goal
   );
-  const { meals, loading: mealsLoading } = useMealLog();
+  const { meals } = useMealLog();
   const consumed = sumMeals(meals);
   const proteinPct = metrics.proteinG > 0 ? (consumed.proteinG / metrics.proteinG) * 100 : 0;
   const fatPct = metrics.fatG > 0 ? (consumed.fatG / metrics.fatG) * 100 : 0;
   const carbPct = metrics.carbG > 0 ? (consumed.carbG / metrics.carbG) * 100 : 0;
-  const { advice } = useDailyAdvice({
-    profile: {
-      age: profile.age,
-      gender: profile.gender,
-      weightKg: profile.weightKg,
-      heightCm: profile.heightCm,
-      goal: profile.goal,
-    },
-    metrics: {
-      bmr: metrics.bmr,
-      tdee: metrics.tdee,
-      targetCalories: metrics.targetCalories,
-      bmi: metrics.bmi,
-      bmiCategory: metrics.bmiCategory,
-      proteinG: metrics.proteinG,
-      fatG: metrics.fatG,
-      carbG: metrics.carbG,
-    },
-    consumed,
-    meals: meals.map((m) => ({ mealName: m.mealName, calories: m.calories })),
-    mealCount: meals.length,
-    // Profil va bugungi taomlar to'liq yuklanmaguncha AI chaqirilmaydi —
-    // aks holda standart/bo'sh qiymatlar bilan bitta ortiqcha so'rov ketadi.
-  }, !profileLoading && !mealsLoading);
+
+  // Eng yangi sessiyalar oxirida keladi (ascending) — teskari qilib so'nggi
+  // 2 tasini olamiz.
+  const { sessions } = useWorkoutHistory();
+  const recentSessions = [...sessions].reverse().slice(0, 2);
 
   return (
     <div className="space-y-stack-lg">
@@ -164,22 +194,11 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Kunlik Maslahat (Daily Advice) */}
-      <section className="glass-card rounded-xl p-6 border-l-[4px] border-l-tertiary-fixed-dim">
-        <h3 className="font-headline-md text-headline-md text-primary uppercase italic mb-2 flex items-center gap-2">
-          <span className="material-symbols-outlined text-tertiary-fixed-dim">lightbulb</span>
-          Kunlik Maslahat
-        </h3>
-        <p className="font-body-md text-body-md text-on-surface-variant">
-          {advice ?? DEFAULT_ADVICE}
-        </p>
-      </section>
-
-      {/* AI Workout Cards */}
+      {/* So'nggi Mashg'ulotlar */}
       <section>
         <div className="flex justify-between items-end mb-stack-sm">
           <h3 className="font-headline-md text-headline-md text-primary uppercase italic flex items-center gap-2">
-            <span className="material-symbols-outlined text-tertiary-fixed-dim">psychology</span> Mashqlar: AI Protokollari
+            <span className="material-symbols-outlined text-tertiary-fixed-dim">history</span> So&apos;nggi Mashg&apos;ulotlar
           </h3>
           <Link
             href="/workouts"
@@ -188,73 +207,72 @@ export default function DashboardPage() {
             BARCHASINI KO&apos;RISH <span className="material-symbols-outlined text-[16px]">chevron_right</span>
           </Link>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-gutter">
-          {/* Workout Card 1 */}
-          <Link href="/workouts" className="glass-card rounded-xl overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform duration-300 relative border-l-[3px] border-l-tertiary-fixed-dim block">
-            <div className="h-40 relative">
-              <div className="absolute inset-0 bg-gradient-to-t from-surface-container-high to-transparent z-10" />
-              <Image
-                alt="Velosiped Mashg'uloti"
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                className="object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaDi3MwLcCpo1D1Usa_vKYKYWwvP3l3B4glXzIjtEjMho3KtFWfxlBzXJc40snouBQ9qwooZ7YSjwqMXEJXPreBamDThvcbe9JTggA6ZJRAnu6-U_-VVaGslRNqGBGQromB-MXHtJ0K4PZV9AKa8XpGJapMz4FsvZBhFrOUCs7qsCzFYUF07Y4_I_aLxCia9NvPTVo9JOchdmHUlZ4TRAsy27eOhQ23Eg2ZtW8sJRXQYbMSq3Pl9kS"
-              />
-              <div className="absolute top-3 left-3 z-20 flex gap-2">
-                <span className="font-label-mono text-[10px] bg-tertiary-fixed-dim/20 text-tertiary-fixed-dim border border-tertiary-fixed-dim/50 px-2 py-1 rounded backdrop-blur-sm">CHIDAMLILIK</span>
-                <span className="font-label-mono text-[10px] bg-surface/80 text-on-surface border border-white/20 px-2 py-1 rounded backdrop-blur-sm">45 DAQ</span>
-              </div>
-            </div>
-            <div className="p-5 relative z-20 -mt-8">
-              <h4 className="font-headline-md text-[20px] font-bold text-primary mb-1 uppercase tracking-tight group-hover:text-tertiary-fixed-dim transition-colors">Void Sprinter Protokoli</h4>
-              <p className="font-body-md text-[14px] text-on-surface-variant mb-4 line-clamp-2">
-                So&apos;nggi tiklanish ko&apos;rsatkichlaringizga asoslanib VO2 max ni maksimal darajaga ko&apos;tarish uchun yuqori chastotali intervallar.
-              </p>
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <span className="font-label-mono text-[12px] bg-[#1a1a1a] border border-primary-fixed-dim/50 text-primary-fixed-dim px-2 py-1 rounded">160 URG&apos;U/DAQ</span>
-                  <span className="font-label-mono text-[12px] bg-[#1a1a1a] border border-white/20 text-on-surface-variant px-2 py-1 rounded">O&apos;RTACHA</span>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary-fixed-dim text-on-primary flex items-center justify-center hover:bg-primary-fixed glow-button transition-all">
-                  <span className="material-symbols-outlined text-[18px]">play_arrow</span>
-                </div>
-              </div>
-            </div>
-          </Link>
 
-          {/* Workout Card 2 */}
-          <Link href="/workouts" className="glass-card rounded-xl overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform duration-300 relative border-l-[3px] border-l-primary-fixed-dim block">
-            <div className="h-40 relative">
-              <div className="absolute inset-0 bg-gradient-to-t from-surface-container-high to-transparent z-10" />
-              <Image
-                alt="Kuch Mashg'uloti"
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                className="object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuBF3B5ibAmBhacYyB_yDAIoPxK9_De1vuk7OKv8WkmD99cOIBXe5B5vNjofmhKm1-6BXLGH1nUYOPZMLmBL5Y-q_e7MqdZm8RBwM7WPQXUSkMZkeFXEKXu7GBwb7tfLBgAup0JIjMlkOKC8lU-ibivESuPSxc57aL-tBjQ1dDaHTezU9XViAkhGpS3X43_liC_Dc7WMYKttchQoPgQnkML_qCmXLkIfhMxvM5IZx3kW-UMj6WAHCYw_"
-              />
-              <div className="absolute top-3 left-3 z-20 flex gap-2">
-                <span className="font-label-mono text-[10px] bg-primary-fixed-dim/20 text-primary-fixed-dim border border-primary-fixed-dim/50 px-2 py-1 rounded backdrop-blur-sm">GIPERTROFIYA</span>
-                <span className="font-label-mono text-[10px] bg-surface/80 text-on-surface border border-white/20 px-2 py-1 rounded backdrop-blur-sm">60 DAQ</span>
-              </div>
-            </div>
-            <div className="p-5 relative z-20 -mt-8">
-              <h4 className="font-headline-md text-[20px] font-bold text-primary mb-1 uppercase tracking-tight group-hover:text-primary-fixed-dim transition-colors">Kinetic Overload</h4>
-              <p className="font-body-md text-[14px] text-on-surface-variant mb-4 line-clamp-2">
-                Yuqori tana mexanik kuchlanishiga e&apos;tibor. AI algoritmi oxirgi mashg&apos;ulotdan 5% yuklama oshirishni taklif qiladi.
-              </p>
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <span className="font-label-mono text-[12px] bg-[#1a1a1a] border border-primary-fixed-dim/50 text-primary-fixed-dim px-2 py-1 rounded">4 YONDASHUV</span>
-                  <span className="font-label-mono text-[12px] bg-[#1a1a1a] border border-error/50 text-error px-2 py-1 rounded">INTENSIV</span>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-primary-fixed-dim text-on-primary flex items-center justify-center hover:bg-primary-fixed glow-button transition-all">
-                  <span className="material-symbols-outlined text-[18px]">play_arrow</span>
-                </div>
-              </div>
-            </div>
+        {recentSessions.length === 0 ? (
+          <Link
+            href="/workouts"
+            className="glass-card ai-accent-border rounded-xl p-8 flex flex-col items-center gap-3 text-center hover:-translate-y-1 transition-transform duration-300"
+          >
+            <span className="material-symbols-outlined text-tertiary-fixed-dim text-4xl">fitness_center</span>
+            <h4 className="font-headline-md text-[18px] font-bold text-primary uppercase">Hali Mashg&apos;ulot Yo&apos;q</h4>
+            <p className="font-body-md text-[14px] text-on-surface-variant max-w-md">
+              Birinchi mashg&apos;ulotingizni yakunlang — bu yerda so&apos;nggi natijalaringiz chiqib turadi.
+            </p>
           </Link>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+            {recentSessions.map((session, i) => {
+              const group = dominantMuscleGroup(session);
+              const accent = CARD_ACCENTS[i % CARD_ACCENTS.length];
+              const durationMin = Math.max(
+                1,
+                Math.round((new Date(session.finishedAt).getTime() - new Date(session.startedAt).getTime()) / 60000)
+              );
+              return (
+                <Link
+                  key={session.id}
+                  href="/workouts"
+                  className={`glass-card rounded-xl overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform duration-300 relative border-l-[3px] ${accent.border} block`}
+                >
+                  <div className={`h-40 relative flex items-center justify-center ${accent.heroBg}`}>
+                    <span className={`material-symbols-outlined ${accent.icon} text-[64px] opacity-80`}>{group.icon}</span>
+                    <div className="absolute top-3 left-3 z-20 flex gap-2">
+                      <span className={`font-label-mono text-[10px] border px-2 py-1 rounded backdrop-blur-sm ${accent.badge}`}>
+                        {group.label.toUpperCase()}
+                      </span>
+                      <span className="font-label-mono text-[10px] bg-surface/80 text-on-surface border border-white/20 px-2 py-1 rounded backdrop-blur-sm">
+                        {durationMin} DAQ
+                      </span>
+                    </div>
+                    <div className="absolute top-3 right-3 z-20">
+                      <span className="font-label-mono text-[10px] bg-surface/80 text-on-surface border border-white/20 px-2 py-1 rounded backdrop-blur-sm">
+                        {formatSessionDate(session.finishedAt)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-5 relative z-20">
+                    <h4 className={`font-headline-md text-[20px] font-bold text-primary mb-1 uppercase tracking-tight transition-colors ${accent.titleHover}`}>
+                      {group.label} Kuni
+                    </h4>
+                    <p className="font-body-md text-[14px] text-on-surface-variant mb-4">
+                      {session.exercises.length} mashq &middot; {session.totalSets} yondashuv &middot; {session.totalVolumeKg} kg hajm
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-2">
+                        <span className="font-label-mono text-[12px] bg-[#1a1a1a] border border-white/20 text-on-surface-variant px-2 py-1 rounded">
+                          {session.caloriesBurned} KKAL
+                        </span>
+                      </div>
+                      <div className={`w-8 h-8 rounded-full text-on-primary flex items-center justify-center hover:bg-primary-fixed glow-button transition-all ${accent.button}`}>
+                        <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </section>
     </div>
   );

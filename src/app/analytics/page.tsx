@@ -33,6 +33,12 @@ const MEAL_TYPES: Array<{ type: MealType; label: string; dativeLabel: string; ic
   { type: "snack", label: "Perekus", dativeLabel: "Perekusga", icon: "cookie", split: 0.1 },
 ];
 
+// Perekus istalgan payt qo'shilishi mumkin, shuning uchun ro'yxatda bitta
+// qat'iy joyga emas — nonushtadan keyin ham, tushlikdan keyin ham alohida
+// kirish nuqtasi sifatida chiqadi. Ikkalasi ham bir xil "snack" hisobiga
+// yoziladi, shuning uchun eaten/target ko'rsatkichi ikkalasida ham bir xil.
+const MEAL_CARD_ORDER: MealType[] = ["breakfast", "snack", "lunch", "snack", "dinner"];
+
 function formatDateLabel(iso: string): string {
   const d = new Date(iso);
   return `${d.getDate()}-${UZ_MONTHS_SHORT[d.getMonth()]}`;
@@ -393,12 +399,13 @@ export default function AnalyticsPage() {
 
         {activeMealType === null ? (
           <div className="space-y-3">
-            {MEAL_TYPES.map(({ type, label, icon, split }) => {
+            {MEAL_CARD_ORDER.map((type, idx) => {
+              const { label, icon, split } = MEAL_TYPES.find((m) => m.type === type)!;
               const target = Math.round(metrics.targetCalories * split);
               const eaten = consumedByType[type];
               return (
                 <button
-                  key={type}
+                  key={`${type}-${idx}`}
                   onClick={() => {
                     resetScan();
                     setActiveMealType(type);
