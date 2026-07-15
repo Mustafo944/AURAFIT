@@ -473,7 +473,7 @@ export default function AnalyticsPage() {
                       : "bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10"
                   }`}
                 >
-                  Barkod / QR
+                  Shtrix Kod
                 </button>
               </div>
             </div>
