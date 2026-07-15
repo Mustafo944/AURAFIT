@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 interface BarcodeDetectorLike {
   detect(source: CanvasImageSource): Promise<{ rawValue: string }[]>;
@@ -37,8 +37,10 @@ function normalizeScannedCode(raw: string): string {
 //    faqat shtrix-kod API'siga ishonib bo'lmaydi, alohida ishonchli o'quvchi kerak.
 export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const trackRef = useRef<MediaStreamTrack | null>(null);
   const detectedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
 
   // onDetected ref orqali o'qiladi: ota-komponent har render'da yangi funksiya
   // bersa ham (odatiy holat) kamera effekti QAYTA ISHGA TUSHMAYDI. Aks holda
@@ -89,6 +91,7 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
       // applyConstraints orqali yoqiladi (getUserMedia paytida e'tiborsiz
       // qoldirilgan bo'lishi mumkin). Qo'llab-quvvatlanmasa jimgina o'tkaziladi.
       const [track] = stream.getVideoTracks();
+      trackRef.current = track ?? null;
       if (track) {
         try {
           await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] } as unknown as MediaTrackConstraints);
@@ -146,19 +149,50 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
 
     return () => {
       stopped = true;
+      trackRef.current = null;
       if (rafId != null) cancelAnimationFrame(rafId);
       zxingControls?.stop();
       stream?.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
+  // Avtofokus har doim ham to'g'ri nuqtaga qarab tushmasligi mumkin —
+  // foydalanuvchi shtrix-kod/QR ustiga bossa, kamerani aynan o'sha nuqtaga
+  // qayta fokuslashga urinamiz (telefon kamera ilovalaridagi kabi).
+  // Qo'llab-quvvatlanmasa (masalan Safari) jimgina e'tiborsiz qoldiriladi.
+  const handleTapToFocus = (e: MouseEvent<HTMLDivElement>) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setFocusPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setTimeout(() => setFocusPoint(null), 700);
+    void track
+      .applyConstraints({
+        advanced: [{ focusMode: "continuous", pointsOfInterest: [{ x, y }] }],
+      } as unknown as MediaTrackConstraints)
+      .catch(() => {
+        // qo'lda fokus qo'llab-quvvatlanmaydi — sukut bo'yicha e'tiborsiz qoldiriladi
+      });
+  };
+
   return (
     <div className="space-y-3">
-      <div className="relative rounded-xl overflow-hidden h-64 bg-black">
+      <div className="relative rounded-xl overflow-hidden h-64 bg-black cursor-crosshair" onClick={handleTapToFocus}>
         <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
         <div className="absolute inset-8 border-2 border-primary-fixed-dim/60 rounded-lg pointer-events-none" />
+        {focusPoint && (
+          <div
+            className="absolute w-16 h-16 -ml-8 -mt-8 rounded-full border-2 border-primary-fixed-dim pointer-events-none animate-ping"
+            style={{ left: focusPoint.x, top: focusPoint.y }}
+          />
+        )}
         <button
-          onClick={onClose}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
           aria-label="Yopish"
           className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-black/80 transition-colors"
         >
@@ -169,7 +203,7 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
         <p className="font-body-md text-[13px] text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">{error}</p>
       ) : (
         <p className="font-label-mono text-label-mono text-on-surface-variant text-center uppercase tracking-widest">
-          Shtrix-kod yoki QR-kodni ramka ichiga tuting
+          Shtrix-kod yoki QR-kodni ramka ichiga tuting — fokus uchun ekranga bosing
         </p>
       )}
     </div>
