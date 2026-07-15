@@ -12,7 +12,7 @@ declare global {
   }
 }
 
-const SCAN_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "qr_code"];
+const BARCODE_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"];
 
 // Ba'zi yangi mahsulotlar shtrix-kod o'rniga (yoki qo'shimcha) GS1 Digital
 // Link QR-kodini bosadi — havola ichida "/01/<GTIN>" segmenti sifatida oddiy
@@ -27,11 +27,14 @@ function normalizeScannedCode(raw: string): string {
   return gs1Match ? gs1Match[1] : trimmed;
 }
 
-// Progressiv yaxshilash: avval brauzerning tayyor `BarcodeDetector` API'si
-// sinaladi (Chrome/Android'da tezkor, qo'shimcha kod yuklamaydi). Mavjud
-// bo'lmasa (Safari/Firefox) `@zxing/browser` faqat shu holatda dinamik
-// import qilinadi — qo'llab-quvvatlaydigan brauzerlar uchun bundle og'irligi
-// qo'shilmaydi. Ikkalasi ham shtrix-kod VA QR-kodni bab-baravar taniydi.
+// Ikkita mustaqil detektor parallel ishlaydi:
+// 1) Klassik shtrix-kod (EAN/UPC/CODE128) — brauzerning tayyor `BarcodeDetector`
+//    API'si mavjud bo'lsa shundan (tez, qo'shimcha kod yuklamaydi).
+// 2) QR-kod — har doim @zxing/browser'ning maxsus `BrowserQRCodeReader'i bilan.
+//    Sabab: `BarcodeDetector`ga "qr_code" formatini qo'shib so'rasak ham, ba'zi
+//    brauzer/OS implementatsiyalari (mas. Windows'dagi Shape Detection polyfill)
+//    uni sukut bo'yicha hech qachon aniqlamaydi — shuning uchun QR-kod uchun
+//    faqat shtrix-kod API'siga ishonib bo'lmaydi, alohida ishonchli o'quvchi kerak.
 export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const detectedRef = useRef(false);
@@ -70,33 +73,42 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
         onDetectedRef.current(normalizeScannedCode(code));
       };
 
+      let nativeOk = false;
       if (typeof window !== "undefined" && window.BarcodeDetector) {
-        const detector = new window.BarcodeDetector({ formats: SCAN_FORMATS });
-        const tick = async () => {
-          if (stopped || detectedRef.current || !videoRef.current) return;
-          try {
-            const codes = await detector.detect(videoRef.current);
-            if (codes[0]) {
-              report(codes[0].rawValue);
-              return;
-            }
-          } catch {
-            // frame o'qilmadi — keyingi frame'da qayta urinamiz
-          }
-          rafId = requestAnimationFrame(tick);
-        };
-        rafId = requestAnimationFrame(tick);
-      } else {
         try {
-          const { BrowserMultiFormatReader } = await import("@zxing/browser");
-          const reader = new BrowserMultiFormatReader();
-          if (stopped || !videoRef.current) return;
-          zxingControls = await reader.decodeFromVideoElement(videoRef.current, (result) => {
-            if (result) report(result.getText());
-          });
+          const detector = new window.BarcodeDetector({ formats: BARCODE_FORMATS });
+          const tick = async () => {
+            if (stopped || detectedRef.current || !videoRef.current) return;
+            try {
+              const codes = await detector.detect(videoRef.current);
+              if (codes[0]) {
+                report(codes[0].rawValue);
+                return;
+              }
+            } catch {
+              // frame o'qilmadi — keyingi frame'da qayta urinamiz
+            }
+            rafId = requestAnimationFrame(tick);
+          };
+          rafId = requestAnimationFrame(tick);
+          nativeOk = true;
         } catch {
-          if (!stopped) setError("Shtrix-kod skaneri ishga tushmadi.");
+          nativeOk = false;
         }
+      }
+
+      // QR-kod uchun har doim ishga tushadi (nativeOk bo'lsa shtrix-kod bilan
+      // parallel, aks holda — masalan Safari/Firefox'da — yagona detektor
+      // sifatida).
+      try {
+        const { BrowserQRCodeReader } = await import("@zxing/browser");
+        const reader = new BrowserQRCodeReader();
+        if (stopped || !videoRef.current) return;
+        zxingControls = await reader.decodeFromVideoElement(videoRef.current, (result) => {
+          if (result) report(result.getText());
+        });
+      } catch {
+        if (!stopped && !nativeOk) setError("Skaner ishga tushmadi.");
       }
     }
 
