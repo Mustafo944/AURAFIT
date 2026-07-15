@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { useAuth } from "@/context/auth-context";
+import { useUserProfile } from "@/context/user-profile-context";
 import { signOut } from "@/lib/supabase/actions";
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { email } = useAuth();
+  const { profile } = useUserProfile();
 
   return (
     <aside className="hidden md:flex flex-col h-screen w-80 bg-surface-container-high border-r border-white/5 shadow-2xl py-stack-lg fixed left-0 top-0 z-40">
@@ -32,15 +34,13 @@ export function Sidebar() {
       <div className="px-gutter mb-stack-lg flex items-center gap-4">
         <Link
           href="/profile"
-          className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-fixed-dim shrink-0 relative"
+          className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary-fixed-dim shrink-0 relative bg-surface-container-high flex items-center justify-center"
         >
-          <Image
-            alt="Foydalanuvchi avatari"
-            fill
-            sizes="48px"
-            className="object-cover"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAanJzpkrbQECXO8kpmSpYgRWDuWm0aL6-NC_Pw3F2phCm9j_D_c-FA4F1gnpOvyUrbqQPp8oPyUOHq27XstnEYDbOBTdJscDDrlShDqplwgsYPnHGdp1v8hvEO91Dk9CrOOFb7xPH7huTm396wMEBcMTtYZ-bW5eZCv3M1nJ0o6mbnf3iEzz1savcBi4iyfT898ToaEn1NEP4nhCtJbBm_ic6dP0hCYRmGmYZU6nEz_ZLTZYX5YsbR"
-          />
+          {profile.avatarUrl ? (
+            <Image alt="Foydalanuvchi avatari" fill sizes="48px" className="object-cover" src={profile.avatarUrl} />
+          ) : (
+            <span className="material-symbols-outlined text-2xl text-on-surface-variant">person</span>
+          )}
         </Link>
         <div>
           <Link
@@ -50,7 +50,6 @@ export function Sidebar() {
             {email ?? "ATHLETE_01"}
           </Link>
           <div className="flex items-center gap-2">
-            <span className="font-label-mono text-label-mono text-on-surface-variant">Pro Daraja</span>
             <span className="font-label-mono text-[10px] text-tertiary-fixed-dim px-1.5 py-0.5 rounded border border-tertiary-fixed-dim/30">
               V0.2.4-BETA
             </span>

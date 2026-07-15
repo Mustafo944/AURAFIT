@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useAuth } from "@/context/auth-context";
 import { useUserProfile, DEFAULT_PROFILE, type Gender, type Goal } from "@/context/user-profile-context";
 import { calculateFitnessMetrics } from "@/lib/fitness";
 import { useProfileInsight } from "@/lib/profile-insight";
 import { logWeightEntry } from "@/lib/weight-log";
+import { uploadAvatar } from "@/lib/avatar";
 import { WeightRuler } from "@/components/weight-ruler";
 import { HeightRuler } from "@/components/height-ruler";
 import { AgeWheel } from "@/components/age-wheel";
@@ -51,6 +52,25 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [bioExpanded, setBioExpanded] = useState(false);
   const [editingField, setEditingField] = useState<"gender" | "age" | "height" | "weight" | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  const handleAvatarChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !userId) return;
+    setAvatarUploading(true);
+    setAvatarError(null);
+    const { url, error } = await uploadAvatar(userId, file);
+    if (error || !url) {
+      setAvatarError(error || "Rasmni yuklab bo'lmadi.");
+    } else {
+      const { error: saveError } = await setProfile({ ...profile, avatarUrl: url });
+      if (saveError) setAvatarError("Saqlab bo'lmadi: " + saveError);
+    }
+    setAvatarUploading(false);
+  };
 
   // Profil (Supabase'dan) yangilanganda formani render vaqtida moslaymiz —
   // effect ichidagi sync setState kaskadli qo'shimcha render chiqarardi
@@ -69,6 +89,7 @@ export default function ProfilePage() {
       heightCm: form.heightCm,
       goal: form.goal,
       targetWeightKg: form.targetWeightKg === "" ? null : form.targetWeightKg,
+      avatarUrl: form.avatarUrl,
     };
     setSaveError(null);
     const { error } = await setProfile(next);
@@ -131,16 +152,38 @@ export default function ProfilePage() {
         <div className="md:col-span-12 glass-card rounded-xl p-6 flex flex-col md:flex-row items-center md:items-start gap-6">
           {/* Avatar */}
           <div className="relative group">
-            <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-primary-container shadow-[0_0_20px_rgba(195,244,0,0.2)] relative">
-              <Image
-                alt="ATHLETE_01 Profile Picture"
-                fill
-                sizes="128px"
-                className="object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgSUeKuNCii9EGLv0gC8oIPQ0dy3s3bJwO1uu2n9c0j_jzjv4zw2X9T3Kl3voFx1Nef-TyBxDglRUNwGmrhVaLMZCOk63W-2_tdCXX0z279M4zecrwKHOQCMT07aedR1WjrjokJXr5GTxeybD_CLmFDGoXk-YG7cPkKH-VL5xcVipl_sMSfatPtCsSQtuVfov2FgF6iWOv64r00om926B8CuxNsAREsW8OHNTx5to1K_X2Sc--xk5_"
-              />
+            <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-primary-container shadow-[0_0_20px_rgba(195,244,0,0.2)] relative bg-surface-container flex items-center justify-center">
+              {profile.avatarUrl ? (
+                <Image
+                  alt="Profil rasmi"
+                  fill
+                  sizes="128px"
+                  className="object-cover"
+                  src={profile.avatarUrl}
+                />
+              ) : (
+                <span className="material-symbols-outlined text-[64px] text-on-surface-variant">person</span>
+              )}
+              {avatarUploading && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <span className="material-symbols-outlined animate-spin text-2xl text-primary-fixed-dim">progress_activity</span>
+                </div>
+              )}
             </div>
-            <button className="absolute bottom-0 right-0 bg-primary-container text-on-primary-container w-10 h-10 rounded-full flex items-center justify-center glow-button hover:bg-primary-fixed transition-colors">
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarUploading}
+              aria-label="Profil rasmini o'zgartirish"
+              className="absolute bottom-0 right-0 bg-primary-container text-on-primary-container w-10 h-10 rounded-full flex items-center justify-center glow-button hover:bg-primary-fixed transition-colors disabled:opacity-50"
+            >
               <span className="material-symbols-outlined text-sm">edit</span>
             </button>
           </div>
@@ -149,11 +192,13 @@ export default function ProfilePage() {
           <div className="flex-1 text-center md:text-left flex flex-col justify-center">
             <h2 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-primary uppercase">ATHLETE_01</h2>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-2">
-              <span className="bg-[#1A1A1A] border border-primary-fixed font-label-mono text-label-mono text-primary-fixed px-3 py-1 rounded">PRO DARAJA</span>
               <span className="bg-[#1A1A1A] border border-white/20 font-label-mono text-label-mono text-on-surface-variant px-3 py-1 rounded flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px]">military_tech</span> 42 NISHON
               </span>
             </div>
+            {avatarError && (
+              <p className="font-body-md text-[13px] text-error mt-2">{avatarError}</p>
+            )}
           </div>
 
         </div>

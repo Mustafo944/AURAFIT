@@ -16,6 +16,7 @@ export interface Database {
           height_cm: number;
           goal: "lose" | "maintain" | "gain";
           target_weight_kg: number | null;
+          avatar_url: string | null;
           updated_at: string;
         };
         Insert: {
@@ -26,6 +27,7 @@ export interface Database {
           height_cm?: number;
           goal?: "lose" | "maintain" | "gain";
           target_weight_kg?: number | null;
+          avatar_url?: string | null;
           updated_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;

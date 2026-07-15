@@ -16,14 +16,17 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Foydalanuvchi faqat o'z profilini ko'radi" on public.profiles;
 create policy "Foydalanuvchi faqat o'z profilini ko'radi"
   on public.profiles for select
   using (auth.uid() = id);
 
+drop policy if exists "Foydalanuvchi faqat o'z profilini yangilaydi" on public.profiles;
 create policy "Foydalanuvchi faqat o'z profilini yangilaydi"
   on public.profiles for update
   using (auth.uid() = id);
 
+drop policy if exists "Foydalanuvchi faqat o'z profilini yaratadi" on public.profiles;
 create policy "Foydalanuvchi faqat o'z profilini yaratadi"
   on public.profiles for insert
   with check (auth.uid() = id);
@@ -73,14 +76,17 @@ alter table public.meals add column if not exists meal_type text not null defaul
 
 alter table public.meals enable row level security;
 
+drop policy if exists "Foydalanuvchi faqat o'z taomlarini ko'radi" on public.meals;
 create policy "Foydalanuvchi faqat o'z taomlarini ko'radi"
   on public.meals for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Foydalanuvchi faqat o'ziga taom qo'shadi" on public.meals;
 create policy "Foydalanuvchi faqat o'ziga taom qo'shadi"
   on public.meals for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Foydalanuvchi faqat o'z taomini o'chiradi" on public.meals;
 create policy "Foydalanuvchi faqat o'z taomini o'chiradi"
   on public.meals for delete
   using (auth.uid() = user_id);
@@ -143,14 +149,51 @@ create index if not exists workout_sessions_user_id_finished_at_idx
 
 alter table public.workout_sessions enable row level security;
 
+drop policy if exists "Foydalanuvchi faqat o'z mashg'ulotlarini ko'radi" on public.workout_sessions;
 create policy "Foydalanuvchi faqat o'z mashg'ulotlarini ko'radi"
   on public.workout_sessions for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Foydalanuvchi faqat o'ziga mashg'ulot qo'shadi" on public.workout_sessions;
 create policy "Foydalanuvchi faqat o'ziga mashg'ulot qo'shadi"
   on public.workout_sessions for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Foydalanuvchi faqat o'z mashg'ulotini yangilaydi" on public.workout_sessions;
 create policy "Foydalanuvchi faqat o'z mashg'ulotini yangilaydi"
   on public.workout_sessions for update
   using (auth.uid() = user_id);
+
+-- Profil rasmi — Supabase Storage'dagi "avatars" bucket'iga yuklanadi,
+-- profiles jadvalida esa faqat shu rasmning public URL'i saqlanadi.
+alter table public.profiles add column if not exists avatar_url text;
+
+-- ============================================================================
+-- STORAGE — foydalanuvchi profil rasmlari uchun "avatars" bucket'i.
+-- Fayllar "<user_id>/avatar.<ext>" yo'lida saqlanadi — policy'lar shu birinchi
+-- papka segmentini auth.uid() bilan solishtirib, faqat egasiga yozish/o'chirish
+-- huquqini beradi. Bucket public — hammaga o'qish uchun ochiq (rasmlar sir emas).
+-- ============================================================================
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Profil rasmlari hammaga ko'rinadi" on storage.objects;
+create policy "Profil rasmlari hammaga ko'rinadi"
+  on storage.objects for select
+  using (bucket_id = 'avatars');
+
+drop policy if exists "Foydalanuvchi faqat o'z papkasiga rasm yuklaydi" on storage.objects;
+create policy "Foydalanuvchi faqat o'z papkasiga rasm yuklaydi"
+  on storage.objects for insert
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "Foydalanuvchi faqat o'z rasmini yangilaydi" on storage.objects;
+create policy "Foydalanuvchi faqat o'z rasmini yangilaydi"
+  on storage.objects for update
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "Foydalanuvchi faqat o'z rasmini o'chiradi" on storage.objects;
+create policy "Foydalanuvchi faqat o'z rasmini o'chiradi"
+  on storage.objects for delete
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
