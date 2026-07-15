@@ -52,6 +52,7 @@ export interface Database {
           id: string;
           user_id: string;
           meal_name: string;
+          meal_type: "breakfast" | "lunch" | "dinner" | "snack";
           calories: number;
           protein_g: number;
           fat_g: number;
@@ -63,6 +64,7 @@ export interface Database {
           id?: string;
           user_id: string;
           meal_name: string;
+          meal_type?: "breakfast" | "lunch" | "dinner" | "snack";
           calories: number;
           protein_g: number;
           fat_g: number;

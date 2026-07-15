@@ -3,7 +3,7 @@
 import { useMemo, useState, type ChangeEvent } from "react";
 import { useUserProfile } from "@/context/user-profile-context";
 import { calculateFitnessMetrics, GOAL_LABELS } from "@/lib/fitness";
-import { useMealLog, useMealHistory, sumMeals } from "@/lib/meal-log";
+import { useMealLog, useMealHistory, sumMeals, type MealType } from "@/lib/meal-log";
 import { useWeightHistory } from "@/lib/weight-log";
 import { useWorkoutHistory, getExerciseHistory } from "@/lib/workout-log";
 import {
@@ -22,6 +22,16 @@ import { WeeklyActivityChart } from "@/components/weekly-activity-chart";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 
 const UZ_MONTHS_SHORT = ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"];
+
+// Nonushta/Tushlik/Kechki ovqat kunning ma'lum vaqtiga tavsiya etiladi, Perekus
+// esa istalgan payt qo'shilishi mumkin — shu sabab alohida vaqt oralig'i yo'q.
+// Tavsiya etilgan kaloriya kunlik maqsadning taxminiy ulushidan hisoblanadi.
+const MEAL_TYPES: Array<{ type: MealType; label: string; dativeLabel: string; icon: string; split: number }> = [
+  { type: "breakfast", label: "Nonushta", dativeLabel: "Nonushtaga", icon: "free_breakfast", split: 0.25 },
+  { type: "lunch", label: "Tushlik", dativeLabel: "Tushlikka", icon: "lunch_dining", split: 0.35 },
+  { type: "dinner", label: "Kechki ovqat", dativeLabel: "Kechki ovqatga", icon: "dinner_dining", split: 0.3 },
+  { type: "snack", label: "Perekus", dativeLabel: "Perekusga", icon: "cookie", split: 0.1 },
+];
 
 function formatDateLabel(iso: string): string {
   const d = new Date(iso);
@@ -60,6 +70,13 @@ export default function AnalyticsPage() {
     profile.goal
   );
   const { meals, addMeal, removeMeal } = useMealLog();
+
+  const [activeMealType, setActiveMealType] = useState<MealType | null>(null);
+  const consumedByType = useMemo(() => {
+    const totals: Record<MealType, number> = { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
+    for (const meal of meals) totals[meal.mealType] += meal.calories;
+    return totals;
+  }, [meals]);
 
   const [scanMode, setScanMode] = useState<"photo" | "barcode">("photo");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -230,9 +247,10 @@ export default function AnalyticsPage() {
   const eatenGramsHint = isPer100g && packageGrams ? Math.round(packageGrams * eatenFraction) : null;
 
   const handleAddToLog = () => {
-    if (!displayResult) return;
+    if (!displayResult || !activeMealType) return;
     addMeal({
       mealName: displayResult.mealName,
+      mealType: activeMealType,
       calories: displayResult.totalCalories,
       proteinG: displayResult.proteinG,
       fatG: displayResult.fatG,
@@ -240,6 +258,7 @@ export default function AnalyticsPage() {
       items: displayResult.items ?? [],
     });
     resetScan();
+    setActiveMealType(null);
   };
 
   const resultMaxMacro = displayResult ? Math.max(displayResult.proteinG, displayResult.fatG, displayResult.carbG) : 0;
@@ -366,119 +385,170 @@ export default function AnalyticsPage() {
         </div>
       </section>
 
-      {/* AI Food Scanner */}
-      <section className="glass-card ai-accent-border rounded-xl p-6">
-        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-tertiary-fixed-dim">photo_camera</span>
-            <h3 className="font-headline-md text-headline-md text-primary uppercase">AI Ovqat Skaneri</h3>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setScanMode("photo");
-                resetScan();
-              }}
-              className={`px-4 py-2 rounded-lg font-label-mono text-label-mono uppercase transition-colors ${
-                scanMode === "photo"
-                  ? "bg-primary-container text-on-primary-container"
-                  : "bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10"
-              }`}
-            >
-              Rasm
-            </button>
-            <button
-              onClick={() => {
-                setScanMode("barcode");
-                resetScan();
-              }}
-              className={`px-4 py-2 rounded-lg font-label-mono text-label-mono uppercase transition-colors ${
-                scanMode === "barcode"
-                  ? "bg-primary-container text-on-primary-container"
-                  : "bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10"
-              }`}
-            >
-              Barkod
-            </button>
-          </div>
-        </div>
+      {/* Ovqat Qo'shish */}
+      <section>
+        <h3 className="font-headline-md text-headline-md text-primary uppercase italic mb-stack-sm flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary-fixed-dim">restaurant_menu</span> Ovqat Qo&apos;shish
+        </h3>
 
-        {scanMode === "photo" ? (
-          <>
-            {!previewUrl && (
-              <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/15 rounded-xl py-12 cursor-pointer hover:border-primary-fixed-dim/50 hover:bg-white/5 transition-colors">
-                <span className="material-symbols-outlined text-5xl text-primary-fixed-dim">add_a_photo</span>
-                <span className="font-body-md text-body-md text-on-surface-variant text-center px-4">
-                  Ovqat rasmini yuklang yoki suratga oling
-                </span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-              </label>
-            )}
-
-            {previewUrl && (
-              <div className="space-y-4">
-                <div className="relative rounded-xl overflow-hidden h-56">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={previewUrl} className="w-full h-full object-cover" alt="Tanlangan ovqat" />
-                  {scanning && (
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
-                      <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">progress_activity</span>
-                      <span className="font-label-mono text-label-mono text-primary-fixed-dim uppercase tracking-widest">
-                        AI Tahlil Qilmoqda...
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {error && (
-                  <p className="font-body-md text-body-md text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">
-                    {error}
-                  </p>
-                )}
-
-                {!scanning && resultCard}
-
-                {!result && !scanning && (
-                  <button
-                    onClick={resetScan}
-                    className="w-full px-6 py-3 rounded-lg bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10 transition-colors font-label-mono text-label-mono"
-                  >
-                    Boshqa Rasm
-                  </button>
-                )}
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="space-y-4">
-            {!result && !barcodeLoading && !error && (
-              <BarcodeScanner onDetected={handleBarcodeDetected} onClose={() => setScanMode("photo")} />
-            )}
-
-            {barcodeLoading && (
-              <div className="flex flex-col items-center justify-center gap-3 py-12">
-                <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">progress_activity</span>
-                <span className="font-label-mono text-label-mono text-primary-fixed-dim uppercase tracking-widest">
-                  Mahsulot Qidirilmoqda...
-                </span>
-              </div>
-            )}
-
-            {error && (
-              <div className="space-y-3">
-                <p className="font-body-md text-body-md text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">
-                  {error}
-                </p>
+        {activeMealType === null ? (
+          <div className="space-y-3">
+            {MEAL_TYPES.map(({ type, label, icon, split }) => {
+              const target = Math.round(metrics.targetCalories * split);
+              const eaten = consumedByType[type];
+              return (
                 <button
-                  onClick={() => setError(null)}
-                  className="w-full px-6 py-3 rounded-lg bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10 transition-colors font-label-mono text-label-mono"
+                  key={type}
+                  onClick={() => {
+                    resetScan();
+                    setActiveMealType(type);
+                  }}
+                  className="w-full glass-card rounded-xl p-4 flex items-center justify-between gap-4 border border-transparent hover:border-primary-fixed-dim/40 transition-colors text-left"
                 >
-                  Qayta Urinish
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-12 h-12 rounded-xl bg-primary-fixed-dim/10 flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined text-primary-fixed-dim text-[26px]">{icon}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-headline-md text-[17px] text-primary font-bold truncate">{label}</h4>
+                      <p className="font-label-mono text-[11px] text-on-surface-variant uppercase truncate">
+                        {eaten > 0 ? `${eaten} / ${target} kkal` : `Tavsiya etiladi: ${target} kkal`}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shrink-0 glow-button">
+                    <span className="material-symbols-outlined text-[22px]">add</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="glass-card ai-accent-border rounded-xl p-6">
+            <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setActiveMealType(null);
+                    resetScan();
+                  }}
+                  aria-label="Orqaga"
+                  className="text-on-surface-variant hover:text-primary transition-colors"
+                >
+                  <span className="material-symbols-outlined">arrow_back</span>
+                </button>
+                <h3 className="font-headline-md text-headline-md text-primary uppercase">
+                  {MEAL_TYPES.find((m) => m.type === activeMealType)?.dativeLabel} Qo&apos;shish
+                </h3>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setScanMode("photo");
+                    resetScan();
+                  }}
+                  className={`px-4 py-2 rounded-lg font-label-mono text-label-mono uppercase transition-colors ${
+                    scanMode === "photo"
+                      ? "bg-primary-container text-on-primary-container"
+                      : "bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10"
+                  }`}
+                >
+                  Rasm
+                </button>
+                <button
+                  onClick={() => {
+                    setScanMode("barcode");
+                    resetScan();
+                  }}
+                  className={`px-4 py-2 rounded-lg font-label-mono text-label-mono uppercase transition-colors ${
+                    scanMode === "barcode"
+                      ? "bg-primary-container text-on-primary-container"
+                      : "bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10"
+                  }`}
+                >
+                  Barkod / QR
                 </button>
               </div>
-            )}
+            </div>
 
-            {resultCard}
+            {scanMode === "photo" ? (
+              <>
+                {!previewUrl && (
+                  <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/15 rounded-xl py-12 cursor-pointer hover:border-primary-fixed-dim/50 hover:bg-white/5 transition-colors">
+                    <span className="material-symbols-outlined text-5xl text-primary-fixed-dim">add_a_photo</span>
+                    <span className="font-body-md text-body-md text-on-surface-variant text-center px-4">
+                      Ovqat rasmini yuklang yoki suratga oling
+                    </span>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                  </label>
+                )}
+
+                {previewUrl && (
+                  <div className="space-y-4">
+                    <div className="relative rounded-xl overflow-hidden h-56">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={previewUrl} className="w-full h-full object-cover" alt="Tanlangan ovqat" />
+                      {scanning && (
+                        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+                          <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">progress_activity</span>
+                          <span className="font-label-mono text-label-mono text-primary-fixed-dim uppercase tracking-widest">
+                            AI Tahlil Qilmoqda...
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {error && (
+                      <p className="font-body-md text-body-md text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">
+                        {error}
+                      </p>
+                    )}
+
+                    {!scanning && resultCard}
+
+                    {!result && !scanning && (
+                      <button
+                        onClick={resetScan}
+                        className="w-full px-6 py-3 rounded-lg bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10 transition-colors font-label-mono text-label-mono"
+                      >
+                        Boshqa Rasm
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-4">
+                {!result && !barcodeLoading && !error && (
+                  <BarcodeScanner onDetected={handleBarcodeDetected} onClose={() => setScanMode("photo")} />
+                )}
+
+                {barcodeLoading && (
+                  <div className="flex flex-col items-center justify-center gap-3 py-12">
+                    <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">progress_activity</span>
+                    <span className="font-label-mono text-label-mono text-primary-fixed-dim uppercase tracking-widest">
+                      Mahsulot Qidirilmoqda...
+                    </span>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="space-y-3">
+                    <p className="font-body-md text-body-md text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">
+                      {error}
+                    </p>
+                    <button
+                      onClick={() => setError(null)}
+                      className="w-full px-6 py-3 rounded-lg bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10 transition-colors font-label-mono text-label-mono"
+                    >
+                      Qayta Urinish
+                    </button>
+                  </div>
+                )}
+
+                {resultCard}
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -500,11 +570,15 @@ export default function AnalyticsPage() {
               <div key={meal.id} className="glass-card rounded-xl p-4 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="w-10 h-10 rounded-full bg-primary-fixed-dim/10 flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-primary-fixed-dim">restaurant</span>
+                    <span className="material-symbols-outlined text-primary-fixed-dim">
+                      {MEAL_TYPES.find((m) => m.type === meal.mealType)?.icon ?? "restaurant"}
+                    </span>
                   </div>
                   <div className="min-w-0">
                     <h4 className="font-body-md text-body-md text-on-surface truncate">{meal.mealName}</h4>
                     <p className="font-label-mono text-[10px] text-on-surface-variant uppercase">
+                      {MEAL_TYPES.find((m) => m.type === meal.mealType)?.label ?? "Ovqat"}
+                      {" · "}
                       {new Date(meal.timestamp).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
                       {" · "}O {meal.proteinG}g &middot; Y {meal.fatG}g &middot; U {meal.carbG}g
                     </p>

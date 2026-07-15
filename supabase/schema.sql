@@ -54,6 +54,7 @@ create table if not exists public.meals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   meal_name text not null,
+  meal_type text not null default 'snack' check (meal_type in ('breakfast', 'lunch', 'dinner', 'snack')),
   calories integer not null,
   protein_g integer not null,
   fat_g integer not null,
@@ -63,6 +64,12 @@ create table if not exists public.meals (
 );
 
 create index if not exists meals_user_id_logged_at_idx on public.meals (user_id, logged_at desc);
+
+-- Eski jadvallarda ustun bo'lmasa qo'shib qo'yadi (create table if not exists
+-- mavjud jadvalni o'zgartirmaydi) — Nonushta/Tushlik/Kechki ovqat/Perekus
+-- kartalari bo'yicha taomlarni ajratish uchun.
+alter table public.meals add column if not exists meal_type text not null default 'snack'
+  check (meal_type in ('breakfast', 'lunch', 'dinner', 'snack'));
 
 alter table public.meals enable row level security;
 

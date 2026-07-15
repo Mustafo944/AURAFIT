@@ -8,25 +8,49 @@ import { useUserProfile, DEFAULT_PROFILE, type Gender, type Goal } from "@/conte
 import { calculateFitnessMetrics } from "@/lib/fitness";
 import { useProfileInsight } from "@/lib/profile-insight";
 import { logWeightEntry } from "@/lib/weight-log";
-import { useWorkoutHistory } from "@/lib/workout-log";
-import { muscleRecoveryStatus } from "@/lib/muscle-recovery";
-import { BodyHeatmap } from "@/components/body-heatmap";
+import { WeightRuler } from "@/components/weight-ruler";
+import { HeightRuler } from "@/components/height-ruler";
+import { AgeWheel } from "@/components/age-wheel";
+import { FullScreenFieldEditor } from "@/components/full-screen-field-editor";
 
-type ProfileFormState = Omit<typeof DEFAULT_PROFILE, "age" | "weightKg" | "heightCm" | "targetWeightKg"> & {
-  age: number | "";
-  weightKg: number | "";
-  heightCm: number | "";
+type ProfileFormState = Omit<typeof DEFAULT_PROFILE, "targetWeightKg"> & {
   targetWeightKg: number | "";
 };
+
+// BMI bo'sag'alari fitness.ts'dagi bmiCategory bilan bir xil (18.5/25/30) —
+// vazn slayderi ostidagi rang zonalarini shu ko'rsatkichlardan hisoblaydi.
+const BMI_ZONE_THRESHOLDS = [
+  { bmi: 18.5, color: "#00dbe9", label: "Kam Vazn" },
+  { bmi: 25, color: "#abd600", label: "Norma" },
+  { bmi: 30, color: "#f2b705", label: "Ortiqcha Vazn" },
+  { bmi: Infinity, color: "#ffb4ab", label: "Semizlik" },
+];
+
+function GenderGlyph({ gender, color }: { gender: Gender; color: string }) {
+  if (gender === "male") {
+    return (
+      <svg viewBox="0 0 24 24" className="w-8 h-8">
+        <circle cx="10" cy="14" r="6" fill="none" stroke={color} strokeWidth="2" />
+        <path d="M14.2 9.8 L20 4 M14 4 H20 V10" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className="w-8 h-8">
+      <circle cx="12" cy="9" r="6" fill="none" stroke={color} strokeWidth="2" />
+      <path d="M12 15 V22 M8.5 18.5 H15.5" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export default function ProfilePage() {
   const { userId } = useAuth();
   const { profile, setProfile, loading: profileLoading } = useUserProfile();
-  const { sessions } = useWorkoutHistory();
-  const recoveryStatuses = useMemo(() => muscleRecoveryStatus(sessions), [sessions]);
   const [form, setForm] = useState<ProfileFormState>({ ...profile, targetWeightKg: profile.targetWeightKg ?? "" });
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [bioExpanded, setBioExpanded] = useState(false);
+  const [editingField, setEditingField] = useState<"gender" | "age" | "height" | "weight" | null>(null);
 
   // Profil (Supabase'dan) yangilanganda formani render vaqtida moslaymiz —
   // effect ichidagi sync setState kaskadli qo'shimcha render chiqarardi
@@ -38,12 +62,11 @@ export default function ProfilePage() {
   }
 
   const handleSave = async () => {
-    const nextWeightKg = form.weightKg === "" ? profile.weightKg : form.weightKg;
     const next = {
-      age: form.age === "" ? profile.age : form.age,
+      age: form.age,
       gender: form.gender,
-      weightKg: nextWeightKg,
-      heightCm: form.heightCm === "" ? profile.heightCm : form.heightCm,
+      weightKg: form.weightKg,
+      heightCm: form.heightCm,
       goal: form.goal,
       targetWeightKg: form.targetWeightKg === "" ? null : form.targetWeightKg,
     };
@@ -54,12 +77,21 @@ export default function ProfilePage() {
       return;
     }
     setForm({ ...next, targetWeightKg: next.targetWeightKg ?? "" });
-    if (nextWeightKg !== profile.weightKg && userId) {
-      logWeightEntry(userId, nextWeightKg);
+    if (form.weightKg !== profile.weightKg && userId) {
+      logWeightEntry(userId, form.weightKg);
     }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
+
+  const weightZones = useMemo(() => {
+    const heightM = form.heightCm / 100;
+    return BMI_ZONE_THRESHOLDS.map((t) => ({
+      upTo: t.bmi === Infinity ? 200 : Math.round(t.bmi * heightM * heightM),
+      color: t.color,
+      label: t.label,
+    }));
+  }, [form.heightCm]);
 
   // Driven by the saved profile (not the live form draft), so the AI call only
   // fires once Saqlash is pressed — never on every keystroke.
@@ -146,110 +178,205 @@ export default function ProfilePage() {
         <div className="col-span-1 md:col-span-9 space-y-stack-md">
           {/* Section 0: Personal Biometrics */}
           <div className="glass-card ai-accent-border rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+            <button
+              type="button"
+              onClick={() => setBioExpanded((v) => !v)}
+              className={`w-full flex items-center gap-3 text-left ${bioExpanded ? "pb-4 border-b border-white/10" : ""}`}
+            >
               <span className="material-symbols-outlined text-primary-fixed-dim">monitor_weight</span>
-              <h3 className="font-headline-md text-headline-md text-primary uppercase">Shaxsiy Ma&apos;lumotlar</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">YOSH</label>
-                <input
-                  className="w-full bg-[#000000] border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
-                  type="number"
-                  min={10}
-                  max={100}
-                  value={form.age}
-                  onChange={(e) => setForm({ ...form, age: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
-              </div>
-              <div>
-                <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">JINS</label>
-                <select
-                  className="w-full bg-[#000000] border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
-                  value={form.gender}
-                  onChange={(e) => setForm({ ...form, gender: e.target.value as Gender })}
-                >
-                  <option value="male">Erkak</option>
-                  <option value="female">Ayol</option>
-                </select>
-              </div>
-              <div>
-                <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">VAZN (KG)</label>
-                <input
-                  className="w-full bg-[#000000] border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
-                  type="number"
-                  min={30}
-                  max={300}
-                  value={form.weightKg}
-                  onChange={(e) => setForm({ ...form, weightKg: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
-              </div>
-              <div>
-                <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">BO&apos;Y (SM)</label>
-                <input
-                  className="w-full bg-[#000000] border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
-                  type="number"
-                  min={100}
-                  max={250}
-                  value={form.heightCm}
-                  onChange={(e) => setForm({ ...form, heightCm: e.target.value === "" ? "" : Number(e.target.value) })}
-                />
-              </div>
-              <div>
-                <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">
-                  MAQSAD VAZNI (KG) <span className="normal-case text-on-surface-variant/60">— ixtiyoriy</span>
-                </label>
-                <input
-                  className="w-full bg-[#000000] border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
-                  type="number"
-                  min={30}
-                  max={300}
-                  value={form.targetWeightKg}
-                  onChange={(e) =>
-                    setForm({ ...form, targetWeightKg: e.target.value === "" ? "" : Number(e.target.value) })
-                  }
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">MAQSAD</label>
-                <select
-                  className="w-full bg-[#000000] border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
-                  value={form.goal}
-                  onChange={(e) => setForm({ ...form, goal: e.target.value as Goal })}
-                >
-                  <option value="lose">Vazn Yo&apos;qotish</option>
-                  <option value="maintain">Vaznni Saqlash</option>
-                  <option value="gain">Mushak Massasi Orttirish</option>
-                </select>
-              </div>
-            </div>
-            <div className="mt-6 flex items-center gap-4">
-              <button
-                onClick={handleSave}
-                className="px-6 py-3 rounded-lg bg-primary-container text-on-primary-container font-headline-md text-sm uppercase tracking-wider glow-button hover:bg-primary-fixed transition-colors"
+              <h3 className="font-headline-md text-headline-md text-primary uppercase flex-1">Shaxsiy Ma&apos;lumotlar</h3>
+              <span
+                className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 transition-all duration-300 ${
+                  bioExpanded
+                    ? "rotate-45 bg-primary-container/10 border-primary-container/40"
+                    : "bg-white/5 border-white/10"
+                }`}
               >
-                Saqlash
-              </button>
-              {saved && (
-                <span className="font-label-mono text-label-mono text-primary-fixed-dim flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[16px]">check_circle</span> Saqlandi
-                </span>
-              )}
-            </div>
-            {saveError && (
-              <p className="mt-3 font-body-md text-[13px] text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">
-                {saveError}
-              </p>
-            )}
-          </div>
+                <svg viewBox="0 0 24 24" className="w-4 h-4">
+                  <path
+                    d="M12 5 V19 M5 12 H19"
+                    stroke={bioExpanded ? "#c3f400" : "#8e9379"}
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    className="transition-colors duration-300"
+                  />
+                </svg>
+              </span>
+            </button>
 
-          {/* Muskul Charchog'i Xaritasi */}
-          <div className="glass-card ai-accent-border rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
-              <span className="material-symbols-outlined text-primary-fixed-dim">local_fire_department</span>
-              <h3 className="font-headline-md text-headline-md text-primary uppercase">Muskul Charchog&apos;i Xaritasi</h3>
+            {/* CSS-grid orqali silliq balandlik animatsiyasi — JS bilan
+                balandlik o'lchashga hojat yo'q, `grid-template-rows: 0fr/1fr`
+                o'zaro almashadi. */}
+            <div
+              className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+                bioExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+              }`}
+            >
+              <div
+                className={`overflow-hidden min-h-0 transition-opacity duration-300 ${
+                  bioExpanded ? "opacity-100 delay-100" : "opacity-0"
+                }`}
+              >
+                <div className="pt-6 space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingField("gender")}
+                  className="w-full flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-4 py-3.5 transition-colors"
+                >
+                  <span className="font-label-mono text-label-mono text-on-surface-variant uppercase">Jins</span>
+                  <span className="flex items-center gap-2">
+                    <span className="font-body-md text-on-surface">{form.gender === "male" ? "Erkak" : "Ayol"}</span>
+                    <span className="material-symbols-outlined text-on-surface-variant text-[18px]">chevron_right</span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingField("age")}
+                  className="w-full flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-4 py-3.5 transition-colors"
+                >
+                  <span className="font-label-mono text-label-mono text-on-surface-variant uppercase">Yosh</span>
+                  <span className="flex items-center gap-2">
+                    <span className="font-body-md text-on-surface">{form.age} yosh</span>
+                    <span className="material-symbols-outlined text-on-surface-variant text-[18px]">chevron_right</span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingField("height")}
+                  className="w-full flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-4 py-3.5 transition-colors"
+                >
+                  <span className="font-label-mono text-label-mono text-on-surface-variant uppercase">Bo&apos;y</span>
+                  <span className="flex items-center gap-2">
+                    <span className="font-body-md text-on-surface">{form.heightCm} sm</span>
+                    <span className="material-symbols-outlined text-on-surface-variant text-[18px]">chevron_right</span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingField("weight")}
+                  className="w-full flex items-center justify-between gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-4 py-3.5 transition-colors"
+                >
+                  <span className="font-label-mono text-label-mono text-on-surface-variant uppercase">Vazn</span>
+                  <span className="flex items-center gap-2">
+                    <span className="font-body-md text-on-surface">{form.weightKg} kg</span>
+                    <span className="material-symbols-outlined text-on-surface-variant text-[18px]">chevron_right</span>
+                  </span>
+                </button>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3">
+                  <div>
+                    <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">
+                      MAQSAD VAZNI (KG) <span className="normal-case text-on-surface-variant/60">— ixtiyoriy</span>
+                    </label>
+                    <input
+                      className="w-full bg-[#000000] border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
+                      type="number"
+                      min={30}
+                      max={300}
+                      value={form.targetWeightKg}
+                      onChange={(e) =>
+                        setForm({ ...form, targetWeightKg: e.target.value === "" ? "" : Number(e.target.value) })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">MAQSAD</label>
+                    <select
+                      className="w-full bg-[#000000] border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
+                      value={form.goal}
+                      onChange={(e) => setForm({ ...form, goal: e.target.value as Goal })}
+                    >
+                      <option value="lose">Vazn Yo&apos;qotish</option>
+                      <option value="maintain">Vaznni Saqlash</option>
+                      <option value="gain">Mushak Massasi Orttirish</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 pt-3">
+                  <button
+                    onClick={handleSave}
+                    className="px-6 py-3 rounded-lg bg-primary-container text-on-primary-container font-headline-md text-sm uppercase tracking-wider glow-button hover:bg-primary-fixed transition-colors"
+                  >
+                    Saqlash
+                  </button>
+                  {saved && (
+                    <span className="font-label-mono text-label-mono text-primary-fixed-dim flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[16px]">check_circle</span> Saqlandi
+                    </span>
+                  )}
+                </div>
+                {saveError && (
+                  <p className="font-body-md text-[13px] text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">
+                    {saveError}
+                  </p>
+                )}
+                </div>
+              </div>
             </div>
-            <BodyHeatmap statuses={recoveryStatuses} />
+
+            {editingField === "gender" && (
+              <FullScreenFieldEditor title="Jins" icon="person" onClose={() => setEditingField(null)} onSave={() => setEditingField(null)}>
+                <div className="grid grid-cols-2 gap-3">
+                  {(["male", "female"] as const).map((g) => {
+                    const active = form.gender === g;
+                    return (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => setForm({ ...form, gender: g })}
+                        className={`flex flex-col items-center gap-2 rounded-xl border p-5 transition-colors ${
+                          active
+                            ? "border-primary-container bg-primary-container/10 shadow-[0_0_16px_rgba(195,244,0,0.15)]"
+                            : "border-white/10 bg-white/5 hover:bg-white/10"
+                        }`}
+                      >
+                        <GenderGlyph gender={g} color={active ? "#c3f400" : "#8e9379"} />
+                        <span
+                          className={`font-label-mono text-label-mono uppercase ${
+                            active ? "text-primary" : "text-on-surface-variant"
+                          }`}
+                        >
+                          {g === "male" ? "Erkak" : "Ayol"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </FullScreenFieldEditor>
+            )}
+
+            {editingField === "age" && (
+              <FullScreenFieldEditor title="Yosh" icon="calendar_month" onClose={() => setEditingField(null)} onSave={() => setEditingField(null)}>
+                <AgeWheel value={form.age} min={10} max={90} onChange={(v) => setForm({ ...form, age: v })} />
+              </FullScreenFieldEditor>
+            )}
+
+            {editingField === "height" && (
+              <FullScreenFieldEditor title="Bo'y" icon="trending_up" onClose={() => setEditingField(null)} onSave={() => setEditingField(null)}>
+                <HeightRuler
+                  value={form.heightCm}
+                  min={120}
+                  max={220}
+                  onChange={(v) => setForm({ ...form, heightCm: v })}
+                />
+              </FullScreenFieldEditor>
+            )}
+
+            {editingField === "weight" && (
+              <FullScreenFieldEditor title="Vazn" icon="monitor_weight" onClose={() => setEditingField(null)} onSave={() => setEditingField(null)}>
+                <WeightRuler
+                  value={form.weightKg}
+                  min={30}
+                  max={200}
+                  zones={weightZones}
+                  onChange={(v) => setForm({ ...form, weightKg: v })}
+                />
+              </FullScreenFieldEditor>
+            )}
           </div>
 
           {/* AI Tahlili: formula + AI hybrid */}

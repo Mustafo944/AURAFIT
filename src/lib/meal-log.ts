@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/auth-context";
 
+export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
+
 export interface MealEntry {
   id: string;
   mealName: string;
+  mealType: MealType;
   calories: number;
   proteinG: number;
   fatG: number;
@@ -31,6 +34,7 @@ function daysAgoIso(days: number): string {
 function mapMealRow(row: {
   id: string;
   meal_name: string;
+  meal_type: MealType;
   calories: number;
   protein_g: number;
   fat_g: number;
@@ -41,6 +45,7 @@ function mapMealRow(row: {
   return {
     id: row.id,
     mealName: row.meal_name,
+    mealType: row.meal_type,
     calories: row.calories,
     proteinG: row.protein_g,
     fatG: row.fat_g,
@@ -56,6 +61,7 @@ async function insertMeal(userId: string, id: string, meal: Omit<MealEntry, "id"
     id,
     user_id: userId,
     meal_name: meal.mealName,
+    meal_type: meal.mealType,
     calories: meal.calories,
     protein_g: meal.proteinG,
     fat_g: meal.fatG,
@@ -98,7 +104,7 @@ export function useMealLog() {
     const supabase = createClient();
     supabase
       .from("meals")
-      .select("id, meal_name, calories, protein_g, fat_g, carb_g, items, logged_at")
+      .select("id, meal_name, meal_type, calories, protein_g, fat_g, carb_g, items, logged_at")
       .eq("user_id", userId)
       .gte("logged_at", startOfTodayIso())
       .order("logged_at", { ascending: true })
@@ -164,7 +170,7 @@ export function useMealHistory(days: number) {
     const supabase = createClient();
     supabase
       .from("meals")
-      .select("id, meal_name, calories, protein_g, fat_g, carb_g, items, logged_at")
+      .select("id, meal_name, meal_type, calories, protein_g, fat_g, carb_g, items, logged_at")
       .eq("user_id", userId)
       .gte("logged_at", daysAgoIso(days))
       .order("logged_at", { ascending: true })

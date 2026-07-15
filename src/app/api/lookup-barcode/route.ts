@@ -55,7 +55,10 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const code = typeof body?.code === "string" ? body.code.trim() : "";
   if (!code || !/^\d{6,14}$/.test(code)) {
-    return NextResponse.json({ error: "Shtrix-kod noto'g'ri formatda." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Mahsulot kodi aniqlanmadi. QR-kod odatda shtrix-kod raqamini o'z ichiga olmaydi — iloji bo'lsa qadoqdagi chiziqli shtrix-kodni skanerlang." },
+      { status: 400 }
+    );
   }
 
   let res: Response;

@@ -12,13 +12,26 @@ declare global {
   }
 }
 
-const BARCODE_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"];
+const SCAN_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "qr_code"];
+
+// Ba'zi yangi mahsulotlar shtrix-kod o'rniga (yoki qo'shimcha) GS1 Digital
+// Link QR-kodini bosadi — havola ichida "/01/<GTIN>" segmenti sifatida oddiy
+// shtrix-kod raqami yashiringan bo'ladi. Shu segmentni topib olsak, QR-kod
+// ham xuddi oddiy shtrix-kod kabi OpenFoodFacts'da qidirilishi mumkin.
+// Boshqa turdagi QR matni (sayt havolasi, reklama va h.k.) o'zgarishsiz
+// o'tkaziladi — API baribir uni raqamli bo'lmagani uchun rad etadi.
+function normalizeScannedCode(raw: string): string {
+  const trimmed = raw.trim();
+  if (/^\d{6,14}$/.test(trimmed)) return trimmed;
+  const gs1Match = trimmed.match(/\/01\/(\d{8,14})(?:[/?]|$)/);
+  return gs1Match ? gs1Match[1] : trimmed;
+}
 
 // Progressiv yaxshilash: avval brauzerning tayyor `BarcodeDetector` API'si
 // sinaladi (Chrome/Android'da tezkor, qo'shimcha kod yuklamaydi). Mavjud
 // bo'lmasa (Safari/Firefox) `@zxing/browser` faqat shu holatda dinamik
 // import qilinadi — qo'llab-quvvatlaydigan brauzerlar uchun bundle og'irligi
-// qo'shilmaydi.
+// qo'shilmaydi. Ikkalasi ham shtrix-kod VA QR-kodni bab-baravar taniydi.
 export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const detectedRef = useRef(false);
@@ -54,11 +67,11 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
       const report = (code: string) => {
         if (detectedRef.current || stopped) return;
         detectedRef.current = true;
-        onDetectedRef.current(code);
+        onDetectedRef.current(normalizeScannedCode(code));
       };
 
       if (typeof window !== "undefined" && window.BarcodeDetector) {
-        const detector = new window.BarcodeDetector({ formats: BARCODE_FORMATS });
+        const detector = new window.BarcodeDetector({ formats: SCAN_FORMATS });
         const tick = async () => {
           if (stopped || detectedRef.current || !videoRef.current) return;
           try {
@@ -114,7 +127,7 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
         <p className="font-body-md text-[13px] text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">{error}</p>
       ) : (
         <p className="font-label-mono text-label-mono text-on-surface-variant text-center uppercase tracking-widest">
-          Shtrix-kodni ramka ichiga tuting
+          Shtrix-kod yoki QR-kodni ramka ichiga tuting
         </p>
       )}
     </div>
