@@ -1,22 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent } from "react";
-
-// `zoom` va `torch` — standart lib.dom turlarida yo'q (kengaytirilgan, hali
-// standartlashmagan MediaTrack imkoniyatlari), lekin Android Chrome'da mavjud.
-interface ExtendedCapabilities extends MediaTrackCapabilities {
-  zoom?: { min: number; max: number; step: number };
-  torch?: boolean;
-}
-interface ExtendedSettings extends MediaTrackSettings {
-  zoom?: number;
-}
-interface ZoomState {
-  min: number;
-  max: number;
-  step: number;
-  value: number;
-}
+import { useState, type ChangeEvent } from "react";
 
 // Ba'zi yangi mahsulotlar shtrix-kod o'rniga (yoki qo'shimcha) GS1 Digital
 // Link QR-kodini bosadi — havola ichida "/01/<GTIN>" segmenti sifatida oddiy
@@ -31,244 +15,77 @@ function normalizeScannedCode(raw: string): string {
   return gs1Match ? gs1Match[1] : trimmed;
 }
 
-// Ham shtrix-kod (EAN/UPC/CODE128), ham QR-kodni @zxing/browser'ning yagona
-// `BrowserMultiFormatReader'i bilan o'qiymiz. Ilgari 1D shtrix-kod uchun
-// brauzerning native `BarcodeDetector` API'siga tayanardik — biroq u Windows'dagi
-// Chrome, Firefox va Safari'da umuman mavjud emas, shuning uchun ko'p qurilmada
-// shtrix-kod hech qachon aniqlanmasdi. zxing esa har qanday brauzerda, faqat
-// JS bilan, kadrma-kadr dekod qiladi — bu barcha platformada barqaror ishlaydi.
+// Jonli video oqim (getUserMedia) o'rniga bitta surat orqali skanerlaydi.
+// Sabab: brauzerdagi xom kamera oqimida avtofokusni dasturiy nazorat qilish
+// (focusMode, zoom, tap-to-focus — barchasi sinab ko'rildi) qurilmadan-
+// qurilmaga, ayniqsa Android PWA'da, ishonchsiz chiqdi. "capture" atributi
+// telefonning O'Z kamera ilovasini ochadi — fokus, yorug'lik, zum kabi hammasi
+// operatsion tizimning professional kamera dvigateliga tegishli bo'ladi, xuddi
+// AI ovqat skaneridagi rasm yuklash kabi allaqachon barqaror ishlayotgan yo'l.
 export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: string) => void; onClose: () => void }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const trackRef = useRef<MediaStreamTrack | null>(null);
-  const detectedRef = useRef(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
-  const [zoom, setZoom] = useState<ZoomState | null>(null);
-  const [torchAvailable, setTorchAvailable] = useState(false);
-  const [torchOn, setTorchOn] = useState(false);
 
-  // onDetected ref orqali o'qiladi: ota-komponent har render'da yangi funksiya
-  // bersa ham (odatiy holat) kamera effekti QAYTA ISHGA TUSHMAYDI. Aks holda
-  // sahifadagi istalgan state o'zgarishi kamerani o'chirib-yoqib yuborardi.
-  const onDetectedRef = useRef(onDetected);
-  useEffect(() => {
-    onDetectedRef.current = onDetected;
-  }, [onDetected]);
-
-  useEffect(() => {
-    let stopped = false;
-    let stream: MediaStream | null = null;
-    let zxingControls: { stop: () => void } | null = null;
-
-    async function start() {
-      // Standart cheklovlar (faqat facingMode) ba'zi kameralarda past
-      // aniqlikda va fokussiz oqim ochadi — shtrix-kod/QR o'qish uchun
-      // deyarli imkonsiz. Yuqori o'lcham va davomiy avtofokusni so'raymiz;
-      // "focusMode" TS turlarida yo'q (kengaytirilgan, standart bo'lmagan
-      // Image Capture cheklovi), lekin "advanced" ichida qo'llab-quvvatlamaydigan
-      // brauzerlar jimgina e'tiborsiz qoldiradi.
-      const enhancedConstraints: MediaStreamConstraints = {
-        video: {
-          facingMode: { ideal: "environment" },
-          // Yuqori aniqlik so'raymiz — mayda shtrix-kod raqamlari uchun ko'proq
-          // piksel = aniqroq dekod. "ideal" bo'lgani uchun qurilma qo'llab-
-          // quvvatlamasa jimgina eng yaqin rejimga tushadi (xato bermaydi).
-          width: { ideal: 2560 },
-          height: { ideal: 1440 },
-          ...({ advanced: [{ focusMode: "continuous" }] } as object),
-        },
-      };
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(enhancedConstraints);
-      } catch {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        } catch {
-          if (!stopped) setError("Kameraga ruxsat berilmadi yoki kamera topilmadi.");
-          return;
-        }
-      }
-      if (stopped) {
-        stream.getTracks().forEach((t) => t.stop());
-        return;
-      }
-      if (videoRef.current) videoRef.current.srcObject = stream;
-
-      // Ba'zi brauzerlarda avtofokus faqat trek olingandan keyin
-      // applyConstraints orqali yoqiladi (getUserMedia paytida e'tiborsiz
-      // qoldirilgan bo'lishi mumkin). Qo'llab-quvvatlanmasa jimgina o'tkaziladi.
-      const [track] = stream.getVideoTracks();
-      trackRef.current = track ?? null;
-      if (track) {
-        try {
-          await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] } as unknown as MediaTrackConstraints);
-        } catch {
-          // fokus rejimi qo'llab-quvvatlanmaydi — sukut bo'yicha davom etiladi
-        }
-
-        // Qurilma imkoniyatlarini o'qiymiz: zoom (yaqinlashtirish) va torch
-        // (fonar) — ikkalasi ham xira/fokussiz shtrix-kod muammosining asosiy
-        // davosi. Zoom foydalanuvchiga telefonni fokus tushadigan masofada
-        // ushlab kodni kattalashtirish imkonini beradi (makro cheklovini
-        // chetlab o'tadi); torch esa yorug'likni oshirib tasvirni keskinlashtiradi.
-        const caps = (track.getCapabilities?.() ?? {}) as ExtendedCapabilities;
-        if (caps.zoom && caps.zoom.max > caps.zoom.min) {
-          const current = (track.getSettings() as ExtendedSettings).zoom ?? caps.zoom.min;
-          setZoom({
-            min: caps.zoom.min,
-            max: caps.zoom.max,
-            step: caps.zoom.step || 0.1,
-            value: current,
-          });
-        }
-        if (caps.torch) setTorchAvailable(true);
-      }
-
-      const report = (code: string) => {
-        if (detectedRef.current || stopped) return;
-        detectedRef.current = true;
-        onDetectedRef.current(normalizeScannedCode(code));
-      };
-
-      // Yagona ko'p-formatli o'quvchi: ham QR, ham chiziqli shtrix-kodlar.
-      // Formatlarni cheklaymiz — tezroq ishlaydi va tasodifiy noto'g'ri
-      // o'qishlar kamayadi (faqat oziq-ovqat qadoqlarida uchraydigan turlar).
-      try {
-        const { BrowserMultiFormatReader, BarcodeFormat } = await import("@zxing/browser");
-        const reader = new BrowserMultiFormatReader();
-        reader.possibleFormats = [
-          BarcodeFormat.QR_CODE,
-          BarcodeFormat.EAN_13,
-          BarcodeFormat.EAN_8,
-          BarcodeFormat.UPC_A,
-          BarcodeFormat.UPC_E,
-          BarcodeFormat.CODE_128,
-        ];
-        if (stopped || !videoRef.current) return;
-        // decodeFromVideoElement kadrma-kadr uzluksiz dekod qiladi; kod
-        // topilmagan har bir kadr uchun callback'ga (kutilgan) NotFound xatosi
-        // keladi — uni e'tiborsiz qoldiramiz, faqat natijaga qaraymiz.
-        zxingControls = await reader.decodeFromVideoElement(videoRef.current, (result) => {
-          if (result) report(result.getText());
-        });
-      } catch {
-        if (!stopped) setError("Skaner ishga tushmadi.");
-      }
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (scanning) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    setError(null);
+    setScanning(true);
+    try {
+      const { BrowserMultiFormatReader } = await import("@zxing/browser");
+      const reader = new BrowserMultiFormatReader();
+      const result = await reader.decodeFromImageUrl(url);
+      onDetected(normalizeScannedCode(result.getText()));
+    } catch {
+      setPreviewUrl(null);
+      setError("Shtrix-kod yoki QR-kod aniqlanmadi. Kodni ramka to'lg'azadigan qilib, yorug'roq joyda qayta suratga oling.");
+    } finally {
+      setScanning(false);
     }
-
-    void start();
-
-    return () => {
-      stopped = true;
-      trackRef.current = null;
-      zxingControls?.stop();
-      stream?.getTracks().forEach((t) => t.stop());
-    };
-  }, []);
-
-  // Avtofokus har doim ham to'g'ri nuqtaga qarab tushmasligi mumkin —
-  // foydalanuvchi shtrix-kod/QR ustiga bossa, kamerani aynan o'sha nuqtaga
-  // qayta fokuslashga urinamiz (telefon kamera ilovalaridagi kabi).
-  // Qo'llab-quvvatlanmasa (masalan Safari) jimgina e'tiborsiz qoldiriladi.
-  const handleTapToFocus = (e: MouseEvent<HTMLDivElement>) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setFocusPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    setTimeout(() => setFocusPoint(null), 700);
-    void track
-      .applyConstraints({
-        advanced: [{ focusMode: "continuous", pointsOfInterest: [{ x, y }] }],
-      } as unknown as MediaTrackConstraints)
-      .catch(() => {
-        // qo'lda fokus qo'llab-quvvatlanmaydi — sukut bo'yicha e'tiborsiz qoldiriladi
-      });
-  };
-
-  const handleZoomChange = (value: number) => {
-    const track = trackRef.current;
-    setZoom((z) => (z ? { ...z, value } : z));
-    void track
-      ?.applyConstraints({ advanced: [{ zoom: value }] } as unknown as MediaTrackConstraints)
-      .catch(() => {
-        // zoom qo'llab-quvvatlanmaydi — sukut bo'yicha e'tiborsiz qoldiriladi
-      });
-  };
-
-  const toggleTorch = () => {
-    const track = trackRef.current;
-    if (!track) return;
-    const next = !torchOn;
-    setTorchOn(next);
-    void track
-      .applyConstraints({ advanced: [{ torch: next }] } as unknown as MediaTrackConstraints)
-      .catch(() => {
-        setTorchOn(false);
-      });
   };
 
   return (
-    <div className="space-y-3">
-      <div className="relative rounded-xl overflow-hidden h-64 bg-black cursor-crosshair" onClick={handleTapToFocus}>
-        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-        <div className="absolute inset-8 border-2 border-primary-fixed-dim/60 rounded-lg pointer-events-none" />
-        {focusPoint && (
-          <div
-            className="absolute w-16 h-16 -ml-8 -mt-8 rounded-full border-2 border-primary-fixed-dim pointer-events-none animate-ping"
-            style={{ left: focusPoint.x, top: focusPoint.y }}
-          />
-        )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          aria-label="Yopish"
-          className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/60 backdrop-blur-sm text-on-surface flex items-center justify-center hover:bg-black/80 transition-colors"
-        >
-          <span className="material-symbols-outlined text-[20px]">close</span>
-        </button>
-        {torchAvailable && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleTorch();
-            }}
-            aria-label="Fonarni yoqish/o'chirish"
-            aria-pressed={torchOn}
-            className={`absolute top-3 left-3 w-9 h-9 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors ${
-              torchOn ? "bg-primary text-on-primary" : "bg-black/60 text-on-surface hover:bg-black/80"
-            }`}
-          >
-            <span className="material-symbols-outlined text-[20px]">{torchOn ? "flash_on" : "flash_off"}</span>
-          </button>
-        )}
-      </div>
-      {zoom && (
-        <div className="flex items-center gap-3 px-1" onClick={(e) => e.stopPropagation()}>
-          <span className="material-symbols-outlined text-[18px] text-on-surface-variant">zoom_out</span>
-          <input
-            type="range"
-            min={zoom.min}
-            max={zoom.max}
-            step={zoom.step}
-            value={zoom.value}
-            onChange={(e) => handleZoomChange(Number(e.target.value))}
-            aria-label="Kattalashtirish"
-            className="flex-1 accent-primary"
-          />
-          <span className="material-symbols-outlined text-[18px] text-on-surface-variant">zoom_in</span>
+    <div className="space-y-4">
+      {error && (
+        <p className="font-body-md text-body-md text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">{error}</p>
+      )}
+
+      {!previewUrl && (
+        <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/15 rounded-xl py-12 cursor-pointer hover:border-primary-fixed-dim/50 hover:bg-white/5 transition-colors">
+          <span className="material-symbols-outlined text-5xl text-primary-fixed-dim">qr_code_scanner</span>
+          <span className="font-body-md text-body-md text-on-surface-variant text-center px-4">
+            Shtrix-kod yoki QR-kodni suratga oling
+          </span>
+          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+        </label>
+      )}
+
+      {previewUrl && (
+        <div className="relative rounded-xl overflow-hidden h-56">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={previewUrl} className="w-full h-full object-cover" alt="Skanerlangan kod" />
+          {scanning && (
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+              <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">progress_activity</span>
+              <span className="font-label-mono text-label-mono text-primary-fixed-dim uppercase tracking-widest">
+                Kod Aniqlanmoqda...
+              </span>
+            </div>
+          )}
         </div>
       )}
-      {error ? (
-        <p className="font-body-md text-[13px] text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">{error}</p>
-      ) : (
-        <p className="font-label-mono text-label-mono text-on-surface-variant text-center uppercase tracking-widest">
-          Shtrix-kodni ramkaga tuting · xira chiqsa yaqinlashtiring (zoom) yoki fokus uchun ekranga bosing
-        </p>
-      )}
+
+      <button
+        onClick={onClose}
+        className="w-full px-6 py-3 rounded-lg bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10 transition-colors font-label-mono text-label-mono"
+      >
+        Bekor Qilish
+      </button>
     </div>
   );
 }
