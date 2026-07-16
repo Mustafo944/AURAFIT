@@ -2,6 +2,22 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 
+// `zoom` va `torch` — standart lib.dom turlarida yo'q (kengaytirilgan, hali
+// standartlashmagan MediaTrack imkoniyatlari), lekin Android Chrome'da mavjud.
+interface ExtendedCapabilities extends MediaTrackCapabilities {
+  zoom?: { min: number; max: number; step: number };
+  torch?: boolean;
+}
+interface ExtendedSettings extends MediaTrackSettings {
+  zoom?: number;
+}
+interface ZoomState {
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+}
+
 // Ba'zi yangi mahsulotlar shtrix-kod o'rniga (yoki qo'shimcha) GS1 Digital
 // Link QR-kodini bosadi — havola ichida "/01/<GTIN>" segmenti sifatida oddiy
 // shtrix-kod raqami yashiringan bo'ladi. Shu segmentni topib olsak, QR-kod
@@ -27,6 +43,9 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
   const detectedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [focusPoint, setFocusPoint] = useState<{ x: number; y: number } | null>(null);
+  const [zoom, setZoom] = useState<ZoomState | null>(null);
+  const [torchAvailable, setTorchAvailable] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
 
   // onDetected ref orqali o'qiladi: ota-komponent har render'da yangi funksiya
   // bersa ham (odatiy holat) kamera effekti QAYTA ISHGA TUSHMAYDI. Aks holda
@@ -51,8 +70,11 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
       const enhancedConstraints: MediaStreamConstraints = {
         video: {
           facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
+          // Yuqori aniqlik so'raymiz — mayda shtrix-kod raqamlari uchun ko'proq
+          // piksel = aniqroq dekod. "ideal" bo'lgani uchun qurilma qo'llab-
+          // quvvatlamasa jimgina eng yaqin rejimga tushadi (xato bermaydi).
+          width: { ideal: 2560 },
+          height: { ideal: 1440 },
           ...({ advanced: [{ focusMode: "continuous" }] } as object),
         },
       };
@@ -83,6 +105,23 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
         } catch {
           // fokus rejimi qo'llab-quvvatlanmaydi — sukut bo'yicha davom etiladi
         }
+
+        // Qurilma imkoniyatlarini o'qiymiz: zoom (yaqinlashtirish) va torch
+        // (fonar) — ikkalasi ham xira/fokussiz shtrix-kod muammosining asosiy
+        // davosi. Zoom foydalanuvchiga telefonni fokus tushadigan masofada
+        // ushlab kodni kattalashtirish imkonini beradi (makro cheklovini
+        // chetlab o'tadi); torch esa yorug'likni oshirib tasvirni keskinlashtiradi.
+        const caps = (track.getCapabilities?.() ?? {}) as ExtendedCapabilities;
+        if (caps.zoom && caps.zoom.max > caps.zoom.min) {
+          const current = (track.getSettings() as ExtendedSettings).zoom ?? caps.zoom.min;
+          setZoom({
+            min: caps.zoom.min,
+            max: caps.zoom.max,
+            step: caps.zoom.step || 0.1,
+            value: current,
+          });
+        }
+        if (caps.torch) setTorchAvailable(true);
       }
 
       const report = (code: string) => {
@@ -148,6 +187,28 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
       });
   };
 
+  const handleZoomChange = (value: number) => {
+    const track = trackRef.current;
+    setZoom((z) => (z ? { ...z, value } : z));
+    void track
+      ?.applyConstraints({ advanced: [{ zoom: value }] } as unknown as MediaTrackConstraints)
+      .catch(() => {
+        // zoom qo'llab-quvvatlanmaydi — sukut bo'yicha e'tiborsiz qoldiriladi
+      });
+  };
+
+  const toggleTorch = () => {
+    const track = trackRef.current;
+    if (!track) return;
+    const next = !torchOn;
+    setTorchOn(next);
+    void track
+      .applyConstraints({ advanced: [{ torch: next }] } as unknown as MediaTrackConstraints)
+      .catch(() => {
+        setTorchOn(false);
+      });
+  };
+
   return (
     <div className="space-y-3">
       <div className="relative rounded-xl overflow-hidden h-64 bg-black cursor-crosshair" onClick={handleTapToFocus}>
@@ -169,12 +230,43 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
         >
           <span className="material-symbols-outlined text-[20px]">close</span>
         </button>
+        {torchAvailable && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleTorch();
+            }}
+            aria-label="Fonarni yoqish/o'chirish"
+            aria-pressed={torchOn}
+            className={`absolute top-3 left-3 w-9 h-9 rounded-full backdrop-blur-sm flex items-center justify-center transition-colors ${
+              torchOn ? "bg-primary text-on-primary" : "bg-black/60 text-on-surface hover:bg-black/80"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">{torchOn ? "flash_on" : "flash_off"}</span>
+          </button>
+        )}
       </div>
+      {zoom && (
+        <div className="flex items-center gap-3 px-1" onClick={(e) => e.stopPropagation()}>
+          <span className="material-symbols-outlined text-[18px] text-on-surface-variant">zoom_out</span>
+          <input
+            type="range"
+            min={zoom.min}
+            max={zoom.max}
+            step={zoom.step}
+            value={zoom.value}
+            onChange={(e) => handleZoomChange(Number(e.target.value))}
+            aria-label="Kattalashtirish"
+            className="flex-1 accent-primary"
+          />
+          <span className="material-symbols-outlined text-[18px] text-on-surface-variant">zoom_in</span>
+        </div>
+      )}
       {error ? (
         <p className="font-body-md text-[13px] text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">{error}</p>
       ) : (
         <p className="font-label-mono text-label-mono text-on-surface-variant text-center uppercase tracking-widest">
-          Shtrix-kod yoki QR-kodni ramka ichiga tuting — fokus uchun ekranga bosing
+          Shtrix-kodni ramkaga tuting · xira chiqsa yaqinlashtiring (zoom) yoki fokus uchun ekranga bosing
         </p>
       )}
     </div>
