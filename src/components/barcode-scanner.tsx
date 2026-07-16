@@ -18,10 +18,12 @@ function normalizeScannedCode(raw: string): string {
 // Jonli video oqim (getUserMedia) o'rniga bitta surat orqali skanerlaydi.
 // Sabab: brauzerdagi xom kamera oqimida avtofokusni dasturiy nazorat qilish
 // (focusMode, zoom, tap-to-focus — barchasi sinab ko'rildi) qurilmadan-
-// qurilmaga, ayniqsa Android PWA'da, ishonchsiz chiqdi. "capture" atributi
-// telefonning O'Z kamera ilovasini ochadi — fokus, yorug'lik, zum kabi hammasi
-// operatsion tizimning professional kamera dvigateliga tegishli bo'ladi, xuddi
-// AI ovqat skaneridagi rasm yuklash kabi allaqachon barqaror ishlayotgan yo'l.
+// qurilmaga, ayniqsa Android PWA'da, ishonchsiz chiqdi. "capture" atributini
+// ATAYLAB qo'ymaymiz — u ba'zi qurilmalarda telefonni to'g'ridan-to'g'ri
+// soddalashtirilgan "tezkor surat" rejimiga olib boradi va makro/yaqin fokus
+// rejimini o'chirib qo'yadi. Atributsiz variant standart tanlov oynasini
+// ochadi ("Kamera" / "Fayllar"), "Kamera"ni tanlasa foydalanuvchi telefonning
+// TO'LIQ kamera ilovasiga (makro rejimi, qo'lda fokus bilan) chiqadi.
 export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: string) => void; onClose: () => void }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -43,7 +45,9 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
       onDetected(normalizeScannedCode(result.getText()));
     } catch {
       setPreviewUrl(null);
-      setError("Shtrix-kod yoki QR-kod aniqlanmadi. Kodni ramka to'lg'azadigan qilib, yorug'roq joyda qayta suratga oling.");
+      setError(
+        "Shtrix-kod yoki QR-kod aniqlanmadi. Telefonni juda yaqinlashtirsangiz kamera xiralashadi — 15-20 sm masofada, yorug' joyda, kod aniq ko'rinadigan holatda qayta suratga oling."
+      );
     } finally {
       setScanning(false);
     }
@@ -61,7 +65,10 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
           <span className="font-body-md text-body-md text-on-surface-variant text-center px-4">
             Shtrix-kod yoki QR-kodni suratga oling
           </span>
-          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+          <span className="font-label-mono text-[10px] text-on-surface-variant/70 text-center px-4">
+            &ldquo;Kamera&rdquo; ilovasini tanlang — 15-20 sm masofadan, yorug&apos; joyda suratga oling
+          </span>
+          <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
         </label>
       )}
 
