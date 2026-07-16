@@ -61,7 +61,15 @@ export async function callGeminiChain(
       return { ok: false, status: 502, errorMessage: "Gemini bilan bog'lanib bo'lmadi." };
     }
     if (attempt.ok) break;
-    const retryableWithNextModel = attempt.errorStatus === "RESOURCE_EXHAUSTED" || attempt.errorStatus === "UNAVAILABLE";
+    // Keyingi (pastdagi) modelga o'tamiz: kvota tugagan (RESOURCE_EXHAUSTED),
+    // model band (UNAVAILABLE), yoki model bu kalitda mavjud emas/ruxsat yo'q
+    // (NOT_FOUND / PERMISSION_DENIED) — masalan yangi gemini-3.5-flash hali
+    // ochilmagan bo'lsa, zanjir jimgina 2.5-flash'ga tushadi, xato bermaydi.
+    const retryableWithNextModel =
+      attempt.errorStatus === "RESOURCE_EXHAUSTED" ||
+      attempt.errorStatus === "UNAVAILABLE" ||
+      attempt.errorStatus === "NOT_FOUND" ||
+      attempt.errorStatus === "PERMISSION_DENIED";
     if (!retryableWithNextModel) break;
   }
   return attempt;

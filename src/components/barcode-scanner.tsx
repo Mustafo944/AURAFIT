@@ -2,18 +2,6 @@
 
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 
-interface BarcodeDetectorLike {
-  detect(source: CanvasImageSource): Promise<{ rawValue: string }[]>;
-}
-
-declare global {
-  interface Window {
-    BarcodeDetector?: new (options: { formats: string[] }) => BarcodeDetectorLike;
-  }
-}
-
-const BARCODE_FORMATS = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"];
-
 // Ba'zi yangi mahsulotlar shtrix-kod o'rniga (yoki qo'shimcha) GS1 Digital
 // Link QR-kodini bosadi — havola ichida "/01/<GTIN>" segmenti sifatida oddiy
 // shtrix-kod raqami yashiringan bo'ladi. Shu segmentni topib olsak, QR-kod
@@ -27,14 +15,12 @@ function normalizeScannedCode(raw: string): string {
   return gs1Match ? gs1Match[1] : trimmed;
 }
 
-// Ikkita mustaqil detektor parallel ishlaydi:
-// 1) Klassik shtrix-kod (EAN/UPC/CODE128) — brauzerning tayyor `BarcodeDetector`
-//    API'si mavjud bo'lsa shundan (tez, qo'shimcha kod yuklamaydi).
-// 2) QR-kod — har doim @zxing/browser'ning maxsus `BrowserQRCodeReader'i bilan.
-//    Sabab: `BarcodeDetector`ga "qr_code" formatini qo'shib so'rasak ham, ba'zi
-//    brauzer/OS implementatsiyalari (mas. Windows'dagi Shape Detection polyfill)
-//    uni sukut bo'yicha hech qachon aniqlamaydi — shuning uchun QR-kod uchun
-//    faqat shtrix-kod API'siga ishonib bo'lmaydi, alohida ishonchli o'quvchi kerak.
+// Ham shtrix-kod (EAN/UPC/CODE128), ham QR-kodni @zxing/browser'ning yagona
+// `BrowserMultiFormatReader'i bilan o'qiymiz. Ilgari 1D shtrix-kod uchun
+// brauzerning native `BarcodeDetector` API'siga tayanardik — biroq u Windows'dagi
+// Chrome, Firefox va Safari'da umuman mavjud emas, shuning uchun ko'p qurilmada
+// shtrix-kod hech qachon aniqlanmasdi. zxing esa har qanday brauzerda, faqat
+// JS bilan, kadrma-kadr dekod qiladi — bu barcha platformada barqaror ishlaydi.
 export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const trackRef = useRef<MediaStreamTrack | null>(null);
@@ -54,7 +40,6 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
     let stopped = false;
     let stream: MediaStream | null = null;
     let zxingControls: { stop: () => void } | null = null;
-    let rafId: number | null = null;
 
     async function start() {
       // Standart cheklovlar (faqat facingMode) ba'zi kameralarda past
@@ -106,42 +91,29 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
         onDetectedRef.current(normalizeScannedCode(code));
       };
 
-      let nativeOk = false;
-      if (typeof window !== "undefined" && window.BarcodeDetector) {
-        try {
-          const detector = new window.BarcodeDetector({ formats: BARCODE_FORMATS });
-          const tick = async () => {
-            if (stopped || detectedRef.current || !videoRef.current) return;
-            try {
-              const codes = await detector.detect(videoRef.current);
-              if (codes[0]) {
-                report(codes[0].rawValue);
-                return;
-              }
-            } catch {
-              // frame o'qilmadi — keyingi frame'da qayta urinamiz
-            }
-            rafId = requestAnimationFrame(tick);
-          };
-          rafId = requestAnimationFrame(tick);
-          nativeOk = true;
-        } catch {
-          nativeOk = false;
-        }
-      }
-
-      // QR-kod uchun har doim ishga tushadi (nativeOk bo'lsa shtrix-kod bilan
-      // parallel, aks holda — masalan Safari/Firefox'da — yagona detektor
-      // sifatida).
+      // Yagona ko'p-formatli o'quvchi: ham QR, ham chiziqli shtrix-kodlar.
+      // Formatlarni cheklaymiz — tezroq ishlaydi va tasodifiy noto'g'ri
+      // o'qishlar kamayadi (faqat oziq-ovqat qadoqlarida uchraydigan turlar).
       try {
-        const { BrowserQRCodeReader } = await import("@zxing/browser");
-        const reader = new BrowserQRCodeReader();
+        const { BrowserMultiFormatReader, BarcodeFormat } = await import("@zxing/browser");
+        const reader = new BrowserMultiFormatReader();
+        reader.possibleFormats = [
+          BarcodeFormat.QR_CODE,
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+          BarcodeFormat.CODE_128,
+        ];
         if (stopped || !videoRef.current) return;
+        // decodeFromVideoElement kadrma-kadr uzluksiz dekod qiladi; kod
+        // topilmagan har bir kadr uchun callback'ga (kutilgan) NotFound xatosi
+        // keladi — uni e'tiborsiz qoldiramiz, faqat natijaga qaraymiz.
         zxingControls = await reader.decodeFromVideoElement(videoRef.current, (result) => {
           if (result) report(result.getText());
         });
       } catch {
-        if (!stopped && !nativeOk) setError("Skaner ishga tushmadi.");
+        if (!stopped) setError("Skaner ishga tushmadi.");
       }
     }
 
@@ -150,7 +122,6 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
     return () => {
       stopped = true;
       trackRef.current = null;
-      if (rafId != null) cancelAnimationFrame(rafId);
       zxingControls?.stop();
       stream?.getTracks().forEach((t) => t.stop());
     };

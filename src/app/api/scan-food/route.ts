@@ -28,15 +28,18 @@ Faqat berilgan JSON formatida, o'zbek tilida javob bering:
 Agar rasmda ovqat ko'rinmasa, mealName ni "Aniqlanmadi" deb qo'ying, items bo'sh massiv, boshqa raqamli maydonlarni 0 ga tenglashtiring va note ga sababini yozing.`;
 
 // Free-tier quota for this account (checked in Google AI Studio): 5 RPM / 20 RPD per model.
-// Vision scans prioritize gemini-2.5-flash; the coach-advice route prioritizes flash-lite
-// so the two features don't compete for the same model's daily bucket under normal use.
+// Vision scans prioritize gemini-3.5-flash (eng kuchli/aniq model). Uning kunlik
+// kvotasi tugasa yoki model band bo'lsa, callGeminiChain avtomatik ravishda
+// pastdagi modelga (2.5-flash, so'ng 2.5-flash-lite) o'tadi — har biri alohida
+// kvota bucket'iga ega. Text (coach-advice) esa umuman Groq'da ishlaydi, shuning
+// uchun ikki funksiya bir modelning kunlik bucket'i uchun raqobatlashmaydi.
 const RPM_LIMIT = Number(process.env.SCAN_RPM_LIMIT ?? 4);
 const isRpmLimited = createRpmLimiter(RPM_LIMIT);
 
 const MODEL_CHAIN = [
-  process.env.GEMINI_MODEL || "gemini-2.5-flash",
-  process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash-lite",
-  process.env.GEMINI_FALLBACK_MODEL_2 || "gemini-3.5-flash",
+  process.env.GEMINI_MODEL || "gemini-3.5-flash",
+  process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash",
+  process.env.GEMINI_FALLBACK_MODEL_2 || "gemini-2.5-flash-lite",
 ].filter((model, i, arr) => arr.indexOf(model) === i);
 
 export async function POST(request: Request) {
