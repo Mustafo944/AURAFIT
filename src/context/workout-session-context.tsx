@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Exercise, MuscleGroupId } from "@/lib/exercises";
 import { computeCaloriesBurned, type SetEntry, type WorkoutSession } from "@/lib/workout-log";
+import { type CardioEntry } from "@/lib/cardio";
 import { useAuth } from "@/context/auth-context";
 
 export interface ActiveExercise {
@@ -14,7 +15,10 @@ export interface ActiveExercise {
 
 export interface ActiveSession {
   startedAt: string;
+  // Foydalanuvchi mashg'ulot boshida tanlab qo'ygan mashqlar rejasi. Podxod
+  // hali kiritilmagan bo'lsa ham (sets bo'sh) ro'yxatda turadi.
   exercises: ActiveExercise[];
+  cardio: CardioEntry[];
 }
 
 const STORAGE_PREFIX = "aurafit_active_session";
@@ -23,8 +27,12 @@ interface WorkoutSessionContextValue {
   activeSession: ActiveSession | null;
   isActive: boolean;
   startSession: () => void;
-  logSet: (exercise: Exercise, set: SetEntry) => void;
+  addExercises: (exercises: Exercise[]) => void;
+  removeExercise: (exerciseId: string) => void;
+  logSet: (exerciseId: string, set: SetEntry) => void;
   removeSet: (exerciseId: string, setIndex: number) => void;
+  addCardio: (entry: CardioEntry) => void;
+  removeCardio: (index: number) => void;
   discardSession: () => void;
   finishSession: (weightKg: number) => WorkoutSession | null;
   getLoggedSets: (exerciseId: string) => SetEntry[];
@@ -36,7 +44,9 @@ function readDraft(key: string): ActiveSession | null {
   const raw = localStorage.getItem(key);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as ActiveSession;
+    const parsed = JSON.parse(raw) as ActiveSession;
+    // Eski qoralamada `cardio` bo'lmasligi mumkin — himoya uchun to'ldiramiz.
+    return { ...parsed, cardio: parsed.cardio ?? [] };
   } catch {
     return null;
   }
@@ -65,43 +75,62 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
     setActiveSession(userId ? readDraft(`${STORAGE_PREFIX}_${userId}`) : null);
   }, [userId]);
 
+  // Barcha o'zgartirishlar bitta joydan yoziladi — qoralamani localStorage bilan
+  // sinxron tutish uchun. `updater` yangi holatni qaytaradi (yoki o'zgarishsiz prev).
+  const mutate = (updater: (prev: ActiveSession) => ActiveSession) => {
+    setActiveSession((prev) => {
+      if (!prev) return prev;
+      const next = updater(prev);
+      writeDraft(storageKey, next);
+      return next;
+    });
+  };
+
   const startSession = () => {
-    const session: ActiveSession = { startedAt: new Date().toISOString(), exercises: [] };
+    const session: ActiveSession = { startedAt: new Date().toISOString(), exercises: [], cardio: [] };
     writeDraft(storageKey, session);
     setActiveSession(session);
   };
 
-  const logSet = (exercise: Exercise, set: SetEntry) => {
-    setActiveSession((prev) => {
-      if (!prev) return prev;
-      const exercises = [...prev.exercises];
-      const index = exercises.findIndex((e) => e.exerciseId === exercise.id);
-      if (index === -1) {
-        exercises.push({
-          exerciseId: exercise.id,
-          exerciseName: exercise.name,
-          muscleGroup: exercise.muscleGroup,
-          sets: [set],
-        });
-      } else {
-        exercises[index] = { ...exercises[index], sets: [...exercises[index].sets, set] };
-      }
-      const next = { ...prev, exercises };
-      writeDraft(storageKey, next);
-      return next;
+  const addExercises = (exercises: Exercise[]) => {
+    mutate((prev) => {
+      const existing = new Set(prev.exercises.map((e) => e.exerciseId));
+      const added = exercises
+        .filter((e) => !existing.has(e.id))
+        .map((e) => ({ exerciseId: e.id, exerciseName: e.name, muscleGroup: e.muscleGroup, sets: [] as SetEntry[] }));
+      if (added.length === 0) return prev;
+      return { ...prev, exercises: [...prev.exercises, ...added] };
     });
   };
 
+  const removeExercise = (exerciseId: string) => {
+    mutate((prev) => ({ ...prev, exercises: prev.exercises.filter((e) => e.exerciseId !== exerciseId) }));
+  };
+
+  const logSet = (exerciseId: string, set: SetEntry) => {
+    mutate((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((e) => (e.exerciseId === exerciseId ? { ...e, sets: [...e.sets, set] } : e)),
+    }));
+  };
+
+  // Podxod o'chirilganda mashq rejadan CHIQMAYDI (sets bo'sh qolsa ham karta
+  // turadi) — foydalanuvchi qayta podxod kirita olishi uchun.
   const removeSet = (exerciseId: string, setIndex: number) => {
-    setActiveSession((prev) => {
-      if (!prev) return prev;
-      const exercises = prev.exercises
-        .map((e) => (e.exerciseId === exerciseId ? { ...e, sets: e.sets.filter((_, i) => i !== setIndex) } : e))
-        .filter((e) => e.sets.length > 0);
-      const next = { ...prev, exercises };
-      writeDraft(storageKey, next);
-      return next;
-    });
+    mutate((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((e) =>
+        e.exerciseId === exerciseId ? { ...e, sets: e.sets.filter((_, i) => i !== setIndex) } : e
+      ),
+    }));
+  };
+
+  const addCardio = (entry: CardioEntry) => {
+    mutate((prev) => ({ ...prev, cardio: [...prev.cardio, entry] }));
+  };
+
+  const removeCardio = (index: number) => {
+    mutate((prev) => ({ ...prev, cardio: prev.cardio.filter((_, i) => i !== index) }));
   };
 
   const discardSession = () => {
@@ -110,21 +139,30 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
   };
 
   const finishSession = (weightKg: number): WorkoutSession | null => {
-    if (!activeSession || activeSession.exercises.length === 0) return null;
+    if (!activeSession) return null;
+    // Faqat kamida bitta podxod kiritilgan mashqlar saqlanadi.
+    const loggedExercises = activeSession.exercises.filter((e) => e.sets.length > 0);
+    const cardio = activeSession.cardio;
+    if (loggedExercises.length === 0 && cardio.length === 0) return null;
+
     const finishedAt = new Date().toISOString();
-    const totalVolumeKg = activeSession.exercises.reduce(
+    const totalVolumeKg = loggedExercises.reduce(
       (sum, ex) => sum + ex.sets.reduce((s, set) => s + set.weightKg * set.reps, 0),
       0
     );
-    const totalSets = activeSession.exercises.reduce((sum, ex) => sum + ex.sets.length, 0);
+    const totalSets = loggedExercises.reduce((sum, ex) => sum + ex.sets.length, 0);
+    const strengthCalories = computeCaloriesBurned(activeSession.startedAt, finishedAt, weightKg, totalSets);
+    const cardioCalories = cardio.reduce((sum, c) => sum + c.caloriesBurned, 0);
+
     const session: WorkoutSession = {
       id: crypto.randomUUID(),
       startedAt: activeSession.startedAt,
       finishedAt,
-      exercises: activeSession.exercises,
+      exercises: loggedExercises,
+      cardio,
       totalVolumeKg,
       totalSets,
-      caloriesBurned: computeCaloriesBurned(activeSession.startedAt, finishedAt, weightKg, totalSets),
+      caloriesBurned: strengthCalories + cardioCalories,
     };
     writeDraft(storageKey, null);
     setActiveSession(null);
@@ -140,8 +178,12 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
         activeSession,
         isActive: activeSession !== null,
         startSession,
+        addExercises,
+        removeExercise,
         logSet,
         removeSet,
+        addCardio,
+        removeCardio,
         discardSession,
         finishSession,
         getLoggedSets,

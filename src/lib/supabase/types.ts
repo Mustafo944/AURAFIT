@@ -10,6 +10,8 @@ export interface Database {
       profiles: {
         Row: {
           id: string;
+          first_name: string;
+          last_name: string;
           age: number;
           gender: "male" | "female";
           weight_kg: number;
@@ -21,6 +23,8 @@ export interface Database {
         };
         Insert: {
           id: string;
+          first_name?: string;
+          last_name?: string;
           age?: number;
           gender?: "male" | "female";
           weight_kg?: number;
@@ -84,6 +88,7 @@ export interface Database {
           started_at: string;
           finished_at: string;
           exercises: unknown;
+          cardio: unknown;
           total_volume_kg: number;
           total_sets: number;
           calories_burned: number;
@@ -97,6 +102,7 @@ export interface Database {
           started_at: string;
           finished_at: string;
           exercises: unknown;
+          cardio?: unknown;
           total_volume_kg: number;
           total_sets: number;
           calories_burned: number;

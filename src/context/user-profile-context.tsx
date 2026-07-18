@@ -8,6 +8,8 @@ export type Gender = "male" | "female";
 export type Goal = "lose" | "maintain" | "gain";
 
 export interface UserProfile {
+  firstName: string;
+  lastName: string;
   age: number;
   gender: Gender;
   weightKg: number;
@@ -18,6 +20,8 @@ export interface UserProfile {
 }
 
 export const DEFAULT_PROFILE: UserProfile = {
+  firstName: "",
+  lastName: "",
   age: 28,
   gender: "male",
   weightKg: 78,
@@ -39,6 +43,8 @@ async function persistProfile(userId: string, profile: UserProfile): Promise<{ e
   const supabase = createClient();
   const { error } = await supabase.from("profiles").upsert({
     id: userId,
+    first_name: profile.firstName,
+    last_name: profile.lastName,
     age: profile.age,
     gender: profile.gender,
     weight_kg: profile.weightKg,
@@ -78,7 +84,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     supabase
       .from("profiles")
-      .select("age, gender, weight_kg, height_cm, goal, target_weight_kg, avatar_url")
+      .select("first_name, last_name, age, gender, weight_kg, height_cm, goal, target_weight_kg, avatar_url")
       .eq("id", userId)
       .single()
       .then(({ data, error }) => {
@@ -87,6 +93,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
           console.error("Profilni o'qishda xatolik:", error.message);
         } else if (data) {
           setProfileState({
+            firstName: data.first_name ?? "",
+            lastName: data.last_name ?? "",
             age: data.age,
             gender: data.gender,
             weightKg: data.weight_kg,

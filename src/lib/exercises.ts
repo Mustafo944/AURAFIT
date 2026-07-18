@@ -7,13 +7,13 @@ export interface MuscleGroupInfo {
 }
 
 export const MUSCLE_GROUPS: MuscleGroupInfo[] = [
-  { id: "chest", label: "Ko'krak", icon: "fitness_center" },
-  { id: "back", label: "Orqa", icon: "rowing" },
-  { id: "shoulders", label: "Yelka", icon: "sports_gymnastics" },
-  { id: "biceps", label: "Biceps", icon: "sports_martial_arts" },
-  { id: "triceps", label: "Triceps", icon: "front_hand" },
-  { id: "legs", label: "Oyoqlar", icon: "directions_run" },
-  { id: "abs", label: "Qorin", icon: "self_improvement" },
+  { id: "chest", label: "Ko'krak mashqlari", icon: "fitness_center" },
+  { id: "back", label: "Qanot mashqlari", icon: "rowing" },
+  { id: "shoulders", label: "Yelka mashqlari", icon: "sports_gymnastics" },
+  { id: "biceps", label: "Qo'l oldi mashqlari", icon: "sports_martial_arts" },
+  { id: "triceps", label: "Qo'l orqa mashqlari", icon: "front_hand" },
+  { id: "legs", label: "Oyoq mashqlari", icon: "directions_run" },
+  { id: "abs", label: "Pres mashqlari", icon: "self_improvement" },
 ];
 
 export type Equipment = "barbell" | "dumbbell" | "cable" | "machine" | "bodyweight" | "ez-bar";

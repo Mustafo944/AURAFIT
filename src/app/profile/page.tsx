@@ -9,6 +9,7 @@ import { calculateFitnessMetrics } from "@/lib/fitness";
 import { useProfileInsight } from "@/lib/profile-insight";
 import { logWeightEntry } from "@/lib/weight-log";
 import { uploadAvatar } from "@/lib/avatar";
+import { signOut } from "@/lib/supabase/actions";
 import { WeightRuler } from "@/components/weight-ruler";
 import { HeightRuler } from "@/components/height-ruler";
 import { AgeWheel } from "@/components/age-wheel";
@@ -83,6 +84,8 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     const next = {
+      firstName: form.firstName,
+      lastName: form.lastName,
       age: form.age,
       gender: form.gender,
       weightKg: form.weightKg,
@@ -190,12 +193,9 @@ export default function ProfilePage() {
 
           {/* Profile Info */}
           <div className="flex-1 text-center md:text-left flex flex-col justify-center">
-            <h2 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-primary uppercase">ATHLETE_01</h2>
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-2">
-              <span className="bg-[#1A1A1A] border border-white/20 font-label-mono text-label-mono text-on-surface-variant px-3 py-1 rounded flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px]">military_tech</span> 42 NISHON
-              </span>
-            </div>
+            <h2 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-primary uppercase">
+              {`${profile.firstName} ${profile.lastName}`.trim() || "ATHLETE_01"}
+            </h2>
             {avatarError && (
               <p className="font-body-md text-[13px] text-error mt-2">{avatarError}</p>
             )}
@@ -212,10 +212,15 @@ export default function ProfilePage() {
               <span className="material-symbols-outlined">psychology</span>
               <span className="font-body-md text-body-md">AI Murabbiy Sozlamalari</span>
             </Link>
-            <Link className="flex items-center gap-3 px-6 py-4 text-on-surface-variant hover:bg-white/5 transition-colors duration-200 mt-stack-md border-t border-white/5" href="#">
-              <span className="material-symbols-outlined">logout</span>
-              <span className="font-body-md text-body-md">Chiqish</span>
-            </Link>
+            <form action={signOut} className="mt-stack-md border-t border-white/5">
+              <button
+                type="submit"
+                className="w-full flex items-center gap-3 px-6 py-4 text-on-surface-variant hover:bg-white/5 transition-colors duration-200"
+              >
+                <span className="material-symbols-outlined">logout</span>
+                <span className="font-body-md text-body-md">Chiqish</span>
+              </button>
+            </form>
           </nav>
         </div>
 
@@ -263,6 +268,28 @@ export default function ProfilePage() {
                 }`}
               >
                 <div className="pt-6 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">Ism</label>
+                    <input
+                      className="w-full bg-[#000000] border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
+                      type="text"
+                      value={form.firstName}
+                      onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                      placeholder="Ismingiz"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">Familiya</label>
+                    <input
+                      className="w-full bg-[#000000] border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
+                      type="text"
+                      value={form.lastName}
+                      onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                      placeholder="Familiyangiz"
+                    />
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => setEditingField("gender")}

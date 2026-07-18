@@ -2,46 +2,80 @@
 
 import { useMemo, useState, type ChangeEvent } from "react";
 import { useUserProfile } from "@/context/user-profile-context";
-import { calculateFitnessMetrics, GOAL_LABELS } from "@/lib/fitness";
-import { useMealLog, useMealHistory, sumMeals, type MealType } from "@/lib/meal-log";
-import { useWeightHistory } from "@/lib/weight-log";
-import { useWorkoutHistory, getExerciseHistory } from "@/lib/workout-log";
-import {
-  weightForecast,
-  weightGoalDiscrepancy,
-  calibrateTDEE,
-  weeklyWorkoutFrequency,
-  exerciseProgressionTrend,
-  muscleGroupVolumeBalance,
-} from "@/lib/forecast";
-import { useAnalyticsForecast } from "@/lib/analytics-forecast";
+import { calculateFitnessMetrics } from "@/lib/fitness";
+import { useMealLog, sumMeals, type MealType } from "@/lib/meal-log";
+import { useWorkoutHistory } from "@/lib/workout-log";
+import { weeklyWorkoutFrequency } from "@/lib/forecast";
 import { ProgressRing } from "@/components/progress-ring";
 import { MacroBar } from "@/components/macro-bar";
-import { TrendLineChart } from "@/components/trend-line-chart";
 import { WeeklyActivityChart } from "@/components/weekly-activity-chart";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 
-const UZ_MONTHS_SHORT = ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"];
-
-// Nonushta/Tushlik/Kechki ovqat kunning ma'lum vaqtiga tavsiya etiladi, Perekus
-// esa istalgan payt qo'shilishi mumkin — shu sabab alohida vaqt oralig'i yo'q.
-// Tavsiya etilgan kaloriya kunlik maqsadning taxminiy ulushidan hisoblanadi.
+// Nonushta/Tushlik/Kechki ovqat kunning ma'lum vaqtiga tavsiya etiladi,
+// Qo'shimcha taom esa istalgan payt qo'shilishi mumkin — shu sabab alohida
+// vaqt oralig'i yo'q. Tavsiya etilgan kaloriya kunlik maqsadning taxminiy
+// ulushidan hisoblanadi.
 const MEAL_TYPES: Array<{ type: MealType; label: string; dativeLabel: string; icon: string; split: number }> = [
   { type: "breakfast", label: "Nonushta", dativeLabel: "Nonushtaga", icon: "free_breakfast", split: 0.25 },
   { type: "lunch", label: "Tushlik", dativeLabel: "Tushlikka", icon: "lunch_dining", split: 0.35 },
   { type: "dinner", label: "Kechki ovqat", dativeLabel: "Kechki ovqatga", icon: "dinner_dining", split: 0.3 },
-  { type: "snack", label: "Perekus", dativeLabel: "Perekusga", icon: "cookie", split: 0.1 },
+  { type: "snack", label: "Qo'shimcha taom", dativeLabel: "Qo'shimcha taomga", icon: "cookie", split: 0.1 },
 ];
 
-// Perekus istalgan payt qo'shilishi mumkin, shuning uchun ro'yxatda bitta
-// qat'iy joyga emas — nonushtadan keyin ham, tushlikdan keyin ham alohida
+// Qo'shimcha taom istalgan payt qo'shilishi mumkin, shuning uchun ro'yxatda
+// bitta qat'iy joyga emas — nonushtadan keyin ham, tushlikdan keyin ham alohida
 // kirish nuqtasi sifatida chiqadi. Ikkalasi ham bir xil "snack" hisobiga
 // yoziladi, shuning uchun eaten/target ko'rsatkichi ikkalasida ham bir xil.
 const MEAL_CARD_ORDER: MealType[] = ["breakfast", "snack", "lunch", "snack", "dinner"];
 
-function formatDateLabel(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()}-${UZ_MONTHS_SHORT[d.getMonth()]}`;
+/**
+ * Kunlik suv iste'moli tavsiyasi — ilmiy tadqiqotlarga asoslangan.
+ *
+ * Asosiy formula (IOM / EFSA yo'riqnomasi):
+ *   Bazaviy ehtiyoj = tana vazni (kg) × 35 ml/kg
+ *   (Voyaga yetganlar uchun tana vazni har kg ga 30–40 ml suv, o'rtacha 35 ml)
+ *
+ * Yosh bo'yicha tuzatish (EFSA 2010, IOM 2004):
+ *   - 18 dan kichik: ×1.1 (o'smir organizmning suv ehtiyoji yuqoriroq)
+ *   - 18–30 yosh: ×1.0 (eng faol davr, bazaviy daraja)
+ *   - 31–55 yosh: ×0.95 (moddalar almashinuvi biroz sekinlashadi)
+ *   - 55+ yosh: ×0.90 (buyrak funksiyasi pasayishi, lekin suv hali ham muhim)
+ *
+ * Manbalar:
+ *   - EFSA Journal 2010;8(3):1459 — "Scientific Opinion on Dietary Reference
+ *     Values for water"
+ *   - IOM (2004) — "Dietary Reference Intakes for Water, Potassium, Sodium,
+ *     Chloride, and Sulfate"
+ *   - Popkin B.M., D'Anci K.E., Rosenberg I.H. (2010) — "Water, Hydration
+ *     and Health" Nutrition Reviews 68(8):439–458
+ */
+function calculateWaterIntake(weightKg: number, age: number): { liters: number; glasses: number; note: string } {
+  // Bazaviy: 35 ml per kg (IOM / EFSA o'rtacha tavsiya)
+  let mlPerDay = weightKg * 35;
+
+  // Yoshga qarab tuzatish koeffitsiyenti
+  let ageFactor: number;
+  let ageNote: string;
+  if (age < 18) {
+    ageFactor = 1.1;
+    ageNote = "O'smir organizmi tez o'sadi — hujayra bo'linishi va gormonlar ishlab chiqarishi uchun ko'proq suv talab qilinadi (EFSA, 2010).";
+  } else if (age <= 30) {
+    ageFactor = 1.0;
+    ageNote = "Eng faol yosh davri — mushak massasi yuqori, moddalar almashinuvi tez ishlaydi, shuning uchun standart suv me'yori yetarli (IOM, 2004).";
+  } else if (age <= 55) {
+    ageFactor = 0.95;
+    ageNote = "30 yoshdan keyin har 10 yilda mushak massasi 3–5% kamayadi, gormonlar (testosteron, estrogen) darajasi tushadi — natijada moddalar almashinuvi sekinlashib, suv ehtiyoji biroz pasayadi (Popkin et al., 2010).";
+  } else {
+    ageFactor = 0.90;
+    ageNote = "55 yoshdan keyin buyrak filtratsiya tezligi pasayadi va tashnalik hissini boshqaruvchi gipotalamus sezgirligi kamayadi — shuning uchun tashnalik sezilmasa ham muntazam suv ichish muhim (IOM, 2004).";
+  }
+
+  mlPerDay *= ageFactor;
+
+  const liters = Math.round(mlPerDay / 100) / 10; // 1 xonali kasr
+  const glasses = Math.round(mlPerDay / 250); // 250ml = 1 stakan
+
+  return { liters, glasses, note: ageNote };
 }
 
 interface ScanResult {
@@ -67,7 +101,7 @@ function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }>
 }
 
 export default function AnalyticsPage() {
-  const { profile, loading: profileLoading } = useUserProfile();
+  const { profile } = useUserProfile();
   const metrics = calculateFitnessMetrics(
     profile.age,
     profile.gender,
@@ -103,77 +137,19 @@ export default function AnalyticsPage() {
   const remainingCalories = metrics.targetCalories - consumed.calories;
   const caloriePct = metrics.targetCalories > 0 ? (consumed.calories / metrics.targetCalories) * 100 : 0;
 
-  // ==========================================================================
-  // Aqlli Tahlil — vazn dinamikasi, haftalik faollik, kuch progressi va
-  // formula/kalibrlangan TDEE'ni birlashtiruvchi bo'limlar uchun ma'lumotlar.
-  // ==========================================================================
-  const { entries: weightEntries, loading: weightsLoading, addWeightEntry } = useWeightHistory();
-  const { sessions, loading: sessionsLoading } = useWorkoutHistory();
-  const { meals: mealHistory, loading: mealHistoryLoading } = useMealHistory(30);
-
-  const wForecast = weightForecast(weightEntries, profile.targetWeightKg);
-  const weightDiscrepancy =
-    wForecast.status === "ok" ? weightGoalDiscrepancy(wForecast.slopeKgPerWeek!, profile.goal) : false;
-  const tdeeCalibration = calibrateTDEE(weightEntries, mealHistory, metrics.tdee);
-
-  const weightChartPoints = weightEntries.map((e) => ({
-    id: e.id,
-    dateLabel: formatDateLabel(e.loggedAt),
-    value: e.weightKg,
-  }));
-  const weightForecastPoints =
-    wForecast.status === "ok" ? [{ id: "weight-forecast-30", dateLabel: "+30 kun", value: wForecast.projectedIn30DaysKg! }] : [];
-
-  const [weightInput, setWeightInput] = useState("");
-  const handleLogWeight = () => {
-    const value = Number(weightInput);
-    if (!(value > 0)) return;
-    addWeightEntry(value);
-    setWeightInput("");
-  };
-
+  // Haftalik Faollik bo'limi uchun — mashg'ulot tarixidan haftalik chastota.
+  const { sessions } = useWorkoutHistory();
   const weeklyActivity = useMemo(() => weeklyWorkoutFrequency(sessions), [sessions]);
   const avgSessionsPerWeek =
     weeklyActivity.length > 0
       ? Math.round((weeklyActivity.reduce((s, w) => s + w.count, 0) / weeklyActivity.length) * 10) / 10
       : 0;
-  const muscleBalance = useMemo(() => muscleGroupVolumeBalance(sessions, 30), [sessions]);
 
-  const performedExercises = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const s of sessions) {
-      for (const ex of s.exercises) {
-        if (!map.has(ex.exerciseId)) map.set(ex.exerciseId, ex.exerciseName);
-      }
-    }
-    return [...map.entries()].map(([id, name]) => ({ id, name }));
-  }, [sessions]);
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
-  const activeExerciseId = selectedExerciseId ?? performedExercises[0]?.id ?? null;
-  const exerciseHistory = activeExerciseId ? getExerciseHistory(sessions, activeExerciseId) : [];
-  const exerciseTrend = exerciseProgressionTrend(exerciseHistory);
-  const exerciseChartPoints = [...exerciseHistory].reverse().map((h) => ({
-    id: h.finishedAt,
-    dateLabel: formatDateLabel(h.finishedAt),
-    value: h.bestSet.weightKg,
-  }));
-  const exerciseForecastPoints =
-    exerciseTrend.status === "ok"
-      ? [{ id: "exercise-forecast-4w", dateLabel: "+4 hafta", value: exerciseTrend.projectedIn4WeeksKg! }]
-      : [];
-
-  const { insight: forecastInsight, loading: forecastLoading } = useAnalyticsForecast({
-    goal: profile.goal,
-    formulaTdee: metrics.tdee,
-    calibratedTdee: tdeeCalibration,
-    weightForecast: wForecast,
-    hasGoalDiscrepancy: weightDiscrepancy,
-    weeklyActivity: { avgSessionsPerWeek, weeksTracked: weeklyActivity.length },
-    muscleBalance: muscleBalance.slice(0, 4),
-    // Barcha manba ma'lumotlar (profil, vazn, mashg'ulot, ovqat tarixi)
-    // yuklanmaguncha AI chaqirilmaydi — bo'sh ma'lumot bilan ortiqcha
-    // so'rov ketmasligi uchun.
-  }, !profileLoading && !weightsLoading && !sessionsLoading && !mealHistoryLoading);
+  // Suv iste'moli tavsiyasi — vazn va yoshga qarab dinamik hisoblanadi
+  const waterIntake = useMemo(
+    () => calculateWaterIntake(profile.weightKg, profile.age),
+    [profile.weightKg, profile.age]
+  );
 
   const resetScan = () => {
     setPreviewUrl(null);
@@ -544,12 +520,23 @@ export default function AnalyticsPage() {
                     <p className="font-body-md text-body-md text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">
                       {error}
                     </p>
-                    <button
-                      onClick={() => setError(null)}
-                      className="w-full px-6 py-3 rounded-lg bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10 transition-colors font-label-mono text-label-mono"
-                    >
-                      Qayta Urinish
-                    </button>
+                    <div className="flex flex-col md:flex-row gap-3">
+                      <button
+                        onClick={() => setError(null)}
+                        className="flex-1 px-6 py-3 rounded-lg bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10 transition-colors font-label-mono text-label-mono"
+                      >
+                        Qayta Urinish
+                      </button>
+                      <button
+                        onClick={() => {
+                          setScanMode("photo");
+                          resetScan();
+                        }}
+                        className="flex-1 px-6 py-3 rounded-lg bg-primary-container text-on-primary-container font-label-mono text-label-mono hover:bg-primary-fixed transition-colors"
+                      >
+                        Rasm Orqali Urinish
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -558,6 +545,77 @@ export default function AnalyticsPage() {
             )}
           </div>
         )}
+      </section>
+
+      {/* Suv Iste'moli Tavsiyasi */}
+      <section className="glass-card ai-accent-border rounded-xl p-6">
+        <div className="flex items-center gap-3 mb-4 border-b border-white/10 pb-4">
+          <span className="text-[24px]">💧</span>
+          <h3 className="font-headline-md text-headline-md text-primary uppercase">Suv Iste&apos;moli</h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+          {/* Kunlik norma */}
+          <div className="bg-white/5 rounded-xl p-4 text-center border border-white/5">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-[18px]">🥤</span>
+              <span className="font-label-mono text-[11px] text-on-surface-variant uppercase">Kunlik norma</span>
+            </div>
+            <div className="font-headline-md text-[28px] font-bold" style={{ color: '#00bcd4' }}>
+              {waterIntake.liters} L
+            </div>
+            <div className="font-label-mono text-[11px] text-on-surface-variant mt-1">
+              {waterIntake.glasses} stakan (250 ml)
+            </div>
+          </div>
+
+          {/* Vazn asosida */}
+          <div className="bg-white/5 rounded-xl p-4 text-center border border-white/5">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-[18px]">⚖️</span>
+              <span className="font-label-mono text-[11px] text-on-surface-variant uppercase">Vazningiz</span>
+            </div>
+            <div className="font-headline-md text-[24px] font-bold text-primary">
+              {profile.weightKg} kg
+            </div>
+            <div className="font-label-mono text-[11px] text-on-surface-variant mt-1">
+              35 ml × {profile.weightKg} kg
+            </div>
+          </div>
+
+          {/* Yosh asosida */}
+          <div className="bg-white/5 rounded-xl p-4 text-center border border-white/5">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-[18px]">🎂</span>
+              <span className="font-label-mono text-[11px] text-on-surface-variant uppercase">Yoshingiz</span>
+            </div>
+            <div className="font-headline-md text-[24px] font-bold text-tertiary-fixed-dim">
+              {profile.age} yosh
+            </div>
+            <div className="font-label-mono text-[11px] text-on-surface-variant mt-1">
+              Yosh koeffitsiyenti: ×{profile.age < 18 ? '1.1' : profile.age <= 30 ? '1.0' : profile.age <= 55 ? '0.95' : '0.90'}
+            </div>
+          </div>
+        </div>
+
+        {/* Ilmiy izoh */}
+        <div className="bg-white/5 rounded-lg p-4 border border-white/5">
+          <div className="flex items-start gap-3">
+            <span className="text-[16px] mt-0.5">🔬</span>
+            <div>
+              <p className="font-body-md text-[13px] text-on-surface-variant leading-relaxed">
+                {waterIntake.note}
+              </p>
+              <p className="font-label-mono text-[10px] text-on-surface-variant/60 mt-2 leading-relaxed">
+                Manbalar: EFSA Journal 2010;8(3):1459 · IOM (2004) Dietary Reference Intakes · Popkin B.M. et al. (2010) Nutrition Reviews 68(8):439–458
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <p className="font-body-md text-[12px] text-on-surface-variant/50 mt-3 italic">
+          💡 Mashg&apos;ulot paytida qo&apos;shimcha 500–1000 ml suv ichish tavsiya etiladi. Profildagi vazn o&apos;zgarsa, tavsiya avtomatik yangilanadi.
+        </p>
       </section>
 
       {/* Today's Meal History */}
@@ -610,65 +668,6 @@ export default function AnalyticsPage() {
         )}
       </section>
 
-      {/* Vazn Dinamikasi */}
-      <section className="glass-card ai-accent-border rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
-          <span className="material-symbols-outlined text-primary-fixed-dim">monitor_weight</span>
-          <h3 className="font-headline-md text-headline-md text-primary uppercase">Vazn Dinamikasi</h3>
-        </div>
-
-        <TrendLineChart
-          label="Vazn (kg)"
-          unit=" kg"
-          points={weightChartPoints}
-          forecastPoints={weightForecastPoints}
-          emptyMessage="Trend va prognozni ko'rish uchun yana kamida 2 marta vazningizni qayd eting."
-        />
-
-        {wForecast.status === "ok" && (
-          <p className="font-body-md text-[13px] text-on-surface-variant mt-4">
-            Haftasiga {wForecast.slopeKgPerWeek! > 0 ? "+" : ""}
-            {wForecast.slopeKgPerWeek} kg &middot; 30 kundan keyin taxminan {wForecast.projectedIn30DaysKg} kg
-            {profile.targetWeightKg != null &&
-              (wForecast.etaToGoalDays != null
-                ? ` · Maqsad (${profile.targetWeightKg} kg)gacha taxminan ${wForecast.etaToGoalDays} kun`
-                : ` · Joriy trend maqsad vazningiz (${profile.targetWeightKg} kg) tomon emas`)}
-          </p>
-        )}
-
-        {weightDiscrepancy && (
-          <div className="flex items-start gap-2 border border-error/30 bg-error/10 rounded-lg px-4 py-3 mt-4">
-            <span className="material-symbols-outlined text-error text-[18px] mt-0.5">warning</span>
-            <p className="font-body-md text-[13px] text-error">
-              Vazn trendi maqsadingizga ({GOAL_LABELS[profile.goal]}) zid yo&apos;nalishda ketmoqda.
-            </p>
-          </div>
-        )}
-
-        <div className="flex items-end gap-3 mt-6 pt-4 border-t border-white/10">
-          <div className="flex-1">
-            <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">
-              JORIY VAZNNI QAYD ETISH (KG)
-            </label>
-            <input
-              type="number"
-              min={30}
-              max={300}
-              value={weightInput}
-              onChange={(e) => setWeightInput(e.target.value)}
-              placeholder={String(profile.weightKg)}
-              className="w-full bg-black/40 border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
-            />
-          </div>
-          <button
-            onClick={handleLogWeight}
-            className="px-6 py-3 rounded-lg bg-primary-container text-on-primary-container font-headline-md text-sm uppercase tracking-wider glow-button hover:bg-primary-fixed transition-colors"
-          >
-            Qayd Etish
-          </button>
-        </div>
-      </section>
-
       {/* Haftalik Faollik */}
       <section className="glass-card ai-accent-border rounded-xl p-6">
         <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
@@ -683,120 +682,6 @@ export default function AnalyticsPage() {
         )}
       </section>
 
-      {/* Kuch Progressi */}
-      <section className="glass-card ai-accent-border rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
-          <span className="material-symbols-outlined text-primary-fixed-dim">trending_up</span>
-          <h3 className="font-headline-md text-headline-md text-primary uppercase">Kuch Progressi</h3>
-        </div>
-
-        {performedExercises.length === 0 ? (
-          <p className="font-body-md text-body-md text-on-surface-variant">
-            Hali hech qanday mashq bajarilmagan. Mashg&apos;ulot yakunlagach, progressni shu yerda kuzatasiz.
-          </p>
-        ) : (
-          <>
-            <select
-              value={activeExerciseId ?? ""}
-              onChange={(e) => setSelectedExerciseId(e.target.value)}
-              className="w-full bg-black/40 border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none mb-6"
-            >
-              {performedExercises.map((ex) => (
-                <option key={ex.id} value={ex.id}>
-                  {ex.name}
-                </option>
-              ))}
-            </select>
-
-            <TrendLineChart
-              label="Eng Og'ir Podxod (kg)"
-              unit=" kg"
-              points={exerciseChartPoints}
-              forecastPoints={exerciseForecastPoints}
-              emptyMessage="Trendni ko'rish uchun bu mashqni yana kamida 2 marta bajaring."
-            />
-
-            {exerciseTrend.status === "ok" && (
-              <p className="font-body-md text-[13px] text-on-surface-variant mt-4">
-                Haftasiga {exerciseTrend.slopeKgPerWeek! > 0 ? "+" : ""}
-                {exerciseTrend.slopeKgPerWeek} kg &middot; 4 haftadan keyin taxminan {exerciseTrend.projectedIn4WeeksKg} kg
-              </p>
-            )}
-          </>
-        )}
-      </section>
-
-      {/* Aqlli Tahlil */}
-      <section className="glass-card ai-accent-border rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
-          <span className="material-symbols-outlined text-tertiary-fixed-dim">auto_awesome</span>
-          <h3 className="font-headline-md text-headline-md text-primary uppercase">Aqlli Tahlil</h3>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          <div className="md:col-span-4 grid grid-cols-2 md:grid-cols-1 gap-4 md:border-r border-white/10 md:pr-6">
-            <div className="text-center md:text-left">
-              <div className="font-headline-md text-[22px] text-primary font-bold">{metrics.tdee}</div>
-              <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">Formula TDEE</div>
-            </div>
-            <div className="text-center md:text-left">
-              <div className="font-headline-md text-[22px] text-primary font-bold">
-                {tdeeCalibration.status === "ok" ? tdeeCalibration.calibratedTdee : "—"}
-              </div>
-              <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">
-                Kalibrlangan TDEE
-                {tdeeCalibration.status === "ok" && (tdeeCalibration.confidence === "high" ? " (yuqori ishonch)" : " (o'rta ishonch)")}
-              </div>
-            </div>
-            {tdeeCalibration.status === "insufficient" && (
-              <p className="font-body-md text-[12px] text-on-surface-variant col-span-2 md:col-span-1">
-                Yana {Math.max(0, 5 - tdeeCalibration.weightDataPoints)} ta vazn yozuvi va{" "}
-                {Math.max(0, 7 - tdeeCalibration.mealDataDays)} kun ovqat ma&apos;lumoti kalibrlash uchun kerak.
-              </p>
-            )}
-          </div>
-
-          <div className="md:col-span-8">
-            {forecastLoading && !forecastInsight && (
-              <div className="flex items-center gap-2 text-on-surface-variant">
-                <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
-                <span className="font-label-mono text-label-mono uppercase tracking-widest">AI tahlil qilmoqda...</span>
-              </div>
-            )}
-            {forecastInsight && (
-              <div className="space-y-3">
-                <p className="font-body-md text-body-md text-on-surface">{forecastInsight.summary}</p>
-                <p className="font-body-md text-[14px] text-tertiary-fixed-dim">{forecastInsight.forecast}</p>
-                {forecastInsight.warnings.length > 0 && (
-                  <ul className="space-y-2">
-                    {forecastInsight.warnings.map((w, i) => (
-                      <li key={i} className="flex items-start gap-2 font-body-md text-[14px] text-error">
-                        <span className="material-symbols-outlined text-error text-[16px] mt-0.5">warning</span>
-                        <span>{w}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {forecastInsight.tips.length > 0 && (
-                  <ul className="space-y-2">
-                    {forecastInsight.tips.map((tip, i) => (
-                      <li key={i} className="flex items-start gap-2 font-body-md text-[14px] text-on-surface-variant">
-                        <span className="material-symbols-outlined text-tertiary-fixed-dim text-[16px] mt-0.5">check_circle</span>
-                        <span>{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-            {!forecastLoading && !forecastInsight && (
-              <p className="font-body-md text-body-md text-on-surface-variant">
-                Tahlil hozircha mavjud emas. Vazn va mashg&apos;ulot ma&apos;lumotlaringizni to&apos;plab, birozdan so&apos;ng qayta tekshiring.
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

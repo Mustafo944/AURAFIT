@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/auth-context";
 import type { MuscleGroupId } from "@/lib/exercises";
+import type { CardioEntry } from "@/lib/cardio";
 
 export interface SetEntry {
   weightKg: number;
@@ -22,8 +23,10 @@ export interface WorkoutSession {
   startedAt: string;
   finishedAt: string;
   exercises: LoggedExercise[];
+  cardio: CardioEntry[];
   totalVolumeKg: number;
   totalSets: number;
+  // Kuch mashqlari + kardio jami yoqilgan kaloriya.
   caloriesBurned: number;
   recoveryAdvice?: string;
   progressAdvice?: string;
@@ -61,6 +64,7 @@ async function insertSession(userId: string, session: WorkoutSession) {
     started_at: session.startedAt,
     finished_at: session.finishedAt,
     exercises: session.exercises,
+    cardio: session.cardio,
     total_volume_kg: session.totalVolumeKg,
     total_sets: session.totalSets,
     calories_burned: session.caloriesBurned,
@@ -110,7 +114,7 @@ export function useWorkoutHistory() {
     supabase
       .from("workout_sessions")
       .select(
-        "id, started_at, finished_at, exercises, total_volume_kg, total_sets, calories_burned, recovery_advice, progress_advice"
+        "id, started_at, finished_at, exercises, cardio, total_volume_kg, total_sets, calories_burned, recovery_advice, progress_advice"
       )
       .eq("user_id", userId)
       .order("finished_at", { ascending: false })
@@ -125,6 +129,9 @@ export function useWorkoutHistory() {
             startedAt: row.started_at,
             finishedAt: row.finished_at,
             exercises: row.exercises as LoggedExercise[],
+            // Eski qatorlarda `cardio` ustuni yo'q (NULL) bo'lishi mumkin — bo'sh
+            // massivga tushiramiz, shunda iste'molchilar xavfsiz map qiladi.
+            cardio: (row.cardio as CardioEntry[] | null) ?? [],
             totalVolumeKg: row.total_volume_kg,
             totalSets: row.total_sets,
             caloriesBurned: row.calories_burned,

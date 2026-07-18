@@ -77,7 +77,14 @@ export async function POST(request: Request) {
 
   const data = (await res.json().catch(() => null)) as { status?: number; product?: OpenFoodFactsProduct } | null;
   if (!data || data.status !== 1 || !data.product) {
-    return NextResponse.json({ error: "Mahsulot topilmadi. Boshqa shtrix-kodni sinab ko'ring." }, { status: 404 });
+    // OpenFoodFacts ochiq, ko'ngillilar to'ldiradigan baza — mahalliy yoki
+    // kam tanilgan mahsulotlar ko'pincha unda umuman yo'q (bu bug emas,
+    // bazaning qamrov cheklovi). Shu sabab pastda "rasm orqali" muqobil
+    // yo'lni ham taklif qilamiz (frontend'da).
+    return NextResponse.json(
+      { error: "Bu mahsulot OpenFoodFacts bazasida topilmadi — mahalliy yoki kam tanilgan mahsulotlar ko'pincha bazada yo'q. Buning o'rniga rasm orqali skanerlab ko'ring." },
+      { status: 404 }
+    );
   }
 
   const nutriments = data.product.nutriments ?? {};

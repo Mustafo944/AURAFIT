@@ -6,6 +6,8 @@
 -- ============================================================================
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
+  first_name text not null default '',
+  last_name text not null default '',
   age integer not null default 28,
   gender text not null default 'male' check (gender in ('male', 'female')),
   weight_kg numeric not null default 78,
@@ -147,6 +149,11 @@ create table if not exists public.workout_sessions (
 create index if not exists workout_sessions_user_id_finished_at_idx
   on public.workout_sessions (user_id, finished_at desc);
 
+-- Aerobik (kardio) mashqlar jurnali — yurish yo'lagi, velotrenajyor va h.k.
+-- CardioEntry[]: [{ typeId, label, durationMin, distanceKm?, caloriesBurned }].
+-- Eski jadvallarda ustun bo'lmasa qo'shib qo'yadi.
+alter table public.workout_sessions add column if not exists cardio jsonb not null default '[]';
+
 alter table public.workout_sessions enable row level security;
 
 drop policy if exists "Foydalanuvchi faqat o'z mashg'ulotlarini ko'radi" on public.workout_sessions;
@@ -167,6 +174,11 @@ create policy "Foydalanuvchi faqat o'z mashg'ulotini yangilaydi"
 -- Profil rasmi — Supabase Storage'dagi "avatars" bucket'iga yuklanadi,
 -- profiles jadvalida esa faqat shu rasmning public URL'i saqlanadi.
 alter table public.profiles add column if not exists avatar_url text;
+
+-- Ism/familiya — profil sahifasidagi sarlavhada "ATHLETE_01" o'rniga
+-- ko'rsatiladi. Eski jadvallarda ustun bo'lmasa qo'shib qo'yadi.
+alter table public.profiles add column if not exists first_name text not null default '';
+alter table public.profiles add column if not exists last_name text not null default '';
 
 -- ============================================================================
 -- STORAGE — foydalanuvchi profil rasmlari uchun "avatars" bucket'i.

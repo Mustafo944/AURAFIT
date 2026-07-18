@@ -21,8 +21,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     <>
       <Sidebar />
       <MobileHeader />
-      <main className="md:ml-80 pt-20 md:pt-8 pb-24 md:pb-8 px-margin-mobile md:px-margin-desktop max-w-7xl mx-auto w-full">
-        {children}
+      {/* Sidebar joyi "padding" bilan ajratiladi (margin emas) — margin-left
+          va markazlashtirish uchun margin-auto bir elementda ishlatilsa,
+          Tailwind qaysi klass g'olib chiqishiga qarab ba'zi ekran
+          kengliklarida sidebar kontentni bosib qolishi mumkin edi. Padding
+          bunday ziddiyatga umuman yo'l qo'ymaydi — markazlashtirish esa
+          alohida ichki qatlamda, faqat mx-auto bilan, hech qanday klass
+          bilan raqobatsiz amalga oshiriladi. */}
+      <main className="md:pl-80 pt-20 md:pt-8 pb-24 md:pb-8">
+        <div className="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop">{children}</div>
       </main>
       <MobileNav />
     </>

@@ -10,6 +10,21 @@ textarea,
   caret-color: auto;
 }
 
+/* Brauzer standart raqam spinneri (yuqori/pastga strelka) butun ilova bo'yicha
+   o'chirilgan — kerakli joylarda o'rniga o'zimizning "−/+" tugmalarimiz bor.
+   !important — Tailwind v4'ning @layer base reset'i bilan ustunlik tortishuviga
+   yo'l qo'ymaslik uchun. */
+input[type="number"] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  margin: 0 !important;
+}
+
 /* Google Fonts CDN'ga tashqi bog'liqlikni olib tashlash uchun mahalliy
    o'rnatilgan (self-hosted) — sekin/beqaror ulanishda ikonkalar matn
    ko'rinishida ("grid_view" kabi) qolib ketmasligi uchun.

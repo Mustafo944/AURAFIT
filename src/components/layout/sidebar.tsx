@@ -9,9 +9,9 @@ import { useUserProfile } from "@/context/user-profile-context";
 import { signOut } from "@/lib/supabase/actions";
 
 const navItems = [
-  { href: "/", label: "ASOSIY", icon: "grid_view" },
-  { href: "/workouts", label: "MASHG'ULOTLAR", icon: "fitness_center" },
-  { href: "/analytics", label: "TAHLIL", icon: "restaurant" },
+  { href: "/", label: "ASOSIY BO'LIM", icon: "grid_view" },
+  { href: "/workouts", label: "MASHG'ULOTLAR BO'LIMI", icon: "fitness_center" },
+  { href: "/analytics", label: "DIETA BO'LIMI", icon: "restaurant" },
 ];
 
 

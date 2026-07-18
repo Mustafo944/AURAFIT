@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Archivo_Narrow } from "next/font/google";
 import { headers } from "next/headers";
+import Script from "next/script";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 import { UserProfileProvider } from "@/context/user-profile-context";
@@ -67,7 +68,7 @@ export default async function RootLayout({
             qolmasin uchun. */}
         <meta name="google" content="notranslate" />
       </head>
-      <body className="bg-background text-on-background min-h-screen font-body-md selection:bg-primary-container selection:text-on-primary-container antialiased">
+      <body className="bg-background text-on-background min-h-screen overflow-x-hidden font-body-md selection:bg-primary-container selection:text-on-primary-container antialiased">
         <AuthProvider initialUserId={userId} initialEmail={userEmail}>
           <UserProfileProvider>
             <WorkoutSessionProvider>
@@ -75,7 +76,8 @@ export default async function RootLayout({
             </WorkoutSessionProvider>
           </UserProfileProvider>
         </AuthProvider>
-        <script
+        <Script
+          id="service-worker-registration"
           dangerouslySetInnerHTML={{
             __html:
               process.env.NODE_ENV === "production"
