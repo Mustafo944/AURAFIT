@@ -135,9 +135,6 @@ export function useMealLog() {
           setMeals(mapped);
         }
         setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;

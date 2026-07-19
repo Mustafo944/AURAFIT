@@ -180,9 +180,6 @@ export function useWorkoutHistory() {
           setSessions(mapped);
         }
         setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false); // Oflayn payti xato berishi mumkin
       });
     return () => {
       cancelled = true;
