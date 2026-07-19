@@ -123,9 +123,6 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
           idbSet(`profile_${userId}`, fetchedProfile);
         }
         setLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
