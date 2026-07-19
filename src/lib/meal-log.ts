@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/auth-context";
+import { idbGet, idbSet, pushSyncTask } from "@/lib/idb";
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -49,24 +50,38 @@ function mapMealRow(row: {
 }
 
 async function insertMeal(userId: string, id: string, meal: Omit<MealEntry, "id" | "timestamp">, timestamp: string) {
-  const supabase = createClient();
-  await supabase.from("meals").insert({
-    id,
-    user_id: userId,
-    meal_name: meal.mealName,
-    meal_type: meal.mealType,
-    calories: meal.calories,
-    protein_g: meal.proteinG,
-    fat_g: meal.fatG,
-    carb_g: meal.carbG,
-    items: meal.items,
-    logged_at: timestamp,
-  });
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.from("meals").insert({
+      id,
+      user_id: userId,
+      meal_name: meal.mealName,
+      meal_type: meal.mealType,
+      calories: meal.calories,
+      protein_g: meal.proteinG,
+      fat_g: meal.fatG,
+      carb_g: meal.carbG,
+      items: meal.items,
+      logged_at: timestamp,
+    });
+    if (error) throw error;
+  } catch (err) {
+    if (!navigator.onLine || err instanceof TypeError) {
+      await pushSyncTask({ type: "INSERT_MEAL", payload: { userId, id, meal, timestamp } });
+    }
+  }
 }
 
 async function deleteMeal(id: string) {
-  const supabase = createClient();
-  await supabase.from("meals").delete().eq("id", id);
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.from("meals").delete().eq("id", id);
+    if (error) throw error;
+  } catch (err) {
+    if (!navigator.onLine || err instanceof TypeError) {
+      await pushSyncTask({ type: "DELETE_MEAL", payload: { id } });
+    }
+  }
 }
 
 // Modul darajasidagi kesh (stale-while-revalidate): bir sahifadan ikkinchisiga
@@ -94,6 +109,16 @@ export function useMealLog() {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
+
+    // OFLAYN BAZADAN O'QISH
+    idbGet<MealEntry[]>(`meals_${cacheKey}`).then((cached) => {
+      if (cancelled) return;
+      if (cached && cached.length > 0 && mealCache.get(cacheKey) === undefined) {
+        mealCache.set(cacheKey, cached);
+        setMeals(cached);
+      }
+    });
+
     const supabase = createClient();
     supabase
       .from("meals")
@@ -106,9 +131,13 @@ export function useMealLog() {
         if (data) {
           const mapped = data.map(mapMealRow);
           mealCache.set(cacheKey, mapped);
+          idbSet(`meals_${cacheKey}`, mapped);
           setMeals(mapped);
         }
         setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -122,6 +151,7 @@ export function useMealLog() {
     setMeals((prev) => {
       const next = [...prev, { ...meal, id, timestamp }];
       mealCache.set(cacheKey, next);
+      idbSet(`meals_${cacheKey}`, next);
       return next;
     });
     void insertMeal(userId, id, meal, timestamp);
@@ -131,6 +161,7 @@ export function useMealLog() {
     setMeals((prev) => {
       const next = prev.filter((m) => m.id !== id);
       mealCache.set(cacheKey, next);
+      idbSet(`meals_${cacheKey}`, next);
       return next;
     });
     void deleteMeal(id);

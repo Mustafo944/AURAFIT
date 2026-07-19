@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/auth-context";
+import { idbGet, idbSet, pushSyncTask } from "@/lib/idb";
 import type { MuscleGroupId } from "@/lib/exercises";
 import type { CardioEntry } from "@/lib/cardio";
 
@@ -57,31 +58,52 @@ export function computeCaloriesBurned(
 }
 
 async function insertSession(userId: string, session: WorkoutSession) {
-  const supabase = createClient();
-  await supabase.from("workout_sessions").insert({
-    id: session.id,
-    user_id: userId,
-    started_at: session.startedAt,
-    finished_at: session.finishedAt,
-    exercises: session.exercises,
-    cardio: session.cardio,
-    total_volume_kg: session.totalVolumeKg,
-    total_sets: session.totalSets,
-    calories_burned: session.caloriesBurned,
-  });
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.from("workout_sessions").insert({
+      id: session.id,
+      user_id: userId,
+      started_at: session.startedAt,
+      finished_at: session.finishedAt,
+      exercises: session.exercises,
+      cardio: session.cardio,
+      total_volume_kg: session.totalVolumeKg,
+      total_sets: session.totalSets,
+      calories_burned: session.caloriesBurned,
+    });
+    if (error) throw error;
+  } catch (err) {
+    if (!navigator.onLine || err instanceof TypeError) {
+      await pushSyncTask({ type: "INSERT_SESSION", payload: { userId, session } });
+    }
+  }
 }
 
 async function deleteSessionFromDb(sessionId: string) {
-  const supabase = createClient();
-  await supabase.from("workout_sessions").delete().eq("id", sessionId);
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.from("workout_sessions").delete().eq("id", sessionId);
+    if (error) throw error;
+  } catch (err) {
+    if (!navigator.onLine || err instanceof TypeError) {
+      await pushSyncTask({ type: "DELETE_SESSION", payload: { sessionId } });
+    }
+  }
 }
 
 async function updateAdvice(id: string, advice: { recoveryAdvice: string; progressAdvice: string }) {
-  const supabase = createClient();
-  await supabase
-    .from("workout_sessions")
-    .update({ recovery_advice: advice.recoveryAdvice, progress_advice: advice.progressAdvice })
-    .eq("id", id);
+  try {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("workout_sessions")
+      .update({ recovery_advice: advice.recoveryAdvice, progress_advice: advice.progressAdvice })
+      .eq("id", id);
+    if (error) throw error;
+  } catch (err) {
+    if (!navigator.onLine || err instanceof TypeError) {
+      await pushSyncTask({ type: "UPDATE_ADVICE", payload: { id, advice } });
+    }
+  }
 }
 
 function byFinishedAtAsc(a: WorkoutSession, b: WorkoutSession) {
@@ -115,6 +137,16 @@ export function useWorkoutHistory() {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
+
+    // OFLAYN BAZADAN O'QISH
+    idbGet<WorkoutSession[]>(`workouts_${userId}`).then((cached) => {
+      if (cancelled) return;
+      if (cached && cached.length > 0 && sessionCache.get(userId) === undefined) {
+        sessionCache.set(userId, cached);
+        setSessions(cached);
+      }
+    });
+
     const supabase = createClient();
     supabase
       .from("workout_sessions")
@@ -144,9 +176,13 @@ export function useWorkoutHistory() {
             progressAdvice: row.progress_advice ?? undefined,
           }));
           sessionCache.set(userId, mapped);
+          idbSet(`workouts_${userId}`, mapped);
           setSessions(mapped);
         }
         setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false); // Oflayn payti xato berishi mumkin
       });
     return () => {
       cancelled = true;
@@ -159,7 +195,10 @@ export function useWorkoutHistory() {
   const addSession = (session: WorkoutSession) => {
     setSessions((prev) => {
       const next = [...prev, session].sort(byFinishedAtAsc);
-      if (userId) sessionCache.set(userId, next);
+      if (userId) {
+        sessionCache.set(userId, next);
+        idbSet(`workouts_${userId}`, next);
+      }
       return next;
     });
     if (!userId) return;
@@ -169,7 +208,10 @@ export function useWorkoutHistory() {
   const removeSession = (sessionId: string) => {
     setSessions((prev) => {
       const next = prev.filter((s) => s.id !== sessionId);
-      if (userId) sessionCache.set(userId, next);
+      if (userId) {
+        sessionCache.set(userId, next);
+        idbSet(`workouts_${userId}`, next);
+      }
       return next;
     });
     void deleteSessionFromDb(sessionId);
@@ -178,7 +220,10 @@ export function useWorkoutHistory() {
   const updateSessionAdvice = (id: string, advice: { recoveryAdvice: string; progressAdvice: string }) => {
     setSessions((prev) => {
       const next = prev.map((s) => (s.id === id ? { ...s, ...advice } : s));
-      if (userId) sessionCache.set(userId, next);
+      if (userId) {
+        sessionCache.set(userId, next);
+        idbSet(`workouts_${userId}`, next);
+      }
       return next;
     });
     void updateAdvice(id, advice);

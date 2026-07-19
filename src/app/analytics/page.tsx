@@ -22,11 +22,8 @@ const MEAL_TYPES: Array<{ type: MealType; label: string; dativeLabel: string; ic
   { type: "snack", label: "Qo'shimcha taom", dativeLabel: "Qo'shimcha taomga", icon: "cookie", split: 0.1 },
 ];
 
-// Qo'shimcha taom istalgan payt qo'shilishi mumkin, shuning uchun ro'yxatda
-// bitta qat'iy joyga emas — nonushtadan keyin ham, tushlikdan keyin ham alohida
-// kirish nuqtasi sifatida chiqadi. Ikkalasi ham bir xil "snack" hisobiga
-// yoziladi, shuning uchun eaten/target ko'rsatkichi ikkalasida ham bir xil.
-const MEAL_CARD_ORDER: MealType[] = ["breakfast", "snack", "lunch", "snack", "dinner"];
+// Qo'shimcha taom oxirida alohida tugma orqali xohlagancha qo'shilishi mumkin
+const MEAL_CARD_ORDER: MealType[] = ["breakfast", "lunch", "dinner"];
 
 /**
  * Kunlik suv iste'moli tavsiyasi — ilmiy tadqiqotlarga asoslangan.
@@ -405,6 +402,37 @@ export default function AnalyticsPage() {
                 </button>
               );
             })}
+
+            {/* Qo'shimcha taom tugmasi */}
+            {(() => {
+              const { label, icon, split } = MEAL_TYPES.find((m) => m.type === "snack")!;
+              const target = Math.round(metrics.targetCalories * split);
+              const eaten = consumedByType["snack"];
+              return (
+                <button
+                  onClick={() => {
+                    resetScan();
+                    setActiveMealType("snack");
+                  }}
+                  className="w-full glass-card rounded-xl p-4 flex items-center justify-between gap-4 border border-primary-fixed-dim/30 bg-primary-fixed-dim/5 hover:bg-primary-fixed-dim/10 hover:border-primary-fixed-dim/60 transition-colors text-left mt-2"
+                >
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-12 h-12 rounded-xl bg-primary-fixed-dim/20 flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined text-primary-fixed-dim text-[26px]">{icon}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="font-headline-md text-[17px] text-primary font-bold truncate">Qo&apos;shimcha taom</h4>
+                      <p className="font-label-mono text-[11px] text-on-surface-variant uppercase truncate">
+                        {eaten > 0 ? `${eaten} / ${target} kkal` : `Istalgancha qo'shishingiz mumkin`}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center shrink-0 glow-button">
+                    <span className="material-symbols-outlined text-[22px]">add</span>
+                  </span>
+                </button>
+              );
+            })()}
           </div>
         ) : (
           <div className="glass-card ai-accent-border rounded-xl p-6">

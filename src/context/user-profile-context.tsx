@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/auth-context";
+import { idbGet, idbSet, pushSyncTask } from "@/lib/idb";
 
 export type Gender = "male" | "female";
 export type Goal = "lose" | "maintain" | "gain";
@@ -40,26 +41,32 @@ interface UserProfileContextValue {
 const UserProfileContext = createContext<UserProfileContextValue | null>(null);
 
 async function persistProfile(userId: string, profile: UserProfile): Promise<{ error: string | null }> {
-  const supabase = createClient();
-  const { error } = await supabase.from("profiles").upsert({
-    id: userId,
-    first_name: profile.firstName,
-    last_name: profile.lastName,
-    age: profile.age,
-    gender: profile.gender,
-    weight_kg: profile.weightKg,
-    height_cm: profile.heightCm,
-    goal: profile.goal,
-    target_weight_kg: profile.targetWeightKg,
-    avatar_url: profile.avatarUrl,
-    updated_at: new Date().toISOString(),
-  });
-  if (error) {
-    // Xatoni yutib yubormaslik uchun — masalan bazada ustun/jadval hali
-    // yaratilmagan bo'lsa (schema.sql to'liq bajarilmagan), foydalanuvchi
-    // "Saqlandi" ko'rib, aslida hech narsa saqlanmagani bilmay qolmasligi kerak.
-    console.error("Profilni saqlashda xatolik:", error.message);
-    return { error: error.message };
+  try {
+    const supabase = createClient();
+    const { error } = await supabase.from("profiles").upsert({
+      id: userId,
+      first_name: profile.firstName,
+      last_name: profile.lastName,
+      age: profile.age,
+      gender: profile.gender,
+      weight_kg: profile.weightKg,
+      height_cm: profile.heightCm,
+      goal: profile.goal,
+      target_weight_kg: profile.targetWeightKg,
+      avatar_url: profile.avatarUrl,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error("Profilni saqlashda xatolik:", error.message);
+      throw error;
+    }
+  } catch (err) {
+    if (!navigator.onLine || err instanceof TypeError) {
+      // Oflayn bo'lsa navbatga yozamiz
+      await pushSyncTask({ type: "UPDATE_PROFILE", payload: { userId, profile } });
+    } else {
+      return { error: (err as Error).message };
+    }
   }
   return { error: null };
 }
@@ -81,6 +88,15 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
+
+    // OFLAYN KESHDAN O'QISH - "Miltillash" (Flash of unstyled content) va oflayn uchun
+    idbGet<UserProfile>(`profile_${userId}`).then((cached) => {
+      if (cancelled) return;
+      if (cached) {
+        setProfileState((prev) => (prev === DEFAULT_PROFILE ? cached : prev));
+      }
+    });
+
     const supabase = createClient();
     supabase
       .from("profiles")
@@ -92,7 +108,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         if (error) {
           console.error("Profilni o'qishda xatolik:", error.message);
         } else if (data) {
-          setProfileState({
+          const fetchedProfile: UserProfile = {
             firstName: data.first_name ?? "",
             lastName: data.last_name ?? "",
             age: data.age,
@@ -102,9 +118,14 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             goal: data.goal,
             targetWeightKg: data.target_weight_kg ?? null,
             avatarUrl: data.avatar_url ?? null,
-          });
+          };
+          setProfileState(fetchedProfile);
+          idbSet(`profile_${userId}`, fetchedProfile);
         }
         setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -114,6 +135,7 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const setProfile = async (next: UserProfile) => {
     setProfileState(next);
     if (!userId) return { error: null };
+    idbSet(`profile_${userId}`, next);
     return persistProfile(userId, next);
   };
 

@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileHeader } from "@/components/layout/mobile-header";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { OfflineSyncManager } from "@/components/offline-sync";
 
 const AUTH_ROUTES = ["/login", "/signup"];
 
@@ -19,6 +20,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <OfflineSyncManager />
       <Sidebar />
       <MobileHeader />
       {/* Sidebar joyi "padding" bilan ajratiladi (margin emas) — margin-left
