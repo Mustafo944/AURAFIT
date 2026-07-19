@@ -29,8 +29,17 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
         
         if (!videoRef.current || !isMounted) return;
 
-        controls = await reader.decodeFromVideoDevice(
-          undefined, // undefined = default or back camera automatically chosen
+        controls = await reader.decodeFromConstraints(
+          {
+            video: {
+              facingMode: "environment",
+              width: { ideal: 1920, min: 640 },
+              height: { ideal: 1080, min: 480 },
+              // Ba'zi brauzerlar (Ayniqsa Android Chrome) advanced focusSettings ni tushunadi
+              // @ts-ignore
+              advanced: [{ focusMode: "continuous" }],
+            },
+          },
           videoRef.current,
           (result, err) => {
             if (result && isMounted) {
