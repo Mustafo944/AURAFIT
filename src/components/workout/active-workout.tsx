@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useWorkoutSession } from "@/context/workout-session-context";
+import { getPersonalRecords } from "@/lib/personal-records";
 import { getExerciseHistory, type WorkoutSession } from "@/lib/workout-log";
 import { EXERCISES } from "@/lib/exercises";
 import { ExercisePicker } from "@/components/workout/exercise-picker";
@@ -30,6 +31,10 @@ export function ActiveWorkout({
     useWorkoutSession();
 
   const [pickerOpen, setPickerOpen] = useState((activeSession?.exercises.length ?? 0) === 0);
+
+  // Tarixiy rekordlar bir marta hisoblanadi — har podxod kiritilishida
+  // qatorlar 80 ta mashq bo'ylab qayta izlanmasin.
+  const records = useMemo(() => getPersonalRecords(sessions), [sessions]);
 
   // Sarlavhadagi o'tgan vaqtni har 30 soniyada yangilab turadi.
   const [, forceTick] = useState(0);
@@ -80,6 +85,7 @@ export function ActiveWorkout({
                   exercise={exercise}
                   sets={ex.sets}
                   lastSets={lastSets}
+                  record={records.get(ex.exerciseId)}
                   onLogSet={(set) => logSet(ex.exerciseId, set)}
                   onRemoveSet={(index) => removeSet(ex.exerciseId, index)}
                   onRemove={() => removeExercise(ex.exerciseId)}

@@ -8,11 +8,13 @@ import { useMealLog, sumMeals } from "@/lib/meal-log";
 import { calculateFitnessMetrics } from "@/lib/fitness";
 import { recommendedWater, type WaterRecommendation } from "@/lib/cardio";
 import { fetchWorkoutRecovery } from "@/lib/workout-recovery";
+import { collectNewRecords, type RecordHighlight } from "@/lib/personal-records";
 import { MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
 import { TrainingCalendar, toDateKey } from "@/components/workout/training-calendar";
 import { DayDetail } from "@/components/workout/day-detail";
 import { ActiveWorkout } from "@/components/workout/active-workout";
 import { WorkoutResult } from "@/components/workout/workout-result";
+import { PrPanel } from "@/components/workout/pr-panel";
 import { VolumeChart } from "@/components/volume-chart";
 
 function muscleLabel(id: MuscleGroupId): string {
@@ -33,7 +35,7 @@ function estimatedWorkoutMinutes(session: WorkoutSession): number {
 }
 
 export function WorkoutHub() {
-  const { sessions, addSession, updateSessionAdvice } = useWorkoutHistory();
+  const { sessions, addSession, removeSession, updateSessionAdvice } = useWorkoutHistory();
   const { activeSession, startSession, finishSession } = useWorkoutSession();
   const { profile } = useUserProfile();
   const { meals } = useMealLog();
@@ -43,6 +45,7 @@ export function WorkoutHub() {
 
   const [result, setResult] = useState<WorkoutSession | null>(null);
   const [comparison, setComparison] = useState<ExerciseComparison[]>([]);
+  const [newRecords, setNewRecords] = useState<RecordHighlight[]>([]);
   const [water, setWater] = useState<WaterRecommendation>({ baseMl: 0, workoutMl: 0, totalMl: 0 });
   const [strengthCalories, setStrengthCalories] = useState(0);
   const [cardioCalories, setCardioCalories] = useState(0);
@@ -66,11 +69,15 @@ export function WorkoutHub() {
 
     const previous = sessions[sessions.length - 1];
     const sessionComparison = compareExercises(session, previous);
+    // Rekordlar yangi sessiya tarixga qo'shilishidan OLDIN hisoblanadi —
+    // aks holda sessiya o'z-o'zi bilan taqqoslanib, rekord ko'rinmay qolardi.
+    const sessionRecords = collectNewRecords(sessions, session);
     const cardioKcal = session.cardio.reduce((sum, c) => sum + c.caloriesBurned, 0);
 
     addSession(session);
     setResult(session);
     setComparison(sessionComparison);
+    setNewRecords(sessionRecords);
     setWater(recommendedWater(profile.weightKg, estimatedWorkoutMinutes(session)));
     setCardioCalories(cardioKcal);
     setStrengthCalories(session.caloriesBurned - cardioKcal);
@@ -151,6 +158,7 @@ export function WorkoutHub() {
         <WorkoutResult
           result={result}
           comparison={comparison}
+          newRecords={newRecords}
           water={water}
           strengthCalories={strengthCalories}
           cardioCalories={cardioCalories}
@@ -159,7 +167,7 @@ export function WorkoutHub() {
           onClose={() => setResult(null)}
         />
       ) : selectedSessions.length > 0 ? (
-        <DayDetail dateKey={selectedKey} sessions={selectedSessions} isToday={isToday} />
+        <DayDetail dateKey={selectedKey} sessions={selectedSessions} isToday={isToday} onDeleteSession={removeSession} />
       ) : isToday ? (
         <StartCard onStart={startSession} />
       ) : (
@@ -174,6 +182,8 @@ export function WorkoutHub() {
           <VolumeChart points={trendPoints} />
         </div>
       )}
+
+      <PrPanel sessions={sessions} />
     </div>
   );
 }

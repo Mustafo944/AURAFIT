@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { ExerciseDemo } from "@/components/workout/exercise-demo";
+import { suggestNextLoad } from "@/lib/progression";
+import { isNewRecord, type PersonalRecord } from "@/lib/personal-records";
 import type { Exercise } from "@/lib/exercises";
 import type { SetEntry } from "@/lib/workout-log";
 
@@ -64,6 +67,7 @@ export function ExerciseLoggerRow({
   exercise,
   sets,
   lastSets,
+  record,
   onLogSet,
   onRemoveSet,
   onRemove,
@@ -71,6 +75,7 @@ export function ExerciseLoggerRow({
   exercise: Exercise;
   sets: SetEntry[];
   lastSets: SetEntry[] | null;
+  record: PersonalRecord | undefined;
   onLogSet: (set: SetEntry) => void;
   onRemoveSet: (index: number) => void;
   onRemove: () => void;
@@ -83,6 +88,8 @@ export function ExerciseLoggerRow({
       : null;
   const [weight, setWeight] = useState(lastBest ? String(lastBest.weightKg) : "");
   const [reps, setReps] = useState(lastBest ? String(lastBest.reps) : "");
+  // Mashg'ulot payti texnikani eslash uchun: rasm bosilsa animatsiyali demo ochiladi.
+  const [demoOpen, setDemoOpen] = useState(false);
 
   const add = () => {
     const weightKg = Number(weight);
@@ -97,16 +104,53 @@ export function ExerciseLoggerRow({
     if (last) onLogSet({ ...last });
   };
 
+  // Double progression tavsiyasi — bosilganda stepperlarni o'zi to'ldiradi.
+  const suggestion = suggestNextLoad(exercise, lastBest);
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    setWeight(String(suggestion.weightKg));
+    setReps(String(suggestion.reps));
+  };
+
+  // Shu sessiyadagi eng yaxshi podxod tarixiy rekorddan oshgan bo'lsa,
+  // faqat o'sha bitta chipni "yangi rekord" sifatida belgilaymiz.
+  const sessionBestIndex = sets.reduce(
+    (bestIdx, set, i) =>
+      bestIdx === -1 ||
+      set.weightKg > sets[bestIdx].weightKg ||
+      (set.weightKg === sets[bestIdx].weightKg && set.reps > sets[bestIdx].reps)
+        ? i
+        : bestIdx,
+    -1
+  );
+  const recordIndex = sessionBestIndex !== -1 && isNewRecord(record, sets[sessionBestIndex]) ? sessionBestIndex : -1;
+
   return (
     <div
-      className={`glass-card rounded-xl overflow-hidden transition-colors ${
+      className={`glass-card item-enter rounded-xl overflow-hidden transition-colors ${
         sets.length > 0 ? "border-l-[3px] border-l-primary-fixed-dim" : ""
       }`}
     >
       <div className="flex items-center gap-3 p-3">
-        <div className="relative w-12 h-12 shrink-0 rounded-lg overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setDemoOpen((v) => !v)}
+          aria-expanded={demoOpen}
+          aria-label="Bajarilish texnikasini ko'rish"
+          className={`relative w-12 h-12 shrink-0 rounded-lg overflow-hidden transition-all ${
+            demoOpen ? "ring-2 ring-primary-fixed-dim" : "hover:ring-2 hover:ring-white/30"
+          }`}
+        >
           <Image src={exercise.image} alt={exercise.englishName} fill sizes="48px" className="object-cover" />
-        </div>
+          <span className="absolute inset-0 flex items-center justify-center bg-black/30">
+            <span
+              className="material-symbols-outlined text-white text-[18px] drop-shadow"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              {demoOpen ? "close" : "play_arrow"}
+            </span>
+          </span>
+        </button>
         <div className="min-w-0 flex-1">
           <div className="font-headline-md text-[16px] text-primary uppercase italic leading-tight truncate">
             {exercise.name}
@@ -117,6 +161,12 @@ export function ExerciseLoggerRow({
               <span className="text-primary-fixed-dim">
                 {" "}
                 · oxirgi: {lastBest.weightKg}kg×{lastBest.reps}
+              </span>
+            )}
+            {record && (
+              <span className="text-tertiary-fixed-dim">
+                {" "}
+                · rekord: {record.weightKg}kg×{record.reps}
               </span>
             )}
           </div>
@@ -131,25 +181,75 @@ export function ExerciseLoggerRow({
         </button>
       </div>
 
+      {demoOpen && (
+        <div className="px-3 pb-3 space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
+          <ExerciseDemo exercise={exercise} />
+          <ol className="space-y-1.5">
+            {exercise.instructions.map((step, i) => (
+              <li key={i} className="flex gap-2.5 font-body-md text-[13px] text-on-surface-variant">
+                <span className="font-label-mono text-[11px] text-primary-fixed-dim shrink-0">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
       {sets.length > 0 && (
         <div className="px-3 pb-2 flex flex-wrap gap-1.5">
-          {sets.map((set, index) => (
-            <span
-              key={index}
-              className="inline-flex items-center gap-1.5 bg-surface-container rounded-lg pl-2.5 pr-1.5 py-1 font-label-mono text-[12px] text-on-surface border border-outline/20"
-            >
-              <span className="text-primary-fixed-dim">{index + 1}.</span>
-              {set.weightKg}kg × {set.reps}
-              <button
-                type="button"
-                onClick={() => onRemoveSet(index)}
-                aria-label="Podxodni o'chirish"
-                className="text-on-surface-variant hover:text-error transition-colors"
+          {sets.map((set, index) => {
+            const isRecordChip = index === recordIndex;
+            return (
+              <span
+                key={index}
+                className={`inline-flex items-center gap-1.5 rounded-lg pl-2.5 pr-1.5 py-1 font-label-mono text-[12px] border ${
+                  isRecordChip
+                    ? "pr-chip bg-primary-fixed-dim/15 text-primary-fixed border-primary-fixed-dim/60"
+                    : "item-enter bg-surface-container text-on-surface border-outline/20"
+                }`}
               >
-                <span className="material-symbols-outlined text-[14px]">close</span>
-              </button>
+                {isRecordChip ? (
+                  <span
+                    className="material-symbols-outlined text-[14px] text-primary-fixed-dim"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    military_tech
+                  </span>
+                ) : (
+                  <span className="text-primary-fixed-dim">{index + 1}.</span>
+                )}
+                {set.weightKg}kg × {set.reps}
+                {isRecordChip && <span className="text-[10px] uppercase text-primary-fixed-dim">Rekord!</span>}
+                <button
+                  type="button"
+                  onClick={() => onRemoveSet(index)}
+                  aria-label="Podxodni o'chirish"
+                  className="text-on-surface-variant hover:text-error transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[14px]">close</span>
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {suggestion && (
+        <div className="px-3 pb-1">
+          <button
+            type="button"
+            onClick={applySuggestion}
+            aria-label={`Tavsiyani qo'llash: ${suggestion.weightKg} kilogramm, ${suggestion.reps} takror`}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-tertiary-fixed-dim/30 bg-tertiary-fixed-dim/[0.07] px-2.5 py-1.5 font-label-mono text-[11px] text-tertiary-fixed-dim hover:bg-tertiary-fixed-dim/15 transition-colors active:scale-[0.97]"
+          >
+            <span className="material-symbols-outlined text-[14px]">lightbulb</span>
+            Tavsiya: {suggestion.weightKg}kg × {suggestion.reps}
+            <span className="text-on-surface-variant">
+              {suggestion.weightIncreased ? "(+2.5kg)" : "(+1 takror)"}
             </span>
-          ))}
+          </button>
         </div>
       )}
 

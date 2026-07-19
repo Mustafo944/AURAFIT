@@ -71,6 +71,11 @@ async function insertSession(userId: string, session: WorkoutSession) {
   });
 }
 
+async function deleteSessionFromDb(sessionId: string) {
+  const supabase = createClient();
+  await supabase.from("workout_sessions").delete().eq("id", sessionId);
+}
+
 async function updateAdvice(id: string, advice: { recoveryAdvice: string; progressAdvice: string }) {
   const supabase = createClient();
   await supabase
@@ -161,6 +166,15 @@ export function useWorkoutHistory() {
     void insertSession(userId, session);
   };
 
+  const removeSession = (sessionId: string) => {
+    setSessions((prev) => {
+      const next = prev.filter((s) => s.id !== sessionId);
+      if (userId) sessionCache.set(userId, next);
+      return next;
+    });
+    void deleteSessionFromDb(sessionId);
+  };
+
   const updateSessionAdvice = (id: string, advice: { recoveryAdvice: string; progressAdvice: string }) => {
     setSessions((prev) => {
       const next = prev.map((s) => (s.id === id ? { ...s, ...advice } : s));
@@ -170,7 +184,7 @@ export function useWorkoutHistory() {
     void updateAdvice(id, advice);
   };
 
-  return { sessions, loading, addSession, updateSessionAdvice };
+  return { sessions, loading, addSession, removeSession, updateSessionAdvice };
 }
 
 export interface ExercisePerformance {

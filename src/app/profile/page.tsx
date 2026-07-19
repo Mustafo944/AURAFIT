@@ -9,7 +9,7 @@ import { calculateFitnessMetrics } from "@/lib/fitness";
 import { useProfileInsight } from "@/lib/profile-insight";
 import { logWeightEntry } from "@/lib/weight-log";
 import { uploadAvatar } from "@/lib/avatar";
-import { signOut } from "@/lib/supabase/actions";
+import { LogoutButton } from "@/components/logout-button";
 import { WeightRuler } from "@/components/weight-ruler";
 import { HeightRuler } from "@/components/height-ruler";
 import { AgeWheel } from "@/components/age-wheel";
@@ -212,15 +212,12 @@ export default function ProfilePage() {
               <span className="material-symbols-outlined">psychology</span>
               <span className="font-body-md text-body-md">AI Murabbiy Sozlamalari</span>
             </Link>
-            <form action={signOut} className="mt-stack-md border-t border-white/5">
-              <button
-                type="submit"
-                className="w-full flex items-center gap-3 px-6 py-4 text-on-surface-variant hover:bg-white/5 transition-colors duration-200"
-              >
+            <div className="mt-stack-md border-t border-white/5">
+              <LogoutButton className="w-full flex items-center gap-3 px-6 py-4 text-on-surface-variant hover:bg-white/5 transition-colors duration-200">
                 <span className="material-symbols-outlined">logout</span>
                 <span className="font-body-md text-body-md">Chiqish</span>
-              </button>
-            </form>
+              </LogoutButton>
+            </div>
           </nav>
         </div>
 

@@ -61,8 +61,3 @@ export const GOAL_LABELS: Record<Goal, string> = {
   maintain: "Vaznni Saqlash",
   gain: "Mushak Massasi Orttirish",
 };
-
-export const GENDER_LABELS: Record<Gender, string> = {
-  male: "Erkak",
-  female: "Ayol",
-};

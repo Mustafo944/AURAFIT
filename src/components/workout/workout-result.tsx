@@ -1,6 +1,7 @@
 "use client";
 
 import type { WorkoutSession, ExerciseComparison } from "@/lib/workout-log";
+import type { RecordHighlight } from "@/lib/personal-records";
 import { formatLiters, type WaterRecommendation } from "@/lib/cardio";
 
 // Mashg'ulot yakuni ekrani — sof taqdimot (presentational). Statistika va suv
@@ -9,6 +10,7 @@ import { formatLiters, type WaterRecommendation } from "@/lib/cardio";
 export function WorkoutResult({
   result,
   comparison,
+  newRecords,
   water,
   strengthCalories,
   cardioCalories,
@@ -18,6 +20,7 @@ export function WorkoutResult({
 }: {
   result: WorkoutSession;
   comparison: ExerciseComparison[];
+  newRecords: RecordHighlight[];
   water: WaterRecommendation;
   strengthCalories: number;
   cardioCalories: number;
@@ -79,6 +82,30 @@ export function WorkoutResult({
           Terlash bilan yo&apos;qotilgan suyuqlikni tiklang.
         </p>
       </div>
+
+      {newRecords.length > 0 && (
+        <div className="pr-chip bg-primary-fixed-dim/10 border border-primary-fixed-dim/40 rounded-lg p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <span
+              className="material-symbols-outlined text-primary-fixed-dim text-[20px]"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              military_tech
+            </span>
+            <span className="font-label-mono text-label-mono text-primary-fixed-dim uppercase">
+              Yangi Shaxsiy Rekord{newRecords.length > 1 ? "lar" : ""}!
+            </span>
+          </div>
+          {newRecords.map((r) => (
+            <div key={r.exerciseName} className="flex items-center justify-between gap-3">
+              <span className="font-body-md text-[13px] text-on-surface truncate">{r.exerciseName}</span>
+              <span className="font-label-mono text-[12px] text-primary-fixed-dim shrink-0">
+                {r.previousWeightKg}kg&times;{r.previousReps} &rarr; {r.weightKg}kg&times;{r.reps}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {comparison.length > 0 && (
         <div className="space-y-1.5">

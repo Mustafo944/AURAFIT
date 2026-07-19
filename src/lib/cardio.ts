@@ -3,7 +3,7 @@
 // Barcha hisoblar FORMULAGA tayanadi (AI emas) — natija bir zumda, tarmoqsiz
 // chiqadi. Umumiy usul MET (Metabolic Equivalent of Task):
 //   kaloriya (kcal) = MET x tana vazni (kg) x davomiylik (soat).
-// Yurish yo'lagi uchun esa aniqroq ACSM metabolik tenglamalari ishlatiladi —
+// Yugurish yo'lagi uchun esa aniqroq ACSM metabolik tenglamalari ishlatiladi —
 // tezlik va qiyalik (%) hisobga olinadi.
 
 export type CardioTypeId = "treadmill" | "bike" | "rowing" | "elliptical" | "jump_rope";
@@ -20,7 +20,7 @@ export interface CardioTypeInfo {
 }
 
 export const CARDIO_TYPES: CardioTypeInfo[] = [
-  { id: "treadmill", label: "Yurish yo'lagi", mode: "treadmill", defaultMet: 7.0 },
+  { id: "treadmill", label: "Yugurish yo'lagi", mode: "treadmill", defaultMet: 7.0 },
   { id: "bike", label: "Velotrenajyor", mode: "simple", defaultMet: 7.0 },
   { id: "rowing", label: "Eshkak (Rowing)", mode: "simple", defaultMet: 7.0 },
   { id: "elliptical", label: "Elliptik", mode: "simple", defaultMet: 5.0 },
@@ -60,7 +60,7 @@ function treadmillMet(speedKmh: number, inclinePct: number): number {
 }
 
 // Tanlangan tur va kiritilgan ko'rsatkichlar asosida yoqilgan kaloriyani vaznga
-// tayanib hisoblaydi. Yurish yo'lagida tezlik berilsa ACSM tenglamasi, aks holda
+// tayanib hisoblaydi. Yugurish yo'lagida tezlik berilsa ACSM tenglamasi, aks holda
 // turning o'rtacha MET'i ishlatiladi.
 export function computeCardioCalories(typeId: CardioTypeId, input: CardioInput, weightKg: number): number {
   const hours = input.durationMin / 60;
@@ -90,4 +90,54 @@ export function recommendedWater(weightKg: number, workoutMinutes: number): Wate
 
 export function formatLiters(ml: number): string {
   return (ml / 1000).toLocaleString("uz-UZ", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+export interface CardioSessionInsight {
+  totalMinutes: number;
+  totalKcal: number;
+  tips: string[];
+}
+
+// Shu mashg'ulotdagi barcha kardio yozuvlari qo'shilgach ko'rsatiladigan
+// tezkor tahlil — AI emas, ilmiy manbalarga (ACSM, JSST/WHO) asoslangan
+// qat'iy qoidalar:
+//   - ACSM: yurak-qon tomir tizimiga sezilarli foyda uchun bitta mashqda
+//     kamida 20-30 daqiqa tavsiya etiladi.
+//   - WHO 2020 jismoniy faollik bo'yicha ko'rsatmalari: haftasiga kamida
+//     150 daqiqa o'rtacha intensivlik (yoki 75 daqiqa yuqori intensivlik,
+//     vaqt jihatidan 2 baravar hisoblanadi) kardio tavsiya etiladi.
+//   - ACSM suyuqlik tavsiyasi: mashq davomida har 15-20 daqiqada ~150-250 ml.
+export function cardioSessionInsight(entries: CardioEntry[]): CardioSessionInsight {
+  const totalMinutes = entries.reduce((sum, e) => sum + e.durationMin, 0);
+  const totalKcal = entries.reduce((sum, e) => sum + e.caloriesBurned, 0);
+  const hasVigorous = entries.some((e) => (e.speedKmh ?? 0) >= 7 || e.typeId === "jump_rope");
+
+  const tips: string[] = [];
+
+  if (totalMinutes < 20) {
+    tips.push(
+      "ACSM tavsiyasiga ko'ra yurak-qon tomir tizimiga sezilarli foyda uchun bitta mashg'ulotda kamida 20-30 daqiqa kardio maqsad qiling."
+    );
+  } else if (totalMinutes <= 60) {
+    const weeklyPct = Math.round((totalMinutes / 150) * 100);
+    tips.push(
+      `Yaxshi natija — bu mashg'ulot JSST (WHO)ning haftalik 150 daqiqalik o'rtacha intensivlik maqsadining taxminan ${weeklyPct}%ini qopladi.`
+    );
+  } else {
+    tips.push(
+      "Uzoq davomiyli kardio (60+ daqiqa) chidamlilikni oshiradi, lekin haddan tashqari yuklama shikastlanish xavfini oshiradi — bunday sessiyalarni haftasiga 1-2 martadan oshirmang va yaxshi tiklaning."
+    );
+  }
+
+  if (hasVigorous) {
+    tips.push(
+      "Yuqori intensivlik (7 km/soatdan tez yugurish yoki arg'amchi) JSST bo'yicha vaqt jihatidan 2 baravar hisoblanadi — haftasiga 75 daqiqa shu turdagi mashqlar 150 daqiqalik o'rtacha maqsadga teng keladi."
+    );
+  }
+
+  tips.push(
+    "Terlash orqali yo'qotilgan suyuqlikni tiklash uchun har 15-20 daqiqa kardioda taxminan 150-250 ml suv iching (ACSM suyuqlik tavsiyasi)."
+  );
+
+  return { totalMinutes, totalKcal, tips };
 }

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 import { useAuth } from "@/context/auth-context";
 import { useUserProfile } from "@/context/user-profile-context";
-import { signOut } from "@/lib/supabase/actions";
+import { LogoutButton } from "@/components/logout-button";
 
 const navItems = [
   { href: "/", label: "ASOSIY BO'LIM", icon: "grid_view" },
@@ -97,15 +97,10 @@ export function Sidebar() {
           <span className="material-symbols-outlined">person</span>
           <span className="font-body-md text-body-md">Profil</span>
         </Link>
-        <form action={signOut}>
-          <button
-            type="submit"
-            className="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/5 transition-colors duration-200 w-full"
-          >
-            <span className="material-symbols-outlined">logout</span>
-            <span className="font-body-md text-body-md">Chiqish</span>
-          </button>
-        </form>
+        <LogoutButton className="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/5 transition-colors duration-200 w-full">
+          <span className="material-symbols-outlined">logout</span>
+          <span className="font-body-md text-body-md">Chiqish</span>
+        </LogoutButton>
       </div>
     </aside>
   );

@@ -186,4 +186,73 @@ input[type="number"]::-webkit-inner-spin-button {
   .glow-button {
     box-shadow: 0 0 15px rgba(171, 214, 0, 0.15);
   }
+
+  /* Sahifa almashganda kontent yumshoq ko'tarilib kirib keladi (iOS uslubida).
+     Framer Motion kabi kutubxona ATAYLAB ishlatilmagan: bu bitta keyframe
+     0 KB JS qo'shadi va faqat transform/opacity animatsiya qilingani uchun
+     GPU'da ishlaydi. Klass app-shell'da pathname'ga key qilingan wrapper'ga
+     qo'yiladi — har navigatsiyada animatsiya qayta ishga tushadi. */
+  .page-enter {
+    animation: rise-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Ro'yxatga yangi element qo'shilganda (mashq qatori, podxod chipi)
+     kichik ko'tarilish bilan paydo bo'lish. */
+  .item-enter {
+    animation: rise-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Karta bosilganda "bosilish" effekti — hover'dagi translate'ni bosish
+     paytida scale bilan almashtiradi. */
+  .press-card {
+    transition: transform 0.15s ease;
+  }
+  .press-card:active {
+    transform: scale(0.97);
+  }
+
+  /* Yangi shaxsiy rekord belgisi: kirishda "pop" (orqaga qaytish easing'i bilan
+     kattalashish) + doimiy yumshoq nur. transform/opacity'gina animatsiya
+     qilinadi — layout qayta hisoblanmaydi, mobil qurilmalarda ham silliq. */
+  .pr-chip {
+    animation: pr-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    box-shadow: 0 0 12px rgba(195, 244, 0, 0.25);
+  }
+
+  @keyframes pr-pop {
+    0% {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.06);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pr-chip,
+    .page-enter,
+    .item-enter {
+      animation: none;
+    }
+    .press-card:active {
+      transform: none;
+    }
+  }
 }

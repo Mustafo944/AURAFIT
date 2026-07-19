@@ -29,7 +29,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           alohida ichki qatlamda, faqat mx-auto bilan, hech qanday klass
           bilan raqobatsiz amalga oshiriladi. */}
       <main className="md:pl-80 pt-20 md:pt-8 pb-24 md:pb-8">
-        <div className="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop">{children}</div>
+        {/* key={pathname} — har sahifa almashishida .page-enter animatsiyasi
+            qayta ishga tushishi uchun (kontent baribir yangi sahifa bo'ladi). */}
+        <div key={pathname} className="page-enter max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop">
+          {children}
+        </div>
       </main>
       <MobileNav />
     </>

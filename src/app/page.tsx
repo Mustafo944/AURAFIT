@@ -198,7 +198,13 @@ export default function DashboardPage() {
       <section>
         <div className="flex justify-between items-end mb-stack-sm">
           <h3 className="font-headline-md text-headline-md text-primary uppercase italic flex items-center gap-2">
-            <span className="material-symbols-outlined text-tertiary-fixed-dim">history</span> So&apos;nggi Mashg&apos;ulotlar
+            <span className="material-symbols-outlined text-tertiary-fixed-dim">history</span>
+            {/* Brauzer kengaytmalari (masalan tarjima vositalari) ba'zan
+                hidratsiyadan oldin matn tugunlariga bo'sh joy qo'shib/olib
+                tashlaydi — bu haqiqiy kod xatosi emas, shu sabab shu yerga
+                xos suppressHydrationWarning qo'yiladi (React hujjatlarida
+                tavsiya etilgan yagona yechim). */}
+            <span suppressHydrationWarning>So&apos;nggi Mashg&apos;ulotlar</span>
           </h3>
           <Link
             href="/workouts"
@@ -211,7 +217,7 @@ export default function DashboardPage() {
         {recentSessions.length === 0 ? (
           <Link
             href="/workouts"
-            className="glass-card ai-accent-border rounded-xl p-8 flex flex-col items-center gap-3 text-center hover:-translate-y-1 transition-transform duration-300"
+            className="glass-card press-card ai-accent-border rounded-xl p-8 flex flex-col items-center gap-3 text-center hover:-translate-y-1 transition-transform duration-300"
           >
             <span className="material-symbols-outlined text-tertiary-fixed-dim text-4xl">fitness_center</span>
             <h4 className="font-headline-md text-[18px] font-bold text-primary uppercase">Hali Mashg&apos;ulot Yo&apos;q</h4>
@@ -232,7 +238,7 @@ export default function DashboardPage() {
                 <Link
                   key={session.id}
                   href="/workouts"
-                  className={`glass-card rounded-xl overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform duration-300 relative border-l-[3px] ${accent.border} block`}
+                  className={`glass-card press-card rounded-xl overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform duration-300 relative border-l-[3px] ${accent.border} block`}
                 >
                   <div className={`h-40 relative flex items-center justify-center ${accent.heroBg}`}>
                     <span className={`material-symbols-outlined ${accent.icon} text-[64px] opacity-80`}>{group.icon}</span>

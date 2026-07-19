@@ -33,12 +33,15 @@ export function DayDetail({
   dateKey,
   sessions,
   isToday,
+  onDeleteSession,
 }: {
   dateKey: string;
   sessions: WorkoutSession[];
   isToday: boolean;
+  onDeleteSession?: (sessionId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const totals = sessions.reduce(
     (acc, s) => ({
@@ -53,6 +56,11 @@ export function DayDetail({
   const muscleGroups = [
     ...new Set(sessions.flatMap((s) => s.exercises.map((e) => e.muscleGroup))),
   ] as MuscleGroupId[];
+
+  const handleDelete = (sessionId: string) => {
+    onDeleteSession?.(sessionId);
+    setConfirmDeleteId(null);
+  };
 
   return (
     <div className="glass-card rounded-xl overflow-hidden">
@@ -157,6 +165,42 @@ export function DayDetail({
                   <span className="font-label-mono text-[12px] text-tertiary-fixed-dim">{entry.caloriesBurned} kcal</span>
                 </div>
               ))}
+
+              {/* O'chirish tugmasi */}
+              {onDeleteSession && (
+                <div className="pt-2">
+                  {confirmDeleteId === session.id ? (
+                    <div className="flex items-center gap-2 bg-error/10 border border-error/30 rounded-lg p-3">
+                      <span className="material-symbols-outlined text-error text-[18px]">warning</span>
+                      <span className="font-body-md text-[13px] text-on-surface flex-1">
+                        Mashg&apos;ulotni o&apos;chirishni tasdiqlaysizmi?
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(session.id)}
+                        className="bg-error text-on-error font-label-mono text-[12px] uppercase px-4 py-2 rounded-lg hover:bg-error/80 transition-colors active:scale-[0.97]"
+                      >
+                        Ha, O&apos;chir
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="bg-white/10 text-on-surface font-label-mono text-[12px] uppercase px-4 py-2 rounded-lg hover:bg-white/20 transition-colors active:scale-[0.97]"
+                      >
+                        Bekor
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(session.id)}
+                      className="w-full flex items-center justify-center gap-2 bg-error/10 border border-error/20 text-error font-label-mono text-[12px] uppercase py-2.5 rounded-lg hover:bg-error/20 transition-colors active:scale-[0.98]"
+                    >
+                      Mashg&apos;ulotni O&apos;chirish
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

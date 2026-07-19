@@ -61,7 +61,7 @@ export function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: str
 
       {!previewUrl && (
         <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/15 rounded-xl py-12 cursor-pointer hover:border-primary-fixed-dim/50 hover:bg-white/5 transition-colors">
-          <span className="material-symbols-outlined text-5xl text-primary-fixed-dim">qr_code_scanner</span>
+          <span className="material-symbols-outlined text-5xl text-primary-fixed-dim">add_a_photo</span>
           <span className="font-body-md text-body-md text-on-surface-variant text-center px-4">
             Shtrix-kod yoki QR-kodni suratga oling
           </span>

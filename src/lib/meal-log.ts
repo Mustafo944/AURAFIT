@@ -24,13 +24,6 @@ function startOfTodayIso(): string {
   return date.toISOString();
 }
 
-function daysAgoIso(days: number): string {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - days);
-  return date.toISOString();
-}
-
 function mapMealRow(row: {
   id: string;
   meal_name: string;
@@ -144,51 +137,6 @@ export function useMealLog() {
   };
 
   return { meals, loading, addMeal, removeMeal };
-}
-
-// Kalibrlangan TDEE hisobi (forecast.ts) uchun oxirgi N kunlik ovqat tarixini
-// oladi — useMealLog()dan farqli, bugungi kun bilan cheklanmaydi.
-const mealHistoryCache = new Map<string, MealEntry[]>();
-
-export function useMealHistory(days: number) {
-  const { userId } = useAuth();
-  const cacheKey = `${userId}|${days}`;
-  const [meals, setMeals] = useState<MealEntry[]>(() => mealHistoryCache.get(cacheKey) ?? []);
-  const [loading, setLoading] = useState(() => userId != null && !mealHistoryCache.has(cacheKey));
-
-  // Kalit o'zgarganda holat render vaqtida moslanadi (useMealLog'dagi kabi).
-  const [prevKey, setPrevKey] = useState(cacheKey);
-  if (prevKey !== cacheKey) {
-    setPrevKey(cacheKey);
-    setMeals(mealHistoryCache.get(cacheKey) ?? []);
-    setLoading(userId != null && !mealHistoryCache.has(cacheKey));
-  }
-
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    const supabase = createClient();
-    supabase
-      .from("meals")
-      .select("id, meal_name, meal_type, calories, protein_g, fat_g, carb_g, items, logged_at")
-      .eq("user_id", userId)
-      .gte("logged_at", daysAgoIso(days))
-      .order("logged_at", { ascending: true })
-      .then(({ data }) => {
-        if (cancelled) return;
-        if (data) {
-          const mapped = data.map(mapMealRow);
-          mealHistoryCache.set(cacheKey, mapped);
-          setMeals(mapped);
-        }
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userId, days, cacheKey]);
-
-  return { meals, loading };
 }
 
 export function sumMeals(meals: MealEntry[]) {
