@@ -25,7 +25,7 @@ function startOfTodayIso(): string {
   return date.toISOString();
 }
 
-function mapMealRow(row: {
+export function mapMealRow(row: {
   id: string;
   meal_name: string;
   meal_type: MealType;

@@ -458,3 +458,21 @@ test("progression requires all target sets, supports bodyweight and skips timed 
   assert.equal(suggestNextLoad({ ...exercise, reps: "30-45 son." }, [set(30)]), null);
 });
 
+
+test("meal history groups meals by local day in time order", () => {
+  const history = load("src/lib/meal-history.ts", {
+    "@/lib/supabase/client": {},
+    "@/lib/idb": {},
+    "@/lib/meal-log": { mapMealRow: (row) => row },
+  });
+  const at = (y, m, d, h) => new Date(y, m, d, h).toISOString();
+  const meal = (id, timestamp) => ({ id, timestamp, calories: 100 });
+  const days = history.groupMealsByDay([
+    meal("late", at(2026, 9, 19, 20)),
+    meal("early", at(2026, 9, 19, 8)),
+    meal("next", at(2026, 9, 20, 0)),
+  ]);
+  assert.deepEqual([...days.keys()], ["2026-10-19", "2026-10-20"]);
+  assert.deepEqual(Array.from(days.get("2026-10-19"), (m) => m.id), ["early", "late"]);
+  assert.equal(history.dayKey(new Date(2026, 0, 5)), "2026-01-05");
+});

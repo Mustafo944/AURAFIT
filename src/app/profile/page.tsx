@@ -1,6 +1,7 @@
 "use client";
 
 import { SyncStatus } from "@/components/sync-status";
+import { MealHistory } from "@/components/meal-history";
 
 import { TrainingPreferencesFields } from "@/components/training-preferences-fields";
 import Image from "next/image";
@@ -491,6 +492,8 @@ export default function ProfilePage() {
               </FullScreenFieldEditor>
             )}
           </div>
+
+          <MealHistory />
         </div>
       </div>
     </div>
