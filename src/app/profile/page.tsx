@@ -1,16 +1,12 @@
 "use client";
 
-import { DataManagement } from "@/components/data-management";
 import { SyncStatus } from "@/components/sync-status";
 
 import { TrainingPreferencesFields } from "@/components/training-preferences-fields";
-import Link from "next/link";
 import Image from "next/image";
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useAuth } from "@/context/auth-context";
 import { useUserProfile, DEFAULT_PROFILE, type Gender, type Goal } from "@/context/user-profile-context";
-import { calculateFitnessMetrics } from "@/lib/fitness";
-import { useProfileInsight } from "@/lib/profile-insight";
 import { logWeightEntry } from "@/lib/weight-log";
 import { uploadAvatar } from "@/lib/avatar";
 import { LogoutButton } from "@/components/logout-button";
@@ -65,7 +61,7 @@ export default function ProfilePage() {
   });
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [bioExpanded, setBioExpanded] = useState(false);
+  const [bioExpanded, setBioExpanded] = useState(true);
   const [editingField, setEditingField] = useState<"gender" | "age" | "height" | "weight" | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -137,41 +133,6 @@ export default function ProfilePage() {
     }));
   }, [form.heightCm]);
 
-  // Driven by the saved profile (not the live form draft), so the AI call only
-  // fires once Saqlash is pressed — never on every keystroke.
-  const metrics = calculateFitnessMetrics(
-    profile.age,
-    profile.gender,
-    profile.weightKg,
-    profile.heightCm,
-    profile.goal,
-    profile.activityLevel,
-  );
-  const { insight, loading: insightLoading } = useProfileInsight(
-    {
-      profile: {
-        age: profile.age,
-        gender: profile.gender,
-        weightKg: profile.weightKg,
-        heightCm: profile.heightCm,
-        goal: profile.goal,
-      },
-      metrics: {
-        bmr: metrics.bmr,
-        tdee: metrics.tdee,
-        targetCalories: metrics.targetCalories,
-        bmi: metrics.bmi,
-        bmiCategory: metrics.bmiCategory,
-        proteinG: metrics.proteinG,
-        fatG: metrics.fatG,
-        carbG: metrics.carbG,
-      },
-      // Profil Supabase'dan yuklanmaguncha AI chaqirilmaydi — aks holda
-      // DEFAULT_PROFILE bilan bitta ortiqcha (noto'g'ri) so'rov ketadi.
-    },
-    !profileLoading,
-  );
-
   if (profileLoading)
     return (
       <p role="status" className="p-6 text-on-surface-variant">
@@ -238,14 +199,7 @@ export default function ProfilePage() {
         {/* Account navigation stays accessible on mobile as well. */}
         <div className="flex flex-col col-span-1 md:col-span-3 glass-card rounded-xl h-fit">
           <nav className="flex flex-col py-stack-md w-full">
-            <Link
-              className="flex items-center gap-3 px-6 py-4 bg-primary/10 text-primary border-l-4 border-primary"
-              href="/profile"
-            >
-              <span className="material-symbols-outlined">psychology</span>
-              <span className="font-body-md text-body-md">AI Murabbiy Sozlamalari</span>
-            </Link>
-            <div className="mt-stack-md border-t border-white/5">
+            <div>
               <LogoutButton className="w-full flex items-center gap-3 px-6 py-4 text-on-surface-variant hover:bg-white/5 transition-colors duration-200">
                 <span className="material-symbols-outlined">logout</span>
                 <span className="font-body-md text-body-md">Chiqish</span>
@@ -537,89 +491,8 @@ export default function ProfilePage() {
               </FullScreenFieldEditor>
             )}
           </div>
-
-          {/* AI Tahlili: formula + AI hybrid */}
-          <div className="glass-card ai-accent-border rounded-xl p-6">
-            <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
-              <span className="material-symbols-outlined text-tertiary-fixed-dim">auto_awesome</span>
-              <h3 className="font-headline-md text-headline-md text-primary uppercase">AI Tahlili</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-              {/* Formula numbers */}
-              <div className="md:col-span-4 grid grid-cols-3 md:grid-cols-1 gap-4 md:border-r border-white/10 md:pr-6">
-                <div className="text-center md:text-left">
-                  <div className="font-headline-md text-[22px] text-primary font-bold">{metrics.bmr}</div>
-                  <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">
-                    BMR (kcal)
-                  </div>
-                </div>
-                <div className="text-center md:text-left">
-                  <div className="font-headline-md text-[22px] text-primary font-bold">{metrics.tdee}</div>
-                  <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">
-                    TDEE (kcal)
-                  </div>
-                </div>
-                <div className="text-center md:text-left">
-                  <div className="font-headline-md text-[22px] text-primary font-bold">
-                    {metrics.targetCalories}
-                  </div>
-                  <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">
-                    Kunlik Maqsad
-                  </div>
-                </div>
-                <div className="text-center md:text-left">
-                  <div className="font-headline-md text-[22px] text-primary font-bold">{metrics.bmi}</div>
-                  <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">BMI</div>
-                  <div className="font-label-mono text-[9px] text-tertiary-fixed-dim mt-0.5">
-                    {metrics.bmiCategory}
-                  </div>
-                </div>
-              </div>
-
-              {/* AI narrative */}
-              <div className="md:col-span-8">
-                {insightLoading && !insight && (
-                  <div className="flex items-center gap-2 text-on-surface-variant">
-                    <span className="material-symbols-outlined animate-spin text-[18px]">
-                      progress_activity
-                    </span>
-                    <span className="font-label-mono text-label-mono uppercase tracking-widest">
-                      AI tahlil qilmoqda...
-                    </span>
-                  </div>
-                )}
-                {insight && (
-                  <div className="space-y-3">
-                    <p className="font-body-md text-body-md text-on-surface">{insight.analysis}</p>
-                    {insight.tips.length > 0 && (
-                      <ul className="space-y-2">
-                        {insight.tips.map((tip, i) => (
-                          <li
-                            key={i}
-                            className="flex items-start gap-2 font-body-md text-[14px] text-on-surface-variant"
-                          >
-                            <span className="material-symbols-outlined text-tertiary-fixed-dim text-[16px] mt-0.5">
-                              check_circle
-                            </span>
-                            <span>{tip}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-                {!insightLoading && !insight && (
-                  <p className="font-body-md text-body-md text-on-surface-variant">
-                    Tahlil hozircha mavjud emas. Ma&apos;lumotlaringizni saqlab, birozdan so&apos;ng qayta
-                    tekshiring.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
-      <DataManagement key={userId} />
     </div>
   );
 }

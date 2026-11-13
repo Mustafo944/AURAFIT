@@ -1,27 +1,7 @@
 "use client";
 import { idbGet, idbSetStrict } from "@/lib/idb";
 import { createUserResource, useUserResource } from "@/lib/user-resource";
-import type { MealEntry } from "@/lib/meal-log";
 
-export interface WorkoutTemplate {
-  id: string;
-  name: string;
-  exerciseIds: string[];
-}
-export interface SavedMeal {
-  id: string;
-  meal: Omit<MealEntry, "id" | "timestamp">;
-}
-const templates = createUserResource<WorkoutTemplate[]>(
-  "templates",
-  [],
-  async (userId) => (await idbGet<WorkoutTemplate[]>(`templates_${userId}`)) ?? [],
-);
-const foods = createUserResource<SavedMeal[]>(
-  "saved-meals",
-  [],
-  async (userId) => (await idbGet<SavedMeal[]>(`saved-meals_${userId}`)) ?? [],
-);
 const favorites = createUserResource<string[]>(
   "favorite-exercises",
   [],
@@ -36,12 +16,6 @@ function useSavedItems<T>(resource: ReturnType<typeof createUserResource<T[]>>, 
     resource.update(userId, () => next);
   };
   return { items, loading, save };
-}
-export function useWorkoutTemplates() {
-  return useSavedItems(templates, "templates");
-}
-export function useSavedMeals() {
-  return useSavedItems(foods, "saved-meals");
 }
 export function useFavoriteExercises() {
   return useSavedItems(favorites, "favorite-exercises");

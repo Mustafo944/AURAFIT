@@ -1,6 +1,6 @@
 "use client";
 import { ACTIVITY_LEVELS, type ActivityLevel, type TrainingPreferences } from "@/lib/training-preferences";
-import { EQUIPMENT_LABELS, LEVEL_LABELS, type Equipment, type Level } from "@/lib/exercise-metadata";
+import { LEVEL_LABELS, type Level } from "@/lib/exercise-metadata";
 
 const fieldClass =
   "w-full bg-black border border-white/10 rounded-lg px-3 py-3 text-on-surface focus:border-primary outline-none";
@@ -62,36 +62,8 @@ export function TrainingPreferencesFields({
           </select>
         </label>
       </div>
-      <fieldset>
-        <legend className="text-sm mb-2">Mavjud jihozlar</legend>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(EQUIPMENT_LABELS).map(([key, label]) => {
-            const equipment = key as Equipment;
-            const checked = training.equipment.includes(equipment);
-            return (
-              <label
-                key={key}
-                className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() =>
-                    change({
-                      equipment: checked
-                        ? training.equipment.filter((e) => e !== equipment)
-                        : [...training.equipment, equipment],
-                    })
-                  }
-                />
-                {label}
-              </label>
-            );
-          })}
-        </div>
-      </fieldset>
       <p className="text-xs text-on-surface-variant">
-        Faollik kaloriya hisobiga, tajriba va jihozlar esa mashq tanlashga ta&apos;sir qiladi.
+        Faollik kaloriya hisobiga, tajriba esa mashq tanlashga ta&apos;sir qiladi.
       </p>
     </fieldset>
   );

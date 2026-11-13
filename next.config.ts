@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
     : {}),
   allowedDevOrigins: ["127.0.0.1"],
   reactCompiler: true,
+  // Sahifalar ma'lumotni klientda yuklaydi, server faqat yengil "qobiq"
+  // beradi — uni 2 daqiqa klient keshida saqlash tablar orasida o'tishni
+  // server so'rovisiz, bir zumda qiladi.
+  experimental: {
+    staleTimes: { dynamic: 120 },
+  },
   async headers() {
     return [
       {

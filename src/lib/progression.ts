@@ -1,7 +1,7 @@
 import type { Exercise } from "@/lib/exercise-metadata";
 import type { SetEntry } from "@/lib/workout-log";
 
-export interface LoadSuggestion {
+interface LoadSuggestion {
   weightKg: number;
   reps: number;
   // true — og'irlik oshirildi (yangi bosqich), false — o'sha vaznda takror qo'shish.

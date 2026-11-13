@@ -13,7 +13,7 @@ export interface SetEntry {
   reps: number;
 }
 
-export interface LoggedExercise {
+interface LoggedExercise {
   exerciseId: string;
   exerciseName: string;
   muscleGroup: MuscleGroupId;
@@ -213,7 +213,7 @@ export function useWorkoutHistory() {
   };
 }
 
-export interface ExercisePerformance {
+interface ExercisePerformance {
   finishedAt: string;
   sets: SetEntry[];
   bestSet: SetEntry;

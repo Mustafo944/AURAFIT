@@ -5,6 +5,7 @@ import { SyncStatus } from "@/components/sync-status";
 import { useState } from "react";
 import type { WorkoutSession } from "@/lib/workout-log";
 import { MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercise-metadata";
+import { MuscleIcon } from "@/components/workout/muscle-icon";
 
 const UZ_MONTHS = [
   "Yanvar",
@@ -114,9 +115,7 @@ export function DayDetail({
                 key={id}
                 className="inline-flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-2.5 py-1 font-label-mono text-[11px] text-on-surface-variant uppercase"
               >
-                <span className="material-symbols-outlined text-[13px] text-primary-fixed-dim">
-                  {info?.icon ?? "fitness_center"}
-                </span>
+                <MuscleIcon group={id} size={16} className="text-primary-fixed-dim" />
                 {info?.label ?? id}
               </span>
             );
@@ -142,13 +141,10 @@ export function DayDetail({
             <div key={session.id} className="space-y-2">
               <SyncStatus entityId={session.id} />
               {session.exercises.map((exercise) => {
-                const info = muscleInfo(exercise.muscleGroup);
                 return (
                   <div key={exercise.exerciseId} className="bg-white/5 border border-white/10 rounded-lg p-3">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="material-symbols-outlined text-primary-fixed-dim text-[16px]">
-                        {info?.icon ?? "fitness_center"}
-                      </span>
+                      <MuscleIcon group={exercise.muscleGroup} size={20} className="text-primary-fixed-dim" />
                       <span className="font-body-md text-[14px] text-on-surface font-semibold">
                         {exercise.exerciseName}
                       </span>

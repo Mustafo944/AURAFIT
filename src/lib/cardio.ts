@@ -10,9 +10,9 @@ export type CardioTypeId = "treadmill" | "bike" | "rowing" | "elliptical" | "jum
 
 // "treadmill" — tezlik + qiyalik + vaqt kiritiladi (ACSM tenglamasi).
 // "simple" — faqat vaqt kiritiladi (o'rtacha MET).
-export type CardioMode = "treadmill" | "simple";
+type CardioMode = "treadmill" | "simple";
 
-export interface CardioTypeInfo {
+interface CardioTypeInfo {
   id: CardioTypeId;
   label: string;
   mode: CardioMode;
@@ -36,7 +36,7 @@ export interface CardioEntry {
   caloriesBurned: number;
 }
 
-export interface CardioInput {
+interface CardioInput {
   durationMin: number;
   speedKmh?: number;
   inclinePct?: number;
@@ -92,7 +92,7 @@ export function formatLiters(ml: number): string {
   return (ml / 1000).toLocaleString("uz-UZ", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
-export interface CardioSessionInsight {
+interface CardioSessionInsight {
   totalMinutes: number;
   totalKcal: number;
   tips: string[];

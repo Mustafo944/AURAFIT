@@ -1,20 +1,14 @@
 "use client";
 
-import { ProgressSummary } from "@/components/progress-summary";
 import { SyncStatus } from "@/components/sync-status";
 
-import { ExerciseProgress } from "@/components/workout/exercise-progress";
-import { SavedMeals } from "@/components/saved-meals";
 import { WeightHistory } from "@/components/weight-history";
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useUserProfile } from "@/context/user-profile-context";
 import { calculateFitnessMetrics } from "@/lib/fitness";
 import { useMealLog, sumMeals, type MealType } from "@/lib/meal-log";
-import { useWorkoutHistory } from "@/lib/workout-log";
-import { weeklyWorkoutFrequency } from "@/lib/forecast";
 import { ProgressRing } from "@/components/progress-ring";
 import { MacroBar } from "@/components/macro-bar";
-import { WeeklyActivityChart } from "@/components/weekly-activity-chart";
 import dynamic from "next/dynamic";
 
 const BarcodeScanner = dynamic(
@@ -171,14 +165,6 @@ export default function AnalyticsPage() {
   const consumed = sumMeals(meals);
   const remainingCalories = metrics.targetCalories - consumed.calories;
   const caloriePct = metrics.targetCalories > 0 ? (consumed.calories / metrics.targetCalories) * 100 : 0;
-
-  // Haftalik Faollik bo'limi uchun — mashg'ulot tarixidan haftalik chastota.
-  const { sessions, hasMore, loadingMore, loadMore } = useWorkoutHistory();
-  const weeklyActivity = useMemo(() => weeklyWorkoutFrequency(sessions), [sessions]);
-  const avgSessionsPerWeek =
-    weeklyActivity.length > 0
-      ? Math.round((weeklyActivity.reduce((s, w) => s + w.count, 0) / weeklyActivity.length) * 10) / 10
-      : 0;
 
   // Suv iste'moli tavsiyasi — vazn va yoshga qarab dinamik hisoblanadi
   const waterIntake = useMemo(
@@ -807,37 +793,7 @@ export default function AnalyticsPage() {
           {mealError}
         </p>
       )}
-      <SavedMeals meals={meals} onAdd={addMeal} />
-      <ProgressSummary sessions={sessions} hasMore={hasMore} />
       <WeightHistory />
-      <ExerciseProgress sessions={sessions} />
-      {hasMore && (
-        <div className="text-sm text-on-surface-variant space-y-2">
-          <p>Tahlil yuklangan {sessions.length} ta mashg&apos;ulotga asoslangan.</p>
-          <button
-            disabled={loadingMore}
-            onClick={() => void loadMore()}
-            className="text-primary underline disabled:opacity-50"
-          >
-            {loadingMore ? "Yuklanmoqda..." : "Eski tarixni ham yuklash"}
-          </button>
-        </div>
-      )}
-
-      {/* Haftalik Faollik */}
-      <section className="glass-card ai-accent-border rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
-          <span className="material-symbols-outlined text-tertiary-fixed-dim">calendar_month</span>
-          <h3 className="font-headline-md text-headline-md text-primary uppercase">Haftalik Faollik</h3>
-        </div>
-        <WeeklyActivityChart points={weeklyActivity} />
-        {weeklyActivity.length > 1 && (
-          <p className="font-body-md text-[13px] text-on-surface-variant mt-4">
-            O&apos;rtacha {avgSessionsPerWeek} mashg&apos;ulot/hafta (so&apos;nggi {weeklyActivity.length}{" "}
-            hafta)
-          </p>
-        )}
-      </section>
     </div>
   );
 }

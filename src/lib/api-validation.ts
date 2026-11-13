@@ -13,18 +13,6 @@ const profile = (value: unknown) =>
   number(value.weightKg, 1, 500) &&
   ["male", "female"].includes(String(value.gender)) &&
   ["lose", "maintain", "gain"].includes(String(value.goal));
-export function validInsight(value: unknown): boolean {
-  return (
-    record(value) &&
-    profile(value.profile) &&
-    record(value.profile) &&
-    number(value.profile.heightCm, 30, 300) &&
-    numbers(value.metrics, ["bmr", "tdee", "targetCalories", "bmi", "proteinG", "fatG", "carbG"]) &&
-    record(value.metrics) &&
-    number(value.metrics.tdee, 1) &&
-    text(value.metrics.bmiCategory)
-  );
-}
 export function validRecovery(value: unknown): boolean {
   return (
     record(value) &&

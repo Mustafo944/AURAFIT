@@ -84,7 +84,7 @@ export async function idbSet(key: string, value: unknown): Promise<void> {
 
 // === 2. OFLAYN NAVBAT (Sync Queue) ===
 
-export type SyncOperation =
+type SyncOperation =
   | { type: "INSERT_SESSION"; payload: { userId: string; session: WorkoutSession } }
   | { type: "DELETE_SESSION"; payload: { userId: string; sessionId: string } }
   | {

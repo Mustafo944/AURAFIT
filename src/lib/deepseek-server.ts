@@ -4,14 +4,14 @@ import { providerFetch } from "@/lib/provider-fetch";
 // DeepSeek V4.1 Flash (matn + rasm). Model nomini DEEPSEEK_MODEL orqali almashtirish mumkin.
 export const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || "deepseek-flash";
 
-export interface DeepSeekAttempt {
+interface DeepSeekAttempt {
   ok: boolean;
   status: number;
   errorMessage?: string;
   text?: string;
 }
 
-export interface DeepSeekRequest {
+interface DeepSeekRequest {
   system?: string;
   prompt: string;
   image?: { mimeType: string; data: string };

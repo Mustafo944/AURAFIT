@@ -3,7 +3,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { useAuth } from "@/context/auth-context";
 import { idbGet, idbSet } from "@/lib/idb";
 
-export interface ResourceSnapshot<T> {
+interface ResourceSnapshot<T> {
   value: T;
   loading: boolean;
   error: string | null;

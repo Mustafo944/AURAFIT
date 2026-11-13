@@ -21,6 +21,7 @@ export function MobileNav() {
           <Link
             key={item.href}
             href={item.href}
+            prefetch
             className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all active:scale-95 duration-200 ease-out relative ${
               isActive
                 ? "text-primary drop-shadow-[0_0_10px_rgba(195,244,0,0.6)]"

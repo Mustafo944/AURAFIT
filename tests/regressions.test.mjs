@@ -67,7 +67,7 @@ const request = (body) =>
   new Request("http://localhost/api/test", { method: "POST", body: JSON.stringify(body) });
 
 test("all API endpoints reject anonymous callers before parsing or provider calls", async () => {
-  for (const name of ["workout-recovery", "profile-insight", "scan-food", "lookup-barcode"]) {
+  for (const name of ["workout-recovery", "scan-food", "lookup-barcode"]) {
     assert.equal((await route(name, null).POST({})).status, 401);
   }
 });
@@ -95,7 +95,6 @@ test("validators reject non-finite numbers and wrong array shapes", () => {
     false,
   );
   assert.equal(validation.validRecovery({ ...recovery, profile: { ...profile, weightKg: Infinity } }), false);
-  assert.equal(validation.validInsight({ profile, metrics: {} }), false);
 });
 test("food input and output are validated", async () => {
   assert.equal((await route("scan-food").POST(request({ image: {}, mimeType: "image/jpeg" }))).status, 400);
@@ -289,43 +288,6 @@ test("activity level changes TDEE without changing BMR", () => {
   assert.equal(low.bmr, high.bmr);
   assert.ok(high.tdee > low.tdee);
 });
-test("training plans honor equipment, level and days", () => {
-  const exercises = load("src/lib/exercises.ts");
-  const preferences = load("src/lib/training-preferences.ts", { "@/lib/exercises": exercises });
-  const { buildTrainingPlan } = load("src/lib/training-plan.ts", {
-    "@/lib/exercises": exercises,
-    "@/lib/training-preferences": preferences,
-  });
-  const plan = buildTrainingPlan({
-    experience: "beginner",
-    equipment: ["bodyweight"],
-    daysPerWeek: 4,
-  });
-  assert.equal(plan.length, 4);
-  assert.ok(plan.some((day) => day.exercises.length > 0));
-  for (const day of plan)
-    for (const exercise of day.exercises) {
-      assert.equal(exercise.equipment, "bodyweight");
-      assert.equal(exercise.level, "beginner");
-    }
-});
-test("weekly activity includes empty weeks and ignores out-of-range sessions", () => {
-  const { weeklyWorkoutFrequency } = load("src/lib/forecast.ts");
-  const now = new Date("2026-09-26T12:00:00Z");
-  const points = weeklyWorkoutFrequency(
-    [
-      { finishedAt: "2026-09-25T12:00:00Z", totalVolumeKg: 100 },
-      { finishedAt: "2026-09-11T12:00:00Z", totalVolumeKg: 200 },
-      { finishedAt: "2026-10-25T12:00:00Z", totalVolumeKg: 300 },
-    ],
-    3,
-    now,
-  );
-  assert.equal(points.length, 3);
-  assert.equal(points[0].count, 1);
-  assert.equal(points[1].count, 0);
-  assert.equal(points[2].count, 1);
-});
 test("provider fetch attaches timeout and never exposes raw network errors", async () => {
   let options;
   const helper = load(
@@ -495,77 +457,3 @@ test("progression requires all target sets, supports bodyweight and skips timed 
   assert.equal(suggestNextLoad({ ...exercise, reps: "30-45 son." }, [set(30)]), null);
 });
 
-test("weekly summary respects date boundaries, deduplicates sessions and counts zero-load sets", () => {
-  const { summarizeProgress } = load("src/lib/progress-summary.ts");
-  const now = new Date(2026, 9, 1, 12);
-  const session = (id, day, weight = 20) => ({
-    id,
-    finishedAt: new Date(2026, 8, day, 10).toISOString(),
-    exercises: [{ muscleGroup: "legs", sets: [{ weightKg: weight, reps: 10 }] }],
-  });
-  const recent = session("a", 30, 0);
-  const result = summarizeProgress(
-    [recent, recent, session("b", 25), session("c", 24), session("future", 40)],
-    [],
-    now,
-  );
-  assert.equal(result.count, 2);
-  assert.equal(result.previousCount, 1);
-  assert.equal(result.volume, 200);
-  assert.equal(result.weightChange, null);
-  assert.equal(result.groups.find((g) => g.id === "legs").sets, 2);
-});
-
-test("export paginates all server records, includes only own pending tasks and fails on account change", async () => {
-  let active = "a",
-    checks = 0;
-  const source = Array.from({ length: 503 }, (_, i) => ({ id: String(i).padStart(4, "0"), user_id: "a" }));
-  const client = {
-    auth: {
-      getUser: async () => {
-        checks++;
-        return { data: { user: { id: active } }, error: null };
-      },
-    },
-    from(table) {
-      let cursor = null;
-      const query = {
-        select: () => query,
-        eq: (_, owner) => {
-          assert.equal(owner, "a");
-          return query;
-        },
-        order: () => query,
-        limit: () => query,
-        gt: (_, value) => {
-          cursor = value;
-          return query;
-        },
-        then(resolve) {
-          return Promise.resolve({
-            data: table === "meals" ? source.filter((r) => !cursor || r.id > cursor).slice(0, 500) : [],
-            error: null,
-          }).then(resolve);
-        },
-      };
-      return query;
-    },
-  };
-  const mod = load(
-    "src/lib/export-data.ts",
-    {
-      "@/lib/supabase/client": { createClient: () => client },
-      "@/lib/idb": {
-        idbGetStrict: async () => null,
-        getSyncQueue: async () => [{ payload: { userId: "a" } }, { payload: { userId: "b" } }],
-      },
-    },
-    { localStorage: { getItem: () => null } },
-  );
-  const exported = await mod.exportAccountData("a");
-  assert.equal(exported.cloud.meals.length, 503);
-  assert.equal(exported.pending.length, 1);
-  assert.equal(checks, 2);
-  client.auth.getUser = async () => ({ data: { user: { id: checks++ % 2 === 0 ? "a" : "b" } } });
-  await assert.rejects(mod.exportAccountData("a"), /Hisob o'zgardi/);
-});

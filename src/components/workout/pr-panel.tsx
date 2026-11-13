@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { getPersonalRecords, type PersonalRecord } from "@/lib/personal-records";
 import { getExerciseHistory, type WorkoutSession } from "@/lib/workout-log";
 import { MUSCLE_GROUPS } from "@/lib/exercise-metadata";
+import { MuscleIcon } from "@/components/workout/muscle-icon";
 import { TrendLineChart, type TrendPoint } from "@/components/trend-line-chart";
 
 // Grafikda ko'rsatiladigan so'nggi natijalar soni — sana yorliqlari siqilib
@@ -83,7 +84,7 @@ export function PrPanel({ sessions }: { sessions: WorkoutSession[] }) {
           {grouped.map(({ group, records }) => (
             <div key={group.id} className="space-y-1.5">
               <div className="flex items-center gap-1.5 font-label-mono text-[11px] text-on-surface-variant uppercase">
-                <span className="material-symbols-outlined text-[14px] text-primary-fixed-dim">{group.icon}</span>
+                <MuscleIcon group={group.id} size={18} className="text-primary-fixed-dim" />
                 {group.label}
               </div>
               {records.map((record) => (

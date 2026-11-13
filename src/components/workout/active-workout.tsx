@@ -1,7 +1,6 @@
 "use client";
 
 import { RestTimer } from "@/components/workout/rest-timer";
-import { SaveTemplate } from "@/components/workout/save-template";
 import { useEffect, useMemo, useState } from "react";
 import { useWorkoutSession } from "@/context/workout-session-context";
 import { getPersonalRecords } from "@/lib/personal-records";
@@ -84,7 +83,7 @@ export function ActiveWorkout({
           onClick={discardSession}
           className="shrink-0 px-3.5 py-1.5 rounded-xl bg-white/5 text-on-surface-variant border border-white/10 hover:bg-error/15 hover:text-error hover:border-error/30 transition-all font-label-mono text-[11px] uppercase active:scale-95"
         >
-          Bekor
+          Bekor qilish
         </button>
       </div>
 
@@ -121,8 +120,6 @@ export function ActiveWorkout({
             <span className="material-symbols-outlined text-[20px]">add</span>
             Mashq Qo&apos;shish
           </button>
-
-          <SaveTemplate exerciseIds={activeSession.exercises.map((exercise) => exercise.exerciseId)} />
 
           <CardioSection
             weightKg={weightKg}

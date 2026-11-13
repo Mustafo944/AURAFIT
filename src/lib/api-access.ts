@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { recordServerEvent } from "@/lib/server-telemetry";
-export type ApiScope = "scan-food" | "profile-insight" | "workout-recovery" | "lookup-barcode";
+type ApiScope = "scan-food" | "workout-recovery" | "lookup-barcode";
 export async function authorizeApi(
   scope: ApiScope,
 ): Promise<{ userId: string; response: null } | { userId: null; response: Response }> {

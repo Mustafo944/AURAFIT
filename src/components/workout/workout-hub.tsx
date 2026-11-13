@@ -1,6 +1,5 @@
 "use client";
 
-import { WorkoutPlans } from "@/components/workout/workout-plans";
 import { useMemo, useRef, useState } from "react";
 import { useWorkoutSession } from "@/context/workout-session-context";
 import { useUserProfile } from "@/context/user-profile-context";
@@ -247,11 +246,6 @@ export function WorkoutHub() {
         </div>
       )}
 
-      <WorkoutPlans
-        preferences={profile.training}
-        latest={sessions[sessions.length - 1]}
-        onStart={startSession}
-      />
       <PrPanel sessions={sessions} />
     </div>
   );

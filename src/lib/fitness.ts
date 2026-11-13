@@ -1,7 +1,7 @@
 import { ACTIVITY_LEVELS, normalizeActivity, type ActivityLevel } from "@/lib/training-preferences";
 import type { Gender, Goal } from "@/context/user-profile-context";
 
-export interface FitnessMetrics {
+interface FitnessMetrics {
   bmr: number;
   tdee: number;
   targetCalories: number;

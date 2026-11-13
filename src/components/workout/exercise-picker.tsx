@@ -18,6 +18,7 @@ import {
 import { ExerciseCard } from "@/components/workout/exercise-card";
 import { ExercisePlan } from "@/components/workout/exercise-plan";
 import { ExerciseIcon } from "@/components/workout/exercise-icon";
+import { MuscleIcon } from "@/components/workout/muscle-icon";
 import { useFavoriteExercises } from "@/lib/saved-items";
 import styles from "./exercise-library.module.css";
 
@@ -31,7 +32,7 @@ const normalize = (text: string) =>
     .trim();
 const SHORT_LABELS: Record<MuscleGroupId, string> = {
   chest: "Ko'krak",
-  back: "Orqa",
+  back: "Qanot",
   shoulders: "Yelka",
   biceps: "Biseps",
   triceps: "Triseps",
@@ -196,9 +197,7 @@ export function ExercisePicker({ onDone }: { onDone: () => void }) {
                 }}
                 className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${group === item.id ? "bg-primary-container font-semibold text-on-primary-container" : "text-on-surface-variant hover:bg-white/5"}`}
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-lg">
-                  {item.icon}
-                </span>
+                <MuscleIcon group={item.id as MuscleGroupId | "all"} size={22} />
                 <span>{item.label}</span>
                 <span className="ml-auto hidden pl-1 text-[10px] opacity-60 lg:inline">
                   {item.id === "all"

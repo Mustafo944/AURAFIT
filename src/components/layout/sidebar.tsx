@@ -65,6 +65,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch
               className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 ${
                 isActive
                   ? "bg-primary-fixed-dim/15 text-primary border-l-4 border-primary shadow-[inset_0_0_12px_rgba(195,244,0,0.1)] font-semibold"

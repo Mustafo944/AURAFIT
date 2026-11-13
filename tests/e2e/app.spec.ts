@@ -1,5 +1,4 @@
 import { test, expect, type BrowserContext, type APIRequestContext } from "@playwright/test";
-import { readFile } from "node:fs/promises";
 const backend = "http://127.0.0.1:54329";
 async function signIn(context: BrowserContext, request: APIRequestContext, userId?: string) {
   const response = await request.get(`${backend}/__test/session${userId ? `?user=${userId}` : ""}`);
@@ -309,57 +308,4 @@ test("favorites and reordered plans persist; compact view and comparison work", 
     .click();
   await expect(library.getByRole("button", { name: "Sevimlilar (0)", exact: true })).toBeVisible();
   await expect(library.getByRole("article")).toHaveCount(0);
-});
-
-test("weekly progress and account export include cloud history and local favorites", async ({
-  page,
-  context,
-  request,
-}, testInfo) => {
-  await signIn(context, request);
-  const userId = "11111111-1111-4111-8111-111111111111";
-  const now = new Date().toISOString();
-  await request.post(`${backend}/__test/seed`, {
-    data: {
-      table: "workout_sessions",
-      rows: [
-        {
-          id: "33333333-3333-4333-8333-333333333333",
-          user_id: userId,
-          started_at: now,
-          finished_at: now,
-          exercises: [
-            {
-              exerciseId: "test",
-              exerciseName: "Test squat",
-              muscleGroup: "legs",
-              sets: [{ weightKg: 20, reps: 10 }],
-            },
-          ],
-          cardio: [],
-          total_volume_kg: 200,
-          total_sets: 1,
-          calories_burned: 10,
-        },
-      ],
-    },
-  });
-  await page.goto("/analytics");
-  const summary = page.getByRole("region", { name: "Haftalik progress" });
-  await expect(summary).toContainText("200 kg");
-  await expect(summary).toContainText("1 podxod");
-  await expect(summary).toContainText("Hali qayd etilmagan");
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await summary.screenshot({ path: testInfo.outputPath("weekly-progress.png") });
-  await page.goto("/profile");
-  const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Ma'lumotlarni eksport qilish", exact: true }).click();
-  const download = await downloadPromise;
-  const exported = JSON.parse(await readFile((await download.path())!, "utf8"));
-  expect(exported.userId).toBe(userId);
-  expect(exported.cloud.workout_sessions).toHaveLength(1);
-  expect(exported.cloud.workout_sessions[0].total_volume_kg).toBe(200);
-  expect(exported.local).toHaveProperty("favorite-exercises");
-  expect(exported).not.toHaveProperty("access_token");
-  await expect(page.getByText("Ma'lumotlar eksport qilindi.", { exact: true })).toBeVisible();
 });

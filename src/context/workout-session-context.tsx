@@ -6,14 +6,14 @@ import { computeCaloriesBurned, type SetEntry, type WorkoutSession } from "@/lib
 import { type CardioEntry } from "@/lib/cardio";
 import { useAuth } from "@/context/auth-context";
 
-export interface ActiveExercise {
+interface ActiveExercise {
   exerciseId: string;
   exerciseName: string;
   muscleGroup: MuscleGroupId;
   sets: SetEntry[];
 }
 
-export interface ActiveSession {
+interface ActiveSession {
   startedAt: string;
   restEndsAt?: number | null;
   // Foydalanuvchi mashg'ulot boshida tanlab qo'ygan mashqlar rejasi. Podxod

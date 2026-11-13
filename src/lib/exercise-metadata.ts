@@ -1,6 +1,6 @@
 export type MuscleGroupId = "chest" | "back" | "shoulders" | "biceps" | "triceps" | "legs" | "abs";
 
-export interface MuscleGroupInfo {
+interface MuscleGroupInfo {
   id: MuscleGroupId;
   label: string;
   icon: string;
