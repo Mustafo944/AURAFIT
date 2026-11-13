@@ -8,7 +8,7 @@ import { formatLiters, type WaterRecommendation } from "@/lib/cardio";
 
 // Mashg'ulot yakuni ekrani — sof taqdimot (presentational). Statistika va suv
 // tavsiyasi FORMULA bilan darhol chiqadi; AI maslahati esa fonda yuklanadi va
-// tayyor bo'lgach qo'shiladi (natijani ko'rsatishni bloklamaydi).
+// foydalanuvchi "AI maslahat olish"ni bosganda so'raladi (avtomatik emas).
 export function WorkoutResult({
   result,
   comparison,
@@ -18,6 +18,8 @@ export function WorkoutResult({
   cardioCalories,
   recoveryLoading,
   recoveryError,
+  canRequestRecovery,
+  onRequestRecovery,
   onClose,
 }: {
   result: WorkoutSession;
@@ -28,6 +30,8 @@ export function WorkoutResult({
   cardioCalories: number;
   recoveryLoading: boolean;
   recoveryError: string | null;
+  canRequestRecovery: boolean;
+  onRequestRecovery: () => void;
   onClose: () => void;
 }) {
   return (
@@ -152,6 +156,16 @@ export function WorkoutResult({
               AI tahlil qilmoqda...
             </span>
           </div>
+        )}
+        {canRequestRecovery && !recoveryLoading && !result.recoveryAdvice && (
+          <button
+            type="button"
+            onClick={onRequestRecovery}
+            className="w-full flex items-center justify-center gap-2 rounded-lg border border-tertiary-fixed-dim/40 bg-tertiary-fixed-dim/10 px-4 py-3 text-tertiary-fixed-dim font-label-mono text-label-mono uppercase tracking-wider hover:bg-tertiary-fixed-dim/20 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">auto_awesome</span>
+            {recoveryError ? "Qayta urinish" : "AI maslahat olish"}
+          </button>
         )}
         {recoveryError && (
           <p className="font-body-md text-body-md text-error border border-error/30 bg-error/10 rounded-lg px-4 py-3">

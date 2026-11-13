@@ -413,7 +413,7 @@ export function ExercisePicker({ onDone }: { onDone: () => void }) {
         </div>
       </div>
       <ExercisePlan />
-      <div className="sticky bottom-20 z-20 flex items-center justify-between gap-2 rounded-b-3xl border-t border-white/15 bg-[#20281f]/95 p-4 backdrop-blur-xl md:bottom-0 md:px-6">
+      <div className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-20 flex items-center justify-between gap-2 rounded-b-3xl border-t border-white/15 bg-[#20281f]/95 p-4 backdrop-blur-xl md:bottom-0 md:px-6">
         <div>
           <p className="text-sm font-semibold text-white">{selected.size} ta mashq tanlandi</p>
           <p className="mt-1 text-[11px] text-on-surface-variant">Rejangiz saqlanadi.</p>

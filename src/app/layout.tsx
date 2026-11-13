@@ -41,6 +41,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#121414",
+  // iPhone (notch / pastki chiziq) uchun safe-area o'lchamlarini yoqadi.
+  viewportFit: "cover",
 };
 
 export default async function RootLayout({

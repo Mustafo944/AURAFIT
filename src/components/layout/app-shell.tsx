@@ -36,7 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           bunday ziddiyatga umuman yo'l qo'ymaydi — markazlashtirish esa
           alohida ichki qatlamda, faqat mx-auto bilan, hech qanday klass
           bilan raqobatsiz amalga oshiriladi. */}
-      <main className="md:pl-80 pt-20 md:pt-8 pb-24 md:pb-8 relative z-0">
+      <main className="md:pl-80 pt-[calc(5rem+env(safe-area-inset-top))] md:pt-8 pb-[calc(6rem+env(safe-area-inset-bottom))] md:pb-8 relative z-0">
         <div className="page-enter max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop">
           {children}
         </div>

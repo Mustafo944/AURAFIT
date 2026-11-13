@@ -21,7 +21,7 @@ export function FullScreenFieldEditor({ title, icon, onClose, onSave, children }
   if (typeof document === "undefined") return null;
   return createPortal(
     <div className="fixed inset-0 z-[100] bg-background flex flex-col" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="flex items-center gap-4 px-margin-mobile md:px-margin-desktop py-5 border-b border-white/10 shrink-0">
+      <div className="flex items-center gap-4 px-margin-mobile md:px-margin-desktop pb-5 pt-[calc(1.25rem+env(safe-area-inset-top))] border-b border-white/10 shrink-0">
         <button
           type="button"
           onClick={onClose}
@@ -52,7 +52,7 @@ export function FullScreenFieldEditor({ title, icon, onClose, onSave, children }
         </div>
       </div>
 
-      <div className="px-margin-mobile md:px-margin-desktop py-5 border-t border-white/10 shrink-0">
+      <div className="px-margin-mobile md:px-margin-desktop pt-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] border-t border-white/10 shrink-0">
         <button
           type="button"
           onClick={onSave}

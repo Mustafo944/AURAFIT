@@ -14,7 +14,7 @@ export function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 w-full z-50 rounded-t-3xl bg-surface-container/90 backdrop-blur-2xl border-t border-white/10 shadow-[0_-4px_24px_rgba(0,0,0,0.6)] flex justify-around items-center h-20 px-4 md:hidden will-change-transform">
+    <nav className="fixed bottom-0 w-full z-50 rounded-t-3xl bg-surface-container/90 backdrop-blur-2xl border-t border-white/10 shadow-[0_-4px_24px_rgba(0,0,0,0.6)] flex justify-around items-center h-[calc(5rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] px-4 md:hidden will-change-transform">
       {navItems.map((item) => {
         const isActive = pathname === item.href;
         return (

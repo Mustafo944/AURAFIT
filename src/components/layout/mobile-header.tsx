@@ -9,7 +9,7 @@ export function MobileHeader() {
   const { profile } = useUserProfile();
 
   return (
-    <header className="fixed top-0 w-full z-50 bg-surface/60 backdrop-blur-xl border-b border-white/10 shadow-[0_0_15px_rgba(171,214,0,0.1)] flex justify-between items-center px-margin-mobile h-16 md:hidden">
+    <header className="fixed top-0 w-full z-50 bg-surface/60 backdrop-blur-xl border-b border-white/10 shadow-[0_0_15px_rgba(171,214,0,0.1)] flex justify-between items-center px-margin-mobile h-[calc(4rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] md:hidden">
       <Link href="/" className="flex items-center gap-2">
         <Logo className="w-7 h-7 drop-shadow-[0_0_6px_rgba(195,244,0,0.5)]" />
         <span className="font-headline-md text-headline-md font-bold tracking-tighter text-primary uppercase italic">

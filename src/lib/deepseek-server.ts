@@ -13,6 +13,8 @@ interface DeepSeekAttempt {
 
 interface DeepSeekRequest {
   system?: string;
+  // Javob uzunligining yuqori chegarasi (token) — adashgan uzun javob narxini cheklaydi.
+  maxTokens?: number;
   prompt: string;
   image?: { mimeType: string; data: string };
 }
@@ -59,7 +61,7 @@ export async function callDeepSeek(apiKey: string, request: DeepSeekRequest): Pr
         model: DEEPSEEK_MODEL,
         messages,
         response_format: { type: "json_object" },
-        max_tokens: 2048,
+        max_tokens: request.maxTokens ?? 600,
       }),
     });
   } catch {

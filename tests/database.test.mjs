@@ -30,6 +30,7 @@ test("migrations are repeatable; database enforces owner deletion and shared quo
         "202609260002_training_preferences.sql",
         "202609260003_shared_api_limits.sql",
         "202610010004_workout_cardio.sql",
+        "202611130005_daily_api_limits.sql",
       ]) {
         await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
       }
@@ -62,6 +63,12 @@ test("migrations are repeatable; database enforces owner deletion and shared quo
     );
     await db.query("select set_config('request.jwt.claim.sub', $1, false)", [A]);
     assert.equal(await consume("scan-food"), true);
+    await db.exec(
+      "reset role; update public.api_rate_limits set window_started_at = now() - interval '61 seconds', day_count = 30; set role authenticated",
+    );
+    assert.equal(await consume("scan-food"), false, "daily cap blocks even when the minute window is free");
+    await db.exec("reset role; update public.api_rate_limits set day = current_date - 1; set role authenticated");
+    assert.equal(await consume("scan-food"), true, "cap resets on a new day");
     await db.exec("reset role; set role anon");
     await assert.rejects(consume("scan-food"), /permission denied/);
   } finally {

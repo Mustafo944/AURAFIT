@@ -116,16 +116,25 @@ interface ScanResult {
   note: string;
 }
 
-function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve({ base64: result.split(",")[1] ?? "", mimeType: file.type });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+// Rasm AI'ga yuborilishidan oldin brauzerda kichraytiriladi (uzun tomoni 1024 px,
+// JPEG): telefon suratlari 3-6 MB — kichraytirilgani ~10 baravar yengil,
+// tezroq va arzonroq, iPhone HEIC formati ham shu yo'l bilan JPEG'ga aylanadi.
+const MAX_IMAGE_SIDE = 1024;
+async function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("CANVAS_UNAVAILABLE");
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.82);
+    return { base64: dataUrl.split(",")[1] ?? "", mimeType: "image/jpeg" };
+  } finally {
+    bitmap.close();
+  }
 }
 
 export default function AnalyticsPage() {
@@ -217,7 +226,14 @@ export default function AnalyticsPage() {
     setError(null);
     setScanning(true);
     try {
-      const { base64, mimeType } = await fileToBase64(file);
+      let image: { base64: string; mimeType: string };
+      try {
+        image = await fileToBase64(file);
+      } catch {
+        setError("Rasmni o'qib bo'lmadi. Boshqa rasm tanlab ko'ring.");
+        return;
+      }
+      const { base64, mimeType } = image;
       const res = await fetch("/api/scan-food", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

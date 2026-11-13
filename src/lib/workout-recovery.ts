@@ -1,7 +1,7 @@
 import type { Gender, Goal } from "@/context/user-profile-context";
 import type { ExerciseComparison } from "@/lib/workout-log";
 
-interface WorkoutRecoveryRequest {
+export interface WorkoutRecoveryRequest {
   profile: { age: number; gender: Gender; weightKg: number; goal: Goal };
   session: {
     muscleGroups: string[];

@@ -12,7 +12,7 @@ import {
 import { useMealLog, sumMeals } from "@/lib/meal-log";
 import { calculateFitnessMetrics } from "@/lib/fitness";
 import { recommendedWater, type WaterRecommendation } from "@/lib/cardio";
-import { fetchWorkoutRecovery } from "@/lib/workout-recovery";
+import { fetchWorkoutRecovery, type WorkoutRecoveryRequest } from "@/lib/workout-recovery";
 import { collectNewRecords, type RecordHighlight } from "@/lib/personal-records";
 import { EXERCISES, MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
 import { TrainingCalendar, toDateKey } from "@/components/workout/training-calendar";
@@ -65,6 +65,8 @@ export function WorkoutHub() {
   const [cardioCalories, setCardioCalories] = useState(0);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  // AI maslahat avtomatik emas, foydalanuvchi so'raganda olinadi — shu uchun so'rov tanasi saqlab qo'yiladi.
+  const [recoveryRequest, setRecoveryRequest] = useState<{ sessionId: string; body: WorkoutRecoveryRequest } | null>(null);
 
   const sessionsByDay = useMemo(() => {
     const map = new Map<string, WorkoutSession[]>();
@@ -114,7 +116,7 @@ export function WorkoutHub() {
     setStrengthCalories(session.caloriesBurned - cardioKcal);
     setSelectedKey(todayKey);
     setRecoveryError(null);
-    setRecoveryLoading(true);
+    setRecoveryLoading(false);
 
     const metrics = calculateFitnessMetrics(
       profile.age,
@@ -126,37 +128,46 @@ export function WorkoutHub() {
     );
     const consumed = sumMeals(meals);
 
-    const recovery = await fetchWorkoutRecovery({
-      profile: { age: profile.age, gender: profile.gender, weightKg: profile.weightKg, goal: profile.goal },
-      session: {
-        muscleGroups: [...new Set(session.exercises.map((e) => muscleLabel(e.muscleGroup)))],
-        exercises: session.exercises.map((e) => ({
-          name: e.exerciseName,
-          sets: e.sets.length,
-          topWeightKg: e.sets.length > 0 ? Math.max(...e.sets.map((s) => s.weightKg)) : 0,
-        })),
-        totalSets: session.totalSets,
-        totalVolumeKg: session.totalVolumeKg,
-        caloriesBurned: session.caloriesBurned,
-      },
-      comparison: sessionComparison,
-      nutrition: {
-        consumed,
-        target: {
-          calories: metrics.targetCalories,
-          proteinG: metrics.proteinG,
-          fatG: metrics.fatG,
-          carbG: metrics.carbG,
+    setRecoveryRequest({
+      sessionId: session.id,
+      body: {
+        profile: { age: profile.age, gender: profile.gender, weightKg: profile.weightKg, goal: profile.goal },
+        session: {
+          muscleGroups: [...new Set(session.exercises.map((e) => muscleLabel(e.muscleGroup)))],
+          exercises: session.exercises.map((e) => ({
+            name: e.exerciseName,
+            sets: e.sets.length,
+            topWeightKg: e.sets.length > 0 ? Math.max(...e.sets.map((s) => s.weightKg)) : 0,
+          })),
+          totalSets: session.totalSets,
+          totalVolumeKg: session.totalVolumeKg,
+          caloriesBurned: session.caloriesBurned,
+        },
+        comparison: sessionComparison,
+        nutrition: {
+          consumed,
+          target: {
+            calories: metrics.targetCalories,
+            proteinG: metrics.proteinG,
+            fatG: metrics.fatG,
+            carbG: metrics.carbG,
+          },
         },
       },
     });
+  };
 
+  const requestRecovery = async () => {
+    if (!recoveryRequest || recoveryLoading) return;
+    setRecoveryError(null);
+    setRecoveryLoading(true);
+    const recovery = await fetchWorkoutRecovery(recoveryRequest.body);
     setRecoveryLoading(false);
     if ("error" in recovery) {
       setRecoveryError(recovery.error);
     } else {
       setResult((prev) => (prev ? { ...prev, ...recovery } : prev));
-      updateSessionAdvice(session.id, recovery);
+      updateSessionAdvice(recoveryRequest.sessionId, recovery);
     }
   };
 
@@ -220,6 +231,8 @@ export function WorkoutHub() {
           cardioCalories={cardioCalories}
           recoveryLoading={recoveryLoading}
           recoveryError={recoveryError}
+          canRequestRecovery={!!recoveryRequest}
+          onRequestRecovery={() => void requestRecovery()}
           onClose={() => setResult(null)}
         />
       ) : selectedSessions.length > 0 ? (
