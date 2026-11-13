@@ -22,6 +22,8 @@ const jetbrainsMono = JetBrains_Mono({
 const archivoNarrow = Archivo_Narrow({
   variable: "--font-archivo-narrow",
   subsets: ["latin"],
+  // Sarlavhalar va ulashish kartochkasi kursivda — haqiqiy italic shriftni yuklaymiz.
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {

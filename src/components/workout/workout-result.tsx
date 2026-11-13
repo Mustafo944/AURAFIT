@@ -1,6 +1,7 @@
 "use client";
 
 import { SyncStatus } from "@/components/sync-status";
+import { ShareCardButton } from "@/components/workout/share-card-button";
 
 import type { WorkoutSession, ExerciseComparison } from "@/lib/workout-log";
 import type { RecordHighlight } from "@/lib/personal-records";
@@ -123,6 +124,19 @@ export function WorkoutResult({
           ))}
         </div>
       )}
+
+      <ShareCardButton
+        data={{
+          startedAt: result.startedAt,
+          finishedAt: result.finishedAt,
+          totalVolumeKg: result.totalVolumeKg,
+          totalSets: result.totalSets,
+          caloriesBurned: result.caloriesBurned,
+          exercises: result.exercises,
+          cardio: result.cardio,
+          records: newRecords,
+        }}
+      />
 
       {comparison.length > 0 && (
         <div className="space-y-1.5">
