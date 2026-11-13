@@ -35,7 +35,7 @@ function signatureOf(profile: InsightParams["profile"]) {
 
 // Regenerates only when age/gender/weight/height/goal actually change (not on
 // every keystroke) — cached by that exact combination, so re-saving the same
-// values reuses the previous AI analysis instead of calling Groq again.
+// values reuses the previous AI analysis instead of calling DeepSeek again.
 function readCachedInsight(signature: string): ProfileInsight | null {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
@@ -59,11 +59,14 @@ function readCachedInsight(signature: string): ProfileInsight | null {
 // yo'q, kaskadli render bo'lmaydi (daily-advice.ts bilan bir xil naqsh).
 export function useProfileInsight(params: InsightParams, enabled = true) {
   const hydrated = useHydrated();
-  const signature = signatureOf(params.profile);
+  const signature = `${signatureOf(params.profile)}|${JSON.stringify(params.metrics)}`;
   const [fetched, setFetched] = useState<{ signature: string; insight: ProfileInsight } | null>(null);
   const [attemptedSignature, setAttemptedSignature] = useState<string | null>(null);
 
-  const cachedInsight = useMemo(() => (hydrated ? readCachedInsight(signature) : null), [hydrated, signature]);
+  const cachedInsight = useMemo(
+    () => (hydrated ? readCachedInsight(signature) : null),
+    [hydrated, signature],
+  );
   const insight = cachedInsight ?? (fetched?.signature === signature ? fetched.insight : null);
   const loading = enabled && hydrated && insight === null && attemptedSignature !== signature;
 

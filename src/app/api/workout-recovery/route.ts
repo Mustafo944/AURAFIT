@@ -1,10 +1,7 @@
+import { validRecovery, record, readJson } from "@/lib/api-validation";
+import { checkApiAccess } from "@/lib/api-access";
 import { NextResponse } from "next/server";
-import { callGroq, friendlyGroqError } from "@/lib/groq-server";
-import { createRpmLimiter } from "@/lib/rate-limiter";
-
-const RPM_LIMIT = Number(process.env.COACH_RPM_LIMIT ?? 15);
-const isRpmLimited = createRpmLimiter(RPM_LIMIT);
-const MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+import { callDeepSeek, friendlyDeepSeekError, FITNESS_SYSTEM_PROMPT } from "@/lib/deepseek-server";
 
 interface RequestBody {
   profile: { age: number; gender: string; weightKg: number; goal: string };
@@ -15,7 +12,12 @@ interface RequestBody {
     totalVolumeKg: number;
     caloriesBurned: number;
   };
-  comparison: { exerciseName: string; previousBestWeightKg: number; latestBestWeightKg: number; deltaKg: number }[];
+  comparison: {
+    exerciseName: string;
+    previousBestWeightKg: number;
+    latestBestWeightKg: number;
+    deltaKg: number;
+  }[];
   nutrition: {
     consumed: { calories: number; proteinG: number; fatG: number; carbG: number };
     target: { calories: number; proteinG: number; fatG: number; carbG: number };
@@ -27,7 +29,11 @@ interface RequestBody {
 // model not to add it back on top of the daily calorie target (that would double-count).
 function buildPrompt({ profile, session, comparison, nutrition }: RequestBody) {
   const goalLabel =
-    profile.goal === "lose" ? "vazn yo'qotish" : profile.goal === "gain" ? "mushak massasi orttirish" : "vaznni saqlash";
+    profile.goal === "lose"
+      ? "vazn yo'qotish"
+      : profile.goal === "gain"
+        ? "mushak massasi orttirish"
+        : "vaznni saqlash";
   const genderLabel = profile.gender === "male" ? "erkak" : "ayol";
   const exerciseList = session.exercises
     .map((e) => `${e.name} (${e.sets} podxod, eng og'iri ${e.topWeightKg}kg)`)
@@ -41,7 +47,7 @@ function buildPrompt({ profile, session, comparison, nutrition }: RequestBody) {
       ? `Oldingi mashg'ulot bilan solishtirish (bir xil mashqlar, eng og'ir podxod):\n${comparison
           .map(
             (c) =>
-              `- ${c.exerciseName}: ${c.previousBestWeightKg}kg -> ${c.latestBestWeightKg}kg (${c.deltaKg >= 0 ? "+" : ""}${c.deltaKg}kg)`
+              `- ${c.exerciseName}: ${c.previousBestWeightKg}kg -> ${c.latestBestWeightKg}kg (${c.deltaKg >= 0 ? "+" : ""}${c.deltaKg}kg)`,
           )
           .join("\n")}`
       : "Solishtirish uchun bu mashqlar bo'yicha oldingi mashg'ulot topilmadi (bu birinchi marta yoki mashqlar boshqacha).";
@@ -70,30 +76,26 @@ Faqat quyidagi JSON formatida javob bering, boshqa hech narsa yozmang: {"recover
 }
 
 export async function POST(request: Request) {
-  if (isRpmLimited()) {
-    return NextResponse.json(
-      { error: `Juda tez-tez so'rov yubordingiz (limit: ${RPM_LIMIT} ta/daqiqa). Bir daqiqadan so'ng qayta urinib ko'ring.` },
-      { status: 429 }
-    );
-  }
+  const denied = await checkApiAccess("workout-recovery");
+  if (denied) return denied;
 
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "GROQ_API_KEY sozlanmagan. .env.local faylida kalitni kiriting." },
-      { status: 500 }
+      { error: "DEEPSEEK_API_KEY sozlanmagan. .env.local faylida kalitni kiriting." },
+      { status: 500 },
     );
   }
 
-  const body = (await request.json().catch(() => null)) as RequestBody | null;
-  if (!body?.profile || !body?.session || !body?.nutrition || !Array.isArray(body?.comparison)) {
+  const body = (await readJson(request).catch(() => null)) as RequestBody | null;
+  if (!validRecovery(body)) {
     return NextResponse.json({ error: "Ma'lumot to'liq emas." }, { status: 400 });
   }
 
-  const attempt = await callGroq(MODEL, apiKey, buildPrompt(body));
+  const attempt = await callDeepSeek(apiKey, { system: FITNESS_SYSTEM_PROMPT, prompt: buildPrompt(body!) });
 
   if (!attempt.ok) {
-    return NextResponse.json({ error: friendlyGroqError(attempt) }, { status: 502 });
+    return NextResponse.json({ error: friendlyDeepSeekError(attempt) }, { status: 502 });
   }
   if (!attempt.text) {
     return NextResponse.json({ error: "AI javobi bo'sh keldi." }, { status: 502 });
@@ -106,6 +108,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "AI javobini o'qib bo'lmadi." }, { status: 502 });
   }
 
+  if (!record(parsed)) return NextResponse.json({ error: "AI javobi noto'g'ri." }, { status: 502 });
   const { recoveryAdvice, progressAdvice } = parsed as { recoveryAdvice?: unknown; progressAdvice?: unknown };
   if (typeof recoveryAdvice !== "string" || typeof progressAdvice !== "string") {
     return NextResponse.json({ error: "AI javobi noto'g'ri formatda keldi." }, { status: 502 });
