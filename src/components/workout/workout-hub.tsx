@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useWorkoutSession } from "@/context/workout-session-context";
 import { useUserProfile } from "@/context/user-profile-context";
 import {
@@ -15,7 +15,8 @@ import { recommendedWater, type WaterRecommendation } from "@/lib/cardio";
 import { fetchWorkoutRecovery, type WorkoutRecoveryRequest } from "@/lib/workout-recovery";
 import { collectNewRecords, type RecordHighlight } from "@/lib/personal-records";
 import { EXERCISES, MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
-import { TrainingCalendar, toDateKey } from "@/components/workout/training-calendar";
+import { MonthCalendar } from "@/components/month-calendar";
+import { dayKey as toDateKey } from "@/lib/date-key";
 import { DayDetail } from "@/components/workout/day-detail";
 import { ActiveWorkout } from "@/components/workout/active-workout";
 import { WorkoutResult } from "@/components/workout/workout-result";
@@ -56,6 +57,10 @@ export function WorkoutHub() {
 
   const todayKey = toDateKey(new Date());
   const [selectedKey, setSelectedKey] = useState(todayKey);
+  const [calendarView, setCalendarView] = useState(() => ({
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(),
+  }));
 
   const [result, setResult] = useState<WorkoutSession | null>(null);
   const [comparison, setComparison] = useState<ExerciseComparison[]>([]);
@@ -78,6 +83,22 @@ export function WorkoutHub() {
     }
     return map;
   }, [sessions]);
+
+  // Tarix sahifalab yuklanadi (eng yangilari avval). Kalendarda hali
+  // yuklanmagan eski oy ochilsa — o'sha oygacha bo'lgan qismini avtomatik yuklaymiz.
+  // Har bir "eng eski yozuv + oy" holati uchun bir marta urinamiz — yuklash
+  // xato bersa cheksiz qayta so'rov yuborilmaydi.
+  const oldestLoaded = sessions[0]?.finishedAt;
+  const lastAutoLoad = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hasMore || loadingMore) return;
+    const monthStart = new Date(calendarView.year, calendarView.month, 1).toISOString();
+    if (oldestLoaded && oldestLoaded < monthStart) return;
+    const attempt = `${oldestLoaded ?? ""}|${monthStart}`;
+    if (lastAutoLoad.current === attempt) return;
+    lastAutoLoad.current = attempt;
+    void loadMore();
+  }, [hasMore, loadingMore, oldestLoaded, calendarView.year, calendarView.month, loadMore]);
 
   const finishLock = useRef(false);
   const [saving, setSaving] = useState(false);
@@ -210,16 +231,22 @@ export function WorkoutHub() {
           {historyError}
         </p>
       )}
-      {hasMore && (
-        <button
-          disabled={loadingMore}
-          onClick={() => void loadMore()}
-          className="rounded-lg border border-white/20 px-4 py-3 text-sm disabled:opacity-50"
-        >
-          {loadingMore ? "Yuklanmoqda..." : "Oldingi mashg'ulotlarni yuklash"}
-        </button>
-      )}
-      <TrainingCalendar sessions={sessions} selectedKey={selectedKey} onSelect={setSelectedKey} />
+      <section className="glass-card rounded-xl p-6 space-y-5" aria-label="Mashg'ulot tarixi">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary-fixed-dim">history</span>
+          <h3 className="font-headline-md text-headline-md text-primary uppercase">Mashg&apos;ulot tarixi</h3>
+        </div>
+        <MonthCalendar
+          year={calendarView.year}
+          month={calendarView.month}
+          onMonthChange={(year, month) => setCalendarView({ year, month })}
+          selectedKey={selectedKey}
+          onSelect={setSelectedKey}
+          markedDays={new Set(sessionsByDay.keys())}
+          markedLabel="mashg'ulot bor"
+          loading={loadingMore}
+        />
+      </section>
 
       {showResult ? (
         <WorkoutResult

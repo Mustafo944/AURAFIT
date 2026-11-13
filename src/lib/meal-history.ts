@@ -3,6 +3,9 @@
 import { createClient } from "@/lib/supabase/client";
 import { getSyncQueue } from "@/lib/idb";
 import { mapMealRow, type MealEntry, type MealType } from "@/lib/meal-log";
+import { dayKey } from "@/lib/date-key";
+
+export { dayKey };
 
 export const MEAL_TYPE_LABELS: Record<MealType, string> = {
   breakfast: "Nonushta",
@@ -10,14 +13,6 @@ export const MEAL_TYPE_LABELS: Record<MealType, string> = {
   dinner: "Kechki ovqat",
   snack: "Qo'shimcha",
 };
-
-// Mahalliy (telefon) vaqti bo'yicha kun kaliti: "2026-10-19".
-export function dayKey(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 // Taomlarni kunlarga ajratadi; har kun ichida vaqt bo'yicha tartiblangan.
 export function groupMealsByDay(meals: MealEntry[]): Map<string, MealEntry[]> {

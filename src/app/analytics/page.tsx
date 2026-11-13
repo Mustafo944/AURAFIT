@@ -3,6 +3,7 @@
 import { SyncStatus } from "@/components/sync-status";
 
 import { WeightHistory } from "@/components/weight-history";
+import { MealHistory } from "@/components/meal-history";
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useUserProfile } from "@/context/user-profile-context";
 import { calculateFitnessMetrics } from "@/lib/fitness";
@@ -809,6 +810,7 @@ export default function AnalyticsPage() {
           {mealError}
         </p>
       )}
+      <MealHistory />
       <WeightHistory />
     </div>
   );

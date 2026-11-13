@@ -464,6 +464,7 @@ test("meal history groups meals by local day in time order", () => {
     "@/lib/supabase/client": {},
     "@/lib/idb": {},
     "@/lib/meal-log": { mapMealRow: (row) => row },
+    "@/lib/date-key": load("src/lib/date-key.ts"),
   });
   const at = (y, m, d, h) => new Date(y, m, d, h).toISOString();
   const meal = (id, timestamp) => ({ id, timestamp, calories: 100 });
