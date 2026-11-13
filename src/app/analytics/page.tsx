@@ -810,8 +810,8 @@ export default function AnalyticsPage() {
           {mealError}
         </p>
       )}
-      <MealHistory />
       <WeightHistory />
+      <MealHistory />
     </div>
   );
 }

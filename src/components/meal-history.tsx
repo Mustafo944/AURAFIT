@@ -61,11 +61,11 @@ export function MealHistory() {
   const totals = sumMeals(dayMeals);
 
   return (
-    <section className="glass-card rounded-xl p-6 space-y-5" aria-label="Ovqatlanish tarixi">
+    <section className="glass-card rounded-xl p-5 space-y-4" aria-label="Ovqatlanish tarixi">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-primary-fixed-dim">restaurant_menu</span>
-          <h3 className="font-headline-md text-headline-md text-primary uppercase">Ovqatlanish tarixi</h3>
+          <h3 className="font-headline-md text-[18px] text-primary uppercase">Ovqatlanish tarixi</h3>
         </div>
       </div>
 
@@ -88,7 +88,7 @@ export function MealHistory() {
           </button>
         </div>
       ) : (
-        <div className="border-t border-white/10 pt-5 space-y-4">
+        <div className="border-t border-white/10 pt-4 space-y-3">
           <div className="flex items-end justify-between gap-3">
             <div>
               <div className="font-headline-md text-[20px] text-primary">

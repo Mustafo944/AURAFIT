@@ -42,30 +42,30 @@ export function MonthCalendar({
     onMonthChange(d.getFullYear(), d.getMonth());
   };
   const navClass =
-    "w-9 h-9 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-on-surface-variant disabled:opacity-30";
+    "w-7 h-7 rounded-md bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-on-surface-variant disabled:opacity-30";
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 max-w-[300px] mx-auto">
       <div className="flex items-center justify-between">
         <button type="button" onClick={() => shift(-1)} aria-label="Oldingi oy" className={navClass}>
-          <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+          <span className="material-symbols-outlined text-[16px]">chevron_left</span>
         </button>
-        <span className="font-label-mono text-label-mono text-on-surface uppercase tracking-wider">
+        <span className="font-label-mono text-[12px] text-on-surface uppercase tracking-wider">
           {UZ_MONTHS[month]} {year}
         </span>
         <button type="button" onClick={() => shift(1)} disabled={isCurrentMonth} aria-label="Keyingi oy" className={navClass}>
-          <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+          <span className="material-symbols-outlined text-[16px]">chevron_right</span>
         </button>
       </div>
       <div>
-        <div className="grid grid-cols-7 gap-1 mb-1">
+        <div className="grid grid-cols-7 gap-0.5 mb-0.5">
           {WEEKDAYS.map((w) => (
-            <div key={w} className="text-center font-label-mono text-[10px] text-on-surface-variant/70 uppercase">
+            <div key={w} className="text-center font-label-mono text-[9px] text-on-surface-variant/70 uppercase">
               {w}
             </div>
           ))}
         </div>
-        <div className={`grid grid-cols-7 gap-1 transition-opacity ${loading ? "opacity-50" : ""}`}>
+        <div className={`grid grid-cols-7 gap-0.5 transition-opacity ${loading ? "opacity-50" : ""}`}>
           {monthCells(year, month).map((date, i) => {
             if (!date) return <div key={`b-${i}`} />;
             const key = dayKey(date);
@@ -79,14 +79,14 @@ export function MonthCalendar({
                 onClick={() => onSelect(key)}
                 aria-pressed={isSelected}
                 aria-label={`${date.getDate()}-${UZ_MONTHS[month].toLowerCase()}${marked ? `, ${markedLabel}` : ""}`}
-                className={`relative aspect-square rounded-lg flex items-center justify-center font-label-mono text-[13px] transition-colors disabled:opacity-25 ${
+                className={`relative h-8 rounded-md flex items-center justify-center font-label-mono text-[11px] transition-colors disabled:opacity-25 ${
                   marked ? "bg-primary-fixed-dim/15 text-primary font-bold" : "text-on-surface-variant hover:bg-white/5"
-                } ${isSelected ? "ring-2 ring-primary-fixed-dim" : ""} ${
+                } ${isSelected ? "ring-1 ring-primary-fixed-dim" : ""} ${
                   key === todayKey && !isSelected ? "outline outline-1 outline-primary-fixed-dim/60" : ""
                 }`}
               >
                 {date.getDate()}
-                {marked && <span className="absolute bottom-1 w-1 h-1 rounded-full bg-primary-fixed-dim" />}
+                {marked && <span className="absolute bottom-0.5 w-1 h-1 rounded-full bg-primary-fixed-dim" />}
               </button>
             );
           })}

@@ -214,7 +214,7 @@ export function WorkoutHub() {
 
   const selectedSessions = sessionsByDay.get(selectedKey) ?? [];
   const isToday = selectedKey === todayKey;
-  const showResult = result !== null && isToday;
+  const showResult = result !== null;
 
   const trendPoints = sessions.slice(-8).map((s) => ({
     id: s.id,
@@ -231,23 +231,6 @@ export function WorkoutHub() {
           {historyError}
         </p>
       )}
-      <section className="glass-card rounded-xl p-6 space-y-5" aria-label="Mashg'ulot tarixi">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary-fixed-dim">history</span>
-          <h3 className="font-headline-md text-headline-md text-primary uppercase">Mashg&apos;ulot tarixi</h3>
-        </div>
-        <MonthCalendar
-          year={calendarView.year}
-          month={calendarView.month}
-          onMonthChange={(year, month) => setCalendarView({ year, month })}
-          selectedKey={selectedKey}
-          onSelect={setSelectedKey}
-          markedDays={new Set(sessionsByDay.keys())}
-          markedLabel="mashg'ulot bor"
-          loading={loadingMore}
-        />
-      </section>
-
       {showResult ? (
         <WorkoutResult
           result={result}
@@ -262,22 +245,8 @@ export function WorkoutHub() {
           onRequestRecovery={() => void requestRecovery()}
           onClose={() => setResult(null)}
         />
-      ) : selectedSessions.length > 0 ? (
-        <DayDetail
-          dateKey={selectedKey}
-          sessions={selectedSessions}
-          isToday={isToday}
-          onDeleteSession={removeSession}
-        />
-      ) : isToday ? (
-        <StartCard onStart={() => startSession()} />
       ) : (
-        <div className="glass-card rounded-xl p-8 text-center">
-          <span className="material-symbols-outlined text-on-surface-variant/40 text-4xl">event</span>
-          <p className="font-body-md text-body-md text-on-surface-variant mt-2">
-            Bu kuni mashg&apos;ulot bo&apos;lmagan.
-          </p>
-        </div>
+        <StartCard onStart={() => startSession()} />
       )}
 
       {trendPoints.length > 1 && (
@@ -287,6 +256,36 @@ export function WorkoutHub() {
       )}
 
       <PrPanel sessions={sessions} />
+
+      {/* Tarix — sahifa oxirida: ixcham oylik kalendar va tanlangan kun tafsiloti. */}
+      <section className="glass-card rounded-xl p-5 space-y-4" aria-label="Mashg'ulot tarixi">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-primary-fixed-dim">history</span>
+          <h3 className="font-headline-md text-[18px] text-primary uppercase">Mashg&apos;ulot tarixi</h3>
+        </div>
+        <MonthCalendar
+          year={calendarView.year}
+          month={calendarView.month}
+          onMonthChange={(year, month) => setCalendarView({ year, month })}
+          selectedKey={selectedKey}
+          onSelect={setSelectedKey}
+          markedDays={new Set(sessionsByDay.keys())}
+          markedLabel="mashg'ulot bor"
+          loading={loadingMore}
+        />
+      </section>
+      {selectedSessions.length > 0 ? (
+        <DayDetail
+          dateKey={selectedKey}
+          sessions={selectedSessions}
+          isToday={isToday}
+          onDeleteSession={removeSession}
+        />
+      ) : (
+        <p className="text-center text-sm text-on-surface-variant">
+          {isToday ? "Bugun hali mashg'ulot bo'lmagan." : "Bu kuni mashg'ulot bo'lmagan."}
+        </p>
+      )}
     </div>
   );
 }
