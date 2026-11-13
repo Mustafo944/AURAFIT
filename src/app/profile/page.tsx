@@ -61,7 +61,7 @@ export default function ProfilePage() {
   });
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [bioExpanded, setBioExpanded] = useState(true);
+  const [bioExpanded, setBioExpanded] = useState(false);
   const [editingField, setEditingField] = useState<"gender" | "age" | "height" | "weight" | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);

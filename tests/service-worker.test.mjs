@@ -21,7 +21,7 @@ function worker(fetch) {
       clients: { claim: async () => {} },
     },
     caches: {
-      keys: async () => ["aurafit-v3", "aurafit-v4", "another-app"],
+      keys: async () => ["aurafit-v5", "aurafit-v6", "another-app"],
       delete: async (key) => {
         deleted.push(key);
       },
@@ -81,5 +81,5 @@ test("offline navigation uses a neutral fallback and activation removes only old
     },
   });
   await activation;
-  assert.deepEqual(deleted, ["aurafit-v3"]);
+  assert.deepEqual(deleted, ["aurafit-v5"]);
 });
