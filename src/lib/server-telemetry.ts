@@ -15,6 +15,7 @@ export function recordServerEvent(
     digest?: string;
     model?: string;
     tokens?: number;
+    finishReason?: string;
   },
 ) {
   const log = event === "ai_model_skipped" || (event === "ai_attempt" && (fields.status ?? 500) < 400)

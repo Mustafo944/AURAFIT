@@ -236,7 +236,7 @@ revoke all on public.api_rate_limits from anon, authenticated;
 
 -- Atomic per-user fixed windows shared by all application instances.
 -- The client cannot supply its own user ID or quota.
-alter table public.api_rate_limits add column if not exists day date not null default current_date;
+alter table public.api_rate_limits add column if not exists day date not null default ((now() at time zone 'utc')::date);
 alter table public.api_rate_limits add column if not exists day_count integer not null default 1;
 
 create or replace function public.consume_api_limit(p_scope text)

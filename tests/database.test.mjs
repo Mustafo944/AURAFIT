@@ -67,7 +67,7 @@ test("migrations are repeatable; database enforces owner deletion and shared quo
       "reset role; update public.api_rate_limits set window_started_at = now() - interval '61 seconds', day_count = 30; set role authenticated",
     );
     assert.equal(await consume("scan-food"), false, "daily cap blocks even when the minute window is free");
-    await db.exec("reset role; update public.api_rate_limits set day = current_date - 1; set role authenticated");
+    await db.exec("reset role; update public.api_rate_limits set day = (now() at time zone 'utc')::date - 1; set role authenticated");
     assert.equal(await consume("scan-food"), true, "cap resets on a new day");
     await db.exec("reset role; set role anon");
     await assert.rejects(consume("scan-food"), /permission denied/);

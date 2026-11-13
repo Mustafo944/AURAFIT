@@ -1,7 +1,7 @@
 begin;
 -- Daqiqalik limitga qo'shimcha: har foydalanuvchi va endpoint uchun KUNLIK chegara
 -- (AI xarajatini cheklash). Kun UTC bo'yicha hisoblanadi.
-alter table public.api_rate_limits add column if not exists day date not null default current_date;
+alter table public.api_rate_limits add column if not exists day date not null default ((now() at time zone 'utc')::date);
 alter table public.api_rate_limits add column if not exists day_count integer not null default 1;
 
 create or replace function public.consume_api_limit(p_scope text)

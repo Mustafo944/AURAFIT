@@ -61,6 +61,11 @@ export async function callDeepSeek(apiKey: string, request: DeepSeekRequest): Pr
         model: DEEPSEEK_MODEL,
         messages,
         response_format: { type: "json_object" },
+        // "Fikrlash" rejimi standart yoqilgan: u javobdan oldin yuzlab token
+        // sarflaydi va max_tokens chegarasini yeb qo'yib, javobni bo'sh
+        // qoldiradi. Bizning vazifalar (rasmdan taom, qisqa maslahat) uchun
+        // fikrlash kerak emas — o'chirsak tezroq, arzonroq va ishonchliroq.
+        thinking: { type: "disabled" },
         max_tokens: request.maxTokens ?? 600,
       }),
     });
@@ -77,6 +82,7 @@ export async function callDeepSeek(apiKey: string, request: DeepSeekRequest): Pr
       status: res.status,
       durationMs: Date.now() - started,
       tokens: data?.usage?.total_tokens,
+      finishReason: data?.choices?.[0]?.finish_reason,
     });
     const text = data?.choices?.[0]?.message?.content;
     // JSON rejimida tushunarsiz javob bo'sh (probel) qaytishi mumkin.

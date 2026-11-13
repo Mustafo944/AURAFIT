@@ -432,6 +432,7 @@ test("DeepSeek sends text and image requests, logs usage and hides credentials",
   assert.equal(requests[0].url, "https://api.deepseek.com/chat/completions");
   assert.equal(requests[0].body.model, "deepseek-flash");
   assert.deepEqual(requests[0].body.response_format, { type: "json_object" });
+  assert.deepEqual(requests[0].body.thinking, { type: "disabled" });
   assert.equal(requests[0].body.messages[0].role, "system");
   await deepseek.callDeepSeek("secret", { prompt: "see", image: { mimeType: "image/png", data: "AAAA" } });
   const content = requests[1].body.messages[0].content;
