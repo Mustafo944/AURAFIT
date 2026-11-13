@@ -1,9 +1,16 @@
 "use client";
 
+import {
+  DEFAULT_TRAINING,
+  normalizeActivity,
+  normalizeTraining,
+  type ActivityLevel,
+  type TrainingPreferences,
+} from "@/lib/training-preferences";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/context/auth-context";
-import { idbGet, idbSet, pushSyncTask } from "@/lib/idb";
+import { idbGet, idbSet, pushSyncTask, getSyncQueue } from "@/lib/idb";
 
 export type Gender = "male" | "female";
 export type Goal = "lose" | "maintain" | "gain";
@@ -18,6 +25,8 @@ export interface UserProfile {
   goal: Goal;
   targetWeightKg: number | null;
   avatarUrl: string | null;
+  activityLevel: ActivityLevel;
+  training: TrainingPreferences;
 }
 
 export const DEFAULT_PROFILE: UserProfile = {
@@ -30,6 +39,8 @@ export const DEFAULT_PROFILE: UserProfile = {
   goal: "maintain",
   targetWeightKg: null,
   avatarUrl: null,
+  activityLevel: "moderate",
+  training: DEFAULT_TRAINING,
 };
 
 interface UserProfileContextValue {
@@ -42,33 +53,11 @@ const UserProfileContext = createContext<UserProfileContextValue | null>(null);
 
 async function persistProfile(userId: string, profile: UserProfile): Promise<{ error: string | null }> {
   try {
-    const supabase = createClient();
-    const { error } = await supabase.from("profiles").upsert({
-      id: userId,
-      first_name: profile.firstName,
-      last_name: profile.lastName,
-      age: profile.age,
-      gender: profile.gender,
-      weight_kg: profile.weightKg,
-      height_cm: profile.heightCm,
-      goal: profile.goal,
-      target_weight_kg: profile.targetWeightKg,
-      avatar_url: profile.avatarUrl,
-      updated_at: new Date().toISOString(),
-    });
-    if (error) {
-      console.error("Profilni saqlashda xatolik:", error.message);
-      throw error;
-    }
-  } catch (err) {
-    if (!navigator.onLine || err instanceof TypeError) {
-      // Oflayn bo'lsa navbatga yozamiz
-      await pushSyncTask({ type: "UPDATE_PROFILE", payload: { userId, profile } });
-    } else {
-      return { error: (err as Error).message };
-    }
+    await pushSyncTask({ type: "UPDATE_PROFILE", payload: { userId, profile } });
+    return { error: null };
+  } catch {
+    return { error: "Profilni qurilmada saqlab bo'lmadi. Qayta urinib ko'ring." };
   }
-  return { error: null };
 }
 
 export function UserProfileProvider({ children }: { children: ReactNode }) {
@@ -93,17 +82,24 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     idbGet<UserProfile>(`profile_${userId}`).then((cached) => {
       if (cancelled) return;
       if (cached) {
-        setProfileState((prev) => (prev === DEFAULT_PROFILE ? cached : prev));
+        setProfileState((prev) =>
+          prev === DEFAULT_PROFILE
+            ? {
+                ...DEFAULT_PROFILE,
+                ...cached,
+                activityLevel: normalizeActivity(cached.activityLevel),
+                training: normalizeTraining(cached.training),
+              }
+            : prev,
+        );
       }
     });
 
     const supabase = createClient();
-    supabase
-      .from("profiles")
-      .select("first_name, last_name, age, gender, weight_kg, height_cm, goal, target_weight_kg, avatar_url")
-      .eq("id", userId)
-      .single()
-      .then(({ data, error }) => {
+    getSyncQueue()
+      .catch(() => [])
+      .then(async (pendingBefore) => {
+        const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
         if (cancelled) return;
         if (error) {
           console.error("Profilni o'qishda xatolik:", error.message);
@@ -118,11 +114,22 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             goal: data.goal,
             targetWeightKg: data.target_weight_kg ?? null,
             avatarUrl: data.avatar_url ?? null,
+            activityLevel: normalizeActivity(data.activity_level),
+            training: normalizeTraining(data.training_preferences),
           };
+          const pending = [...pendingBefore, ...(await getSyncQueue().catch(() => []))];
+          if (cancelled) return;
+          for (const task of pending) {
+            if (task.type === "UPDATE_PROFILE" && task.payload.userId === userId)
+              Object.assign(fetchedProfile, task.payload.profile);
+          }
           setProfileState(fetchedProfile);
           idbSet(`profile_${userId}`, fetchedProfile);
         }
         setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -130,10 +137,12 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   }, [userId]);
 
   const setProfile = async (next: UserProfile) => {
+    if (!userId) return { error: "Tizimga kiring." };
+    const result = await persistProfile(userId, next);
+    if (result.error) return result;
     setProfileState(next);
-    if (!userId) return { error: null };
-    idbSet(`profile_${userId}`, next);
-    return persistProfile(userId, next);
+    void idbSet(`profile_${userId}`, next);
+    return result;
   };
 
   return (

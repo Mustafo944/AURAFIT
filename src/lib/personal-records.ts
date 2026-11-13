@@ -1,4 +1,4 @@
-import type { MuscleGroupId } from "@/lib/exercises";
+import type { MuscleGroupId } from "@/lib/exercise-metadata";
 import type { SetEntry, WorkoutSession } from "@/lib/workout-log";
 
 export interface PersonalRecord {

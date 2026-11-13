@@ -65,19 +65,23 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-colors duration-200 ${
+              className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 ${
                 isActive
-                  ? "bg-primary/10 text-primary border-l-4 border-primary"
-                  : "text-on-surface-variant hover:bg-white/5"
+                  ? "bg-primary-fixed-dim/15 text-primary border-l-4 border-primary shadow-[inset_0_0_12px_rgba(195,244,0,0.1)] font-semibold"
+                  : "text-on-surface-variant hover:text-on-surface hover:bg-white/5"
               }`}
             >
               <span
-                className="material-symbols-outlined"
-                style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                className="material-symbols-outlined transition-transform duration-200"
+                style={
+                  isActive
+                    ? { fontVariationSettings: "'FILL' 1", filter: "drop-shadow(0 0 8px rgba(195,244,0,0.45))" }
+                    : undefined
+                }
               >
                 {item.icon}
               </span>
-              <span className="font-body-md text-body-md font-medium">{item.label}</span>
+              <span className="font-body-md text-body-md">{item.label}</span>
             </Link>
           );
         })}
@@ -88,13 +92,22 @@ export function Sidebar() {
       <div className="px-4 mt-auto space-y-2">
         <Link
           href="/profile"
-          className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-colors duration-200 ${
+          className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-200 ${
             pathname === "/profile"
-              ? "bg-primary/10 text-primary border-l-4 border-primary"
-              : "text-on-surface-variant hover:bg-white/5"
+              ? "bg-primary-fixed-dim/15 text-primary border-l-4 border-primary shadow-[inset_0_0_12px_rgba(195,244,0,0.1)] font-semibold"
+              : "text-on-surface-variant hover:text-on-surface hover:bg-white/5"
           }`}
         >
-          <span className="material-symbols-outlined">person</span>
+          <span
+            className="material-symbols-outlined"
+            style={
+              pathname === "/profile"
+                ? { fontVariationSettings: "'FILL' 1", filter: "drop-shadow(0 0 8px rgba(195,244,0,0.45))" }
+                : undefined
+            }
+          >
+            person
+          </span>
           <span className="font-body-md text-body-md">Profil</span>
         </Link>
         <LogoutButton className="flex items-center gap-4 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-white/5 transition-colors duration-200 w-full">

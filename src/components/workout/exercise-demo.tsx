@@ -1,78 +1,87 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
-import { getAnimationFrames, type Exercise } from "@/lib/exercises";
+import { getAnimationFrames, type Exercise } from "@/lib/exercise-metadata";
+import { ExerciseImage } from "@/components/workout/exercise-image";
 
-const FRAME_MS = 1000; // har bir holat ko'rinib turadigan vaqt
-
-// Mashqning boshlang'ich (0.jpg) va yakuniy (1.jpg) holat suratlarini yumshoq
-// crossfade bilan almashtirib, bajarilish harakatini jonlantiradi. Ikkala kadr
-// ham doim DOM'da turadi — birinchi almashishda rasm yuklanishini kutib
-// "lip-lip" etib qolmasligi uchun.
 export function ExerciseDemo({ exercise }: { exercise: Exercise }) {
-  const [start, end] = getAnimationFrames(exercise);
+  const frames = getAnimationFrames(exercise);
   const [frame, setFrame] = useState(0);
-  const [playing, setPlaying] = useState(true);
-
+  const [playing, setPlaying] = useState(false);
+  const [compare, setCompare] = useState(false);
   useEffect(() => {
     if (!playing) return;
-    const id = setInterval(() => setFrame((f) => (f === 0 ? 1 : 0)), FRAME_MS);
-    return () => clearInterval(id);
-  }, [playing, exercise.id]);
-
+    const timer = setInterval(() => setFrame((value) => 1 - value), 1400);
+    return () => clearInterval(timer);
+  }, [playing]);
   return (
-    <div className="relative rounded-xl overflow-hidden bg-white select-none">
-      <button
-        type="button"
-        onClick={() => setPlaying((p) => !p)}
-        aria-label={playing ? "Animatsiyani to'xtatish" : "Animatsiyani boshlash"}
-        className="block w-full relative aspect-[4/3] cursor-pointer"
-      >
-        <Image
-          src={start}
-          alt={`${exercise.englishName} — boshlang'ich holat`}
-          fill
-          sizes="(max-width: 768px) 100vw, 400px"
-          className="object-contain transition-opacity duration-500 ease-in-out"
-          style={{ opacity: frame === 0 ? 1 : 0 }}
-        />
-        <Image
-          src={end}
-          alt={`${exercise.englishName} — yakuniy holat`}
-          fill
-          sizes="(max-width: 768px) 100vw, 400px"
-          className="object-contain transition-opacity duration-500 ease-in-out"
-          style={{ opacity: frame === 1 ? 1 : 0 }}
-        />
-      </button>
-
-      {/* Pastki boshqaruv paneli */}
-      <div className="absolute bottom-0 inset-x-0 flex items-center gap-2 px-3 py-2 bg-gradient-to-t from-black/70 to-transparent pointer-events-none">
-        <button
-          type="button"
-          onClick={() => setPlaying((p) => !p)}
-          aria-label={playing ? "To'xtatish" : "Boshlash"}
-          className="pointer-events-auto w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors"
-        >
-          <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-            {playing ? "pause" : "play_arrow"}
-          </span>
-        </button>
-        <div className="flex items-center gap-1.5">
-          {[0, 1].map((i) => (
-            <span
-              key={i}
-              className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-                frame === i ? "bg-primary-fixed" : "bg-white/40"
-              }`}
-            />
+    <div className="overflow-hidden rounded-2xl border border-white/10">
+      {compare ? (
+        <div className="grid grid-cols-2 gap-px bg-white/15">
+          {frames.map((src, index) => (
+            <div key={src} className="relative aspect-[3/2] bg-[#f5f5f1]">
+              <ExerciseImage eager exercise={exercise} src={src} sizes="(max-width: 768px) 45vw, 200px" />
+              <span className="absolute bottom-2 left-2 rounded-full bg-black/80 px-2 py-1 text-[10px] text-white">
+                {index + 1}-holat
+              </span>
+            </div>
           ))}
         </div>
-        <span className="ml-auto font-label-mono text-[10px] text-white/80 uppercase tracking-wider">
-          {frame === 0 ? "Boshlanish" : "Yakun"}
-        </span>
+      ) : (
+        <div className="relative aspect-[4/3] bg-[#f5f5f1]">
+          <ExerciseImage
+            eager
+            exercise={exercise}
+            src={frames[frame]}
+            sizes="(max-width: 768px) 90vw, 400px"
+          />
+          <span className="absolute left-3 top-3 rounded-full bg-black/80 px-3 py-1 text-xs text-white">
+            {frame === 0 ? "01 · Boshlanish" : "02 · Yakun"}
+          </span>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2 bg-surface-container p-3">
+        {["Boshlanish", "Yakun"].map((label, index) => (
+          <button
+            key={label}
+            type="button"
+            aria-pressed={frame === index}
+            onClick={() => {
+              setPlaying(false);
+              setCompare(false);
+              setFrame(index);
+            }}
+            className={`min-h-10 rounded-lg px-3 text-xs ${frame === index ? "bg-primary/15 text-primary" : "text-on-surface-variant hover:bg-white/5"}`}
+          >
+            {label}
+          </button>
+        ))}
+        <button
+          type="button"
+          aria-pressed={playing}
+          onClick={() => {
+            setCompare(false);
+            setPlaying(!playing);
+          }}
+          className="ml-auto min-h-10 rounded-lg px-3 text-xs text-primary hover:bg-white/5"
+        >
+          {playing ? "To'xtatish" : "Avtomatik ko'rish"}
+        </button>
       </div>
+      <button
+        type="button"
+        aria-pressed={compare}
+        onClick={() => {
+          setPlaying(false);
+          setCompare(!compare);
+        }}
+        className="w-full border-t border-white/10 bg-surface-container px-4 py-3 text-xs text-primary hover:bg-white/5"
+      >
+        {compare ? "Bitta holatni ko'rish" : "Ikki holatni solishtirish"}
+      </button>
+      <p className="bg-surface-container px-4 pb-3 text-[11px] text-on-surface-variant">
+        Ikki holat tasviri · to&apos;liq harakat videosi emas
+      </p>
     </div>
   );
 }

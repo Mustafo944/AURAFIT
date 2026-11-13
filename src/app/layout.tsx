@@ -1,3 +1,4 @@
+import { SyncProvider } from "@/context/sync-context";
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Archivo_Narrow } from "next/font/google";
 import { headers } from "next/headers";
@@ -25,7 +26,8 @@ const archivoNarrow = Archivo_Narrow({
 
 export const metadata: Metadata = {
   title: "AuraFit — AI-Powered Fitness",
-  description: "Premium AI-driven fitness. Precision training, data-driven insights, futuristic interface for peak performance.",
+  description:
+    "Premium AI-driven fitness. Precision training, data-driven insights, futuristic interface for peak performance.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -70,11 +72,13 @@ export default async function RootLayout({
       </head>
       <body className="bg-background text-on-background min-h-screen overflow-x-hidden font-body-md selection:bg-primary-container selection:text-on-primary-container antialiased">
         <AuthProvider initialUserId={userId} initialEmail={userEmail}>
-          <UserProfileProvider>
-            <WorkoutSessionProvider>
-              <AppShell>{children}</AppShell>
-            </WorkoutSessionProvider>
-          </UserProfileProvider>
+          <SyncProvider>
+            <UserProfileProvider>
+              <WorkoutSessionProvider>
+                <AppShell>{children}</AppShell>
+              </WorkoutSessionProvider>
+            </UserProfileProvider>
+          </SyncProvider>
         </AuthProvider>
         <Script
           id="service-worker-registration"

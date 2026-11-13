@@ -245,6 +245,58 @@ input[type="number"]::-webkit-inner-spin-button {
     }
   }
 
+  .glass-card-hover {
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  }
+  .glass-card-hover:hover {
+    border-top-color: rgba(255, 255, 255, 0.35);
+    border-left-color: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.5), 0 0 16px -4px rgba(195, 244, 0, 0.12);
+  }
+
+  .neon-glow-primary {
+    box-shadow: 0 0 20px rgba(195, 244, 0, 0.25), 0 0 40px rgba(195, 244, 0, 0.08);
+  }
+
+  .neon-glow-cyan {
+    box-shadow: 0 0 20px rgba(0, 219, 233, 0.25), 0 0 40px rgba(0, 219, 233, 0.08);
+  }
+
+  /* Orqa fon uchun harakatsiz yoki sekin nafas oluvchi ambient nur */
+  .ambient-orb-primary {
+    position: absolute;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(195, 244, 0, 0.09) 0%, rgba(195, 244, 0, 0) 70%);
+    filter: blur(48px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .ambient-orb-cyan {
+    position: absolute;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(0, 219, 233, 0.07) 0%, rgba(0, 219, 233, 0) 70%);
+    filter: blur(52px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Nozik va zamonaviy qora scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #121414;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #282a2b;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #474746;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .pr-chip,
     .page-enter,

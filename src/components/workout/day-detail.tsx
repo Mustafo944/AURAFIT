@@ -1,12 +1,24 @@
 "use client";
 
+import { SyncStatus } from "@/components/sync-status";
+
 import { useState } from "react";
 import type { WorkoutSession } from "@/lib/workout-log";
-import { MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
+import { MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercise-metadata";
 
 const UZ_MONTHS = [
-  "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
-  "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr",
+  "Yanvar",
+  "Fevral",
+  "Mart",
+  "Aprel",
+  "May",
+  "Iyun",
+  "Iyul",
+  "Avgust",
+  "Sentabr",
+  "Oktabr",
+  "Noyabr",
+  "Dekabr",
 ];
 
 function muscleInfo(id: MuscleGroupId) {
@@ -50,7 +62,7 @@ export function DayDetail({
       calories: acc.calories + s.caloriesBurned,
       cardio: acc.cardio + s.cardio.length,
     }),
-    { sets: 0, volume: 0, calories: 0, cardio: 0 }
+    { sets: 0, volume: 0, calories: 0, cardio: 0 },
   );
 
   const muscleGroups = [
@@ -76,7 +88,9 @@ export function DayDetail({
             <div className="font-headline-md text-[17px] text-primary uppercase italic leading-tight">
               {isToday ? "Bugungi Mashg'ulot" : "Mashg'ulot"}
             </div>
-            <div className="font-label-mono text-[11px] text-on-surface-variant">{formatDayLabel(dateKey)}</div>
+            <div className="font-label-mono text-[11px] text-on-surface-variant">
+              {formatDayLabel(dateKey)}
+            </div>
           </div>
           <span
             className="material-symbols-outlined text-[22px] text-on-surface-variant transition-transform duration-200"
@@ -126,6 +140,7 @@ export function DayDetail({
         <div className="px-5 pb-5 space-y-4 border-t border-white/10 pt-4">
           {sessions.map((session) => (
             <div key={session.id} className="space-y-2">
+              <SyncStatus entityId={session.id} />
               {session.exercises.map((exercise) => {
                 const info = muscleInfo(exercise.muscleGroup);
                 return (
@@ -134,7 +149,9 @@ export function DayDetail({
                       <span className="material-symbols-outlined text-primary-fixed-dim text-[16px]">
                         {info?.icon ?? "fitness_center"}
                       </span>
-                      <span className="font-body-md text-[14px] text-on-surface font-semibold">{exercise.exerciseName}</span>
+                      <span className="font-body-md text-[14px] text-on-surface font-semibold">
+                        {exercise.exerciseName}
+                      </span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {exercise.sets.map((set, i) => (
@@ -155,14 +172,20 @@ export function DayDetail({
                   key={i}
                   className="flex items-center gap-2 bg-tertiary-fixed-dim/[0.07] border border-tertiary-fixed-dim/20 rounded-lg p-3"
                 >
-                  <span className="material-symbols-outlined text-tertiary-fixed-dim text-[16px]">directions_run</span>
-                  <span className="font-body-md text-[14px] text-on-surface font-semibold flex-1">{entry.label}</span>
+                  <span className="material-symbols-outlined text-tertiary-fixed-dim text-[16px]">
+                    directions_run
+                  </span>
+                  <span className="font-body-md text-[14px] text-on-surface font-semibold flex-1">
+                    {entry.label}
+                  </span>
                   <span className="font-label-mono text-[11px] text-on-surface-variant">
                     {entry.durationMin} daq
                     {entry.speedKmh ? ` · ${entry.speedKmh} km/s` : ""}
                     {entry.inclinePct ? ` · ${entry.inclinePct}%` : ""}
                   </span>
-                  <span className="font-label-mono text-[12px] text-tertiary-fixed-dim">{entry.caloriesBurned} kcal</span>
+                  <span className="font-label-mono text-[12px] text-tertiary-fixed-dim">
+                    {entry.caloriesBurned} kcal
+                  </span>
                 </div>
               ))}
 

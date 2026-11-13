@@ -1,11 +1,11 @@
+import { providerFetch } from "@/lib/provider-fetch";
+import { readJson, record } from "@/lib/api-validation";
+import { checkApiAccess } from "@/lib/api-access";
 import { NextResponse } from "next/server";
-import { createRpmLimiter } from "@/lib/rate-limiter";
 
-// OpenFoodFacts bepul va key talab qilmaydi — shu sabab GEMINI/GROQ kabi
+// OpenFoodFacts bepul va key talab qilmaydi — shu sabab AI provayderlari kabi
 // kvota emas, faqat serverimizni suiiste'moldan himoyalash uchun yengil,
 // alohida limiter (scan-food'ning alohida-kvota namunasida).
-const RPM_LIMIT = Number(process.env.BARCODE_RPM_LIMIT ?? 20);
-const isRpmLimited = createRpmLimiter(RPM_LIMIT);
 
 interface OpenFoodFactsProduct {
   product_name?: string;
@@ -45,27 +45,27 @@ function parsePackageGrams(product: OpenFoodFactsProduct): number | null {
 // ishlatiladi. Qiymatlar 100g uchun; `packageGrams` (agar topilsa) va mijoz
 // kiritgan "necha foiz yedim" birgalikda haqiqiy iste'mol miqdorini hisoblaydi.
 export async function POST(request: Request) {
-  if (isRpmLimited()) {
-    return NextResponse.json(
-      { error: `Juda tez-tez so'rov yubordingiz (limit: ${RPM_LIMIT} ta/daqiqa). Bir daqiqadan so'ng qayta urinib ko'ring.` },
-      { status: 429 }
-    );
-  }
+  const denied = await checkApiAccess("lookup-barcode");
+  if (denied) return denied;
 
-  const body = await request.json().catch(() => null);
-  const code = typeof body?.code === "string" ? body.code.trim() : "";
+  const body = await readJson(request).catch(() => null);
+  const code = record(body) && typeof body.code === "string" ? body.code.trim() : "";
   if (!code || !/^\d{6,14}$/.test(code)) {
     return NextResponse.json(
-      { error: "Mahsulot kodi aniqlanmadi. QR-kod odatda shtrix-kod raqamini o'z ichiga olmaydi — iloji bo'lsa qadoqdagi chiziqli shtrix-kodni skanerlang." },
-      { status: 400 }
+      {
+        error:
+          "Mahsulot kodi aniqlanmadi. QR-kod odatda shtrix-kod raqamini o'z ichiga olmaydi — iloji bo'lsa qadoqdagi chiziqli shtrix-kodni skanerlang.",
+      },
+      { status: 400 },
     );
   }
 
   let res: Response;
   try {
-    res = await fetch(
+    res = await providerFetch(
+      "barcode",
       `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,nutriments,quantity,product_quantity`,
-      { headers: { "User-Agent": "AuraFit/1.0 (aurafit.app)" } }
+      { headers: { "User-Agent": "AuraFit/1.0 (aurafit.app)" } },
     );
   } catch {
     return NextResponse.json({ error: "OpenFoodFacts bilan bog'lanib bo'lmadi." }, { status: 502 });
@@ -75,15 +75,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `OpenFoodFacts xatosi (${res.status}).` }, { status: 502 });
   }
 
-  const data = (await res.json().catch(() => null)) as { status?: number; product?: OpenFoodFactsProduct } | null;
+  const data = (await res.json().catch(() => null)) as {
+    status?: number;
+    product?: OpenFoodFactsProduct;
+  } | null;
   if (!data || data.status !== 1 || !data.product) {
     // OpenFoodFacts ochiq, ko'ngillilar to'ldiradigan baza — mahalliy yoki
     // kam tanilgan mahsulotlar ko'pincha unda umuman yo'q (bu bug emas,
     // bazaning qamrov cheklovi). Shu sabab pastda "rasm orqali" muqobil
     // yo'lni ham taklif qilamiz (frontend'da).
     return NextResponse.json(
-      { error: "Bu mahsulot OpenFoodFacts bazasida topilmadi — mahalliy yoki kam tanilgan mahsulotlar ko'pincha bazada yo'q. Buning o'rniga rasm orqali skanerlab ko'ring." },
-      { status: 404 }
+      {
+        error:
+          "Bu mahsulot OpenFoodFacts bazasida topilmadi — mahalliy yoki kam tanilgan mahsulotlar ko'pincha bazada yo'q. Buning o'rniga rasm orqali skanerlab ko'ring.",
+      },
+      { status: 404 },
     );
   }
 

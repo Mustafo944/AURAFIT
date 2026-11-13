@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  ...(process.env.AURAFIT_E2E === "1"
+    ? { distDir: ".next/e2e", typescript: { tsconfigPath: "tsconfig.e2e.json" } }
+    : {}),
+  allowedDevOrigins: ["127.0.0.1"],
   reactCompiler: true,
   async headers() {
     return [
@@ -13,9 +17,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/manifest.json",
-        headers: [
-          { key: "Content-Type", value: "application/manifest+json" },
-        ],
+        headers: [{ key: "Content-Type", value: "application/manifest+json" }],
       },
     ];
   },

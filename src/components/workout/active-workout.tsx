@@ -1,5 +1,7 @@
 "use client";
 
+import { RestTimer } from "@/components/workout/rest-timer";
+import { SaveTemplate } from "@/components/workout/save-template";
 import { useEffect, useMemo, useState } from "react";
 import { useWorkoutSession } from "@/context/workout-session-context";
 import { getPersonalRecords } from "@/lib/personal-records";
@@ -22,13 +24,23 @@ export function ActiveWorkout({
   sessions,
   weightKg,
   onFinish,
+  saving = false,
 }: {
   sessions: WorkoutSession[];
   weightKg: number;
   onFinish: () => void;
+  saving?: boolean;
 }) {
-  const { activeSession, removeExercise, logSet, removeSet, addCardio, removeCardio, discardSession } =
-    useWorkoutSession();
+  const {
+    activeSession,
+    removeExercise,
+    logSet,
+    removeSet,
+    addCardio,
+    removeCardio,
+    discardSession,
+    setRestEndsAt,
+  } = useWorkoutSession();
 
   const [pickerOpen, setPickerOpen] = useState((activeSession?.exercises.length ?? 0) === 0);
 
@@ -49,27 +61,34 @@ export function ActiveWorkout({
   const canFinish = totalSetsLogged > 0 || activeSession.cardio.length > 0;
 
   return (
-    <div className="space-y-stack-md">
-      <div className="glass-card rounded-xl p-4 flex items-center gap-3 border-l-[3px] border-l-primary-fixed-dim">
-        <span className="material-symbols-outlined text-primary-fixed-dim animate-pulse">fiber_manual_record</span>
+    <div className={`space-y-stack-md ${pickerOpen ? "" : "max-w-3xl mx-auto"}`}>
+      <div className="glass-card glass-card-hover rounded-2xl p-4 md:p-5 flex items-center gap-4 border-l-[4px] border-l-primary-fixed-dim shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative overflow-hidden">
+        <div className="absolute -right-8 -top-8 w-24 h-24 bg-primary-fixed-dim/10 rounded-full blur-xl pointer-events-none" />
+        <div className="relative flex items-center justify-center shrink-0 w-8 h-8 rounded-full bg-primary-fixed-dim/15 border border-primary-fixed-dim/30">
+          <span className="w-2.5 h-2.5 rounded-full bg-primary-fixed-dim" />
+          <span className="absolute w-5 h-5 rounded-full bg-primary-fixed-dim/30 animate-ping" />
+        </div>
         <div className="min-w-0 flex-1">
-          <div className="font-headline-md text-[16px] text-primary uppercase italic">
-            Faol Mashg&apos;ulot &middot; {formatElapsed(activeSession.startedAt)}
+          <div className="font-headline-md text-[17px] text-primary uppercase italic tracking-tight flex items-center gap-2">
+            Faol Mashg&apos;ulot
+            <span className="text-white/20">&middot;</span>
+            <span className="font-label-mono text-tertiary-fixed-dim font-bold text-[13px]">{formatElapsed(activeSession.startedAt)}</span>
           </div>
-          <div className="font-label-mono text-[11px] text-on-surface-variant truncate">
-            {totalSetsLogged} podxod · {activeSession.exercises.length} mashq
-            {activeSession.cardio.length > 0 ? ` · ${activeSession.cardio.length} kardio` : ""}
+          <div className="font-label-mono text-[11px] text-on-surface-variant truncate mt-0.5">
+            {totalSetsLogged} podxod &middot; {activeSession.exercises.length} mashq
+            {activeSession.cardio.length > 0 ? ` &middot; ${activeSession.cardio.length} kardio` : ""}
           </div>
         </div>
         <button
           type="button"
           onClick={discardSession}
-          className="shrink-0 px-3 py-2 rounded-lg bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10 transition-colors font-label-mono text-[11px] uppercase"
+          className="shrink-0 px-3.5 py-1.5 rounded-xl bg-white/5 text-on-surface-variant border border-white/10 hover:bg-error/15 hover:text-error hover:border-error/30 transition-all font-label-mono text-[11px] uppercase active:scale-95"
         >
           Bekor
         </button>
       </div>
 
+      {!pickerOpen && <RestTimer deadline={activeSession.restEndsAt} onChange={setRestEndsAt} />}
       {pickerOpen ? (
         <ExercisePicker onDone={() => setPickerOpen(false)} />
       ) : (
@@ -103,6 +122,8 @@ export function ActiveWorkout({
             Mashq Qo&apos;shish
           </button>
 
+          <SaveTemplate exerciseIds={activeSession.exercises.map((exercise) => exercise.exerciseId)} />
+
           <CardioSection
             weightKg={weightKg}
             cardio={activeSession.cardio}
@@ -113,13 +134,13 @@ export function ActiveWorkout({
           <button
             type="button"
             onClick={onFinish}
-            disabled={!canFinish}
+            disabled={!canFinish || saving}
             className="w-full bg-primary-container text-on-primary-container font-headline-md text-headline-md uppercase italic py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-primary-fixed glow-button transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
               check_circle
             </span>
-            Mashg&apos;ulotni Yakunlash
+            {saving ? "Saqlanmoqda..." : "Mashg'ulotni yakunlash"}
           </button>
         </>
       )}

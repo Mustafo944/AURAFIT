@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Exercise, MuscleGroupId } from "@/lib/exercises";
+import type { Exercise, MuscleGroupId } from "@/lib/exercise-metadata";
 import { computeCaloriesBurned, type SetEntry, type WorkoutSession } from "@/lib/workout-log";
 import { type CardioEntry } from "@/lib/cardio";
 import { useAuth } from "@/context/auth-context";
@@ -15,6 +15,7 @@ export interface ActiveExercise {
 
 export interface ActiveSession {
   startedAt: string;
+  restEndsAt?: number | null;
   // Foydalanuvchi mashg'ulot boshida tanlab qo'ygan mashqlar rejasi. Podxod
   // hali kiritilmagan bo'lsa ham (sets bo'sh) ro'yxatda turadi.
   exercises: ActiveExercise[];
@@ -26,9 +27,11 @@ const STORAGE_PREFIX = "aurafit_active_session";
 interface WorkoutSessionContextValue {
   activeSession: ActiveSession | null;
   isActive: boolean;
-  startSession: () => void;
+  startSession: (exercises?: Exercise[]) => void;
+  setRestEndsAt: (deadline: number | null) => void;
   addExercises: (exercises: Exercise[]) => void;
   removeExercise: (exerciseId: string) => void;
+  moveExercise: (exerciseId: string, direction: -1 | 1) => void;
   logSet: (exerciseId: string, set: SetEntry) => void;
   removeSet: (exerciseId: string, setIndex: number) => void;
   addCardio: (entry: CardioEntry) => void;
@@ -86,8 +89,19 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const startSession = () => {
-    const session: ActiveSession = { startedAt: new Date().toISOString(), exercises: [], cardio: [] };
+  const startSession = (exercises: Exercise[] = []) => {
+    const unique = [...new Map(exercises.map((exercise) => [exercise.id, exercise])).values()];
+    const session: ActiveSession = {
+      startedAt: new Date().toISOString(),
+      restEndsAt: null,
+      exercises: unique.map((exercise) => ({
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        muscleGroup: exercise.muscleGroup,
+        sets: [],
+      })),
+      cardio: [],
+    };
     writeDraft(storageKey, session);
     setActiveSession(session);
   };
@@ -97,7 +111,12 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
       const existing = new Set(prev.exercises.map((e) => e.exerciseId));
       const added = exercises
         .filter((e) => !existing.has(e.id))
-        .map((e) => ({ exerciseId: e.id, exerciseName: e.name, muscleGroup: e.muscleGroup, sets: [] as SetEntry[] }));
+        .map((e) => ({
+          exerciseId: e.id,
+          exerciseName: e.name,
+          muscleGroup: e.muscleGroup,
+          sets: [] as SetEntry[],
+        }));
       if (added.length === 0) return prev;
       return { ...prev, exercises: [...prev.exercises, ...added] };
     });
@@ -107,10 +126,26 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
     mutate((prev) => ({ ...prev, exercises: prev.exercises.filter((e) => e.exerciseId !== exerciseId) }));
   };
 
+  const moveExercise = (exerciseId: string, direction: -1 | 1) => {
+    mutate((previous) => {
+      const index = previous.exercises.findIndex((exercise) => exercise.exerciseId === exerciseId);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= previous.exercises.length) return previous;
+      const exercises = [...previous.exercises];
+      [exercises[index], exercises[target]] = [exercises[target], exercises[index]];
+      return { ...previous, exercises };
+    });
+  };
+
+  const setRestEndsAt = (deadline: number | null) => mutate((prev) => ({ ...prev, restEndsAt: deadline }));
+
   const logSet = (exerciseId: string, set: SetEntry) => {
     mutate((prev) => ({
       ...prev,
-      exercises: prev.exercises.map((e) => (e.exerciseId === exerciseId ? { ...e, sets: [...e.sets, set] } : e)),
+      restEndsAt: Date.now() + 90_000,
+      exercises: prev.exercises.map((e) =>
+        e.exerciseId === exerciseId ? { ...e, sets: [...e.sets, set] } : e,
+      ),
     }));
   };
 
@@ -120,7 +155,7 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
     mutate((prev) => ({
       ...prev,
       exercises: prev.exercises.map((e) =>
-        e.exerciseId === exerciseId ? { ...e, sets: e.sets.filter((_, i) => i !== setIndex) } : e
+        e.exerciseId === exerciseId ? { ...e, sets: e.sets.filter((_, i) => i !== setIndex) } : e,
       ),
     }));
   };
@@ -148,10 +183,17 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
     const finishedAt = new Date().toISOString();
     const totalVolumeKg = loggedExercises.reduce(
       (sum, ex) => sum + ex.sets.reduce((s, set) => s + set.weightKg * set.reps, 0),
-      0
+      0,
     );
     const totalSets = loggedExercises.reduce((sum, ex) => sum + ex.sets.length, 0);
-    const strengthCalories = computeCaloriesBurned(activeSession.startedAt, finishedAt, weightKg, totalSets);
+    const cardioMinutes = cardio.reduce((sum, c) => sum + c.durationMin, 0);
+    const strengthCalories = computeCaloriesBurned(
+      activeSession.startedAt,
+      finishedAt,
+      weightKg,
+      totalSets,
+      cardioMinutes,
+    );
     const cardioCalories = cardio.reduce((sum, c) => sum + c.caloriesBurned, 0);
 
     const session: WorkoutSession = {
@@ -164,8 +206,7 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
       totalSets,
       caloriesBurned: strengthCalories + cardioCalories,
     };
-    writeDraft(storageKey, null);
-    setActiveSession(null);
+    // The caller clears the draft only after the completed session is durable.
     return session;
   };
 
@@ -178,8 +219,10 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
         activeSession,
         isActive: activeSession !== null,
         startSession,
+        setRestEndsAt,
         addExercises,
         removeExercise,
+        moveExercise,
         logSet,
         removeSet,
         addCardio,

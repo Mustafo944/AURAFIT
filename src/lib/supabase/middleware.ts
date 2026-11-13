@@ -13,6 +13,8 @@ function hasAuthCookie(request: NextRequest): boolean {
 // uchun layout.tsx qayta Supabase'ga murojaat qilib getUser() chaqirmaydi —
 // har bir sahifa uchun ikkita o'rniga bitta tarmoq so'rovi yetarli bo'ladi.
 export async function updateSession(request: NextRequest) {
+  request.headers.delete("x-supabase-user-id");
+  request.headers.delete("x-supabase-user-email");
   const pathname = request.nextUrl.pathname;
   const isPublicPath = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 
@@ -39,10 +41,12 @@ export async function updateSession(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } });
-          cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options));
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options),
+          );
         },
       },
-    }
+    },
   );
 
   // getUser() o'rniga getClaims(): JWT imzosi JWKS orqali LOKAL tekshiriladi

@@ -1,8 +1,5 @@
 import type { WorkoutSession } from "@/lib/workout-log";
 
-// Sof matematika — I/O yo'q. Funksiyani sinov massivlari bilan qo'lda
-// tekshirish mumkin (loyihada test runner yo'q).
-
 export interface WeeklyActivityPoint {
   weekLabel: string;
   weekStart: string;
@@ -10,7 +7,20 @@ export interface WeeklyActivityPoint {
   totalVolumeKg: number;
 }
 
-const UZ_MONTHS_SHORT = ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"];
+const UZ_MONTHS_SHORT = [
+  "yan",
+  "fev",
+  "mar",
+  "apr",
+  "may",
+  "iyun",
+  "iyul",
+  "avg",
+  "sen",
+  "okt",
+  "noy",
+  "dek",
+];
 
 function startOfIsoWeek(date: Date): Date {
   const d = new Date(date);
@@ -20,23 +30,33 @@ function startOfIsoWeek(date: Date): Date {
   return d;
 }
 
-export function weeklyWorkoutFrequency(sessions: WorkoutSession[], weeks: number = 8): WeeklyActivityPoint[] {
+export function weeklyWorkoutFrequency(
+  sessions: WorkoutSession[],
+  weeks = 8,
+  now = new Date(),
+): WeeklyActivityPoint[] {
+  const count = Math.max(1, Math.min(52, Math.floor(weeks)));
+  const current = startOfIsoWeek(now);
   const buckets = new Map<string, WeeklyActivityPoint>();
-  for (const s of sessions) {
-    const weekStart = startOfIsoWeek(new Date(s.finishedAt));
-    const key = weekStart.toISOString();
-    const existing = buckets.get(key);
-    if (existing) {
-      existing.count += 1;
-      existing.totalVolumeKg += s.totalVolumeKg;
-    } else {
-      buckets.set(key, {
-        weekLabel: `${weekStart.getDate()}-${UZ_MONTHS_SHORT[weekStart.getMonth()]}`,
-        weekStart: key,
-        count: 1,
-        totalVolumeKg: s.totalVolumeKg,
-      });
+  for (let offset = count - 1; offset >= 0; offset--) {
+    const start = new Date(current);
+    start.setDate(start.getDate() - offset * 7);
+    const key = start.toISOString();
+    buckets.set(key, {
+      weekLabel: `${start.getDate()}-${UZ_MONTHS_SHORT[start.getMonth()]}`,
+      weekStart: key,
+      count: 0,
+      totalVolumeKg: 0,
+    });
+  }
+  for (const session of sessions) {
+    const date = new Date(session.finishedAt);
+    if (!Number.isFinite(date.getTime()) || date > now) continue;
+    const point = buckets.get(startOfIsoWeek(date).toISOString());
+    if (point) {
+      point.count++;
+      point.totalVolumeKg += session.totalVolumeKg;
     }
   }
-  return [...buckets.values()].sort((a, b) => a.weekStart.localeCompare(b.weekStart)).slice(-weeks);
+  return [...buckets.values()];
 }

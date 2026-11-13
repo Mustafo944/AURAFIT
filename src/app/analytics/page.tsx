@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent } from "react";
+import { ProgressSummary } from "@/components/progress-summary";
+import { SyncStatus } from "@/components/sync-status";
+
+import { ExerciseProgress } from "@/components/workout/exercise-progress";
+import { SavedMeals } from "@/components/saved-meals";
+import { WeightHistory } from "@/components/weight-history";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useUserProfile } from "@/context/user-profile-context";
 import { calculateFitnessMetrics } from "@/lib/fitness";
 import { useMealLog, sumMeals, type MealType } from "@/lib/meal-log";
@@ -9,18 +15,42 @@ import { weeklyWorkoutFrequency } from "@/lib/forecast";
 import { ProgressRing } from "@/components/progress-ring";
 import { MacroBar } from "@/components/macro-bar";
 import { WeeklyActivityChart } from "@/components/weekly-activity-chart";
-import { BarcodeScanner } from "@/components/barcode-scanner";
+import dynamic from "next/dynamic";
+
+const BarcodeScanner = dynamic(
+  () => import("@/components/barcode-scanner").then((m) => m.BarcodeScanner),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-col items-center justify-center gap-3 py-12">
+        <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">
+          progress_activity
+        </span>
+        <span className="font-label-mono text-label-mono text-primary-fixed-dim uppercase tracking-widest">
+          Skaner yuklanmoqda...
+        </span>
+      </div>
+    ),
+  },
+);
 
 // Nonushta/Tushlik/Kechki ovqat kunning ma'lum vaqtiga tavsiya etiladi,
 // Qo'shimcha taom esa istalgan payt qo'shilishi mumkin — shu sabab alohida
 // vaqt oralig'i yo'q. Tavsiya etilgan kaloriya kunlik maqsadning taxminiy
 // ulushidan hisoblanadi.
-const MEAL_TYPES: Array<{ type: MealType; label: string; dativeLabel: string; icon: string; split: number }> = [
-  { type: "breakfast", label: "Nonushta", dativeLabel: "Nonushtaga", icon: "free_breakfast", split: 0.25 },
-  { type: "lunch", label: "Tushlik", dativeLabel: "Tushlikka", icon: "lunch_dining", split: 0.35 },
-  { type: "dinner", label: "Kechki ovqat", dativeLabel: "Kechki ovqatga", icon: "dinner_dining", split: 0.3 },
-  { type: "snack", label: "Qo'shimcha taom", dativeLabel: "Qo'shimcha taomga", icon: "cookie", split: 0.1 },
-];
+const MEAL_TYPES: Array<{ type: MealType; label: string; dativeLabel: string; icon: string; split: number }> =
+  [
+    { type: "breakfast", label: "Nonushta", dativeLabel: "Nonushtaga", icon: "free_breakfast", split: 0.25 },
+    { type: "lunch", label: "Tushlik", dativeLabel: "Tushlikka", icon: "lunch_dining", split: 0.35 },
+    {
+      type: "dinner",
+      label: "Kechki ovqat",
+      dativeLabel: "Kechki ovqatga",
+      icon: "dinner_dining",
+      split: 0.3,
+    },
+    { type: "snack", label: "Qo'shimcha taom", dativeLabel: "Qo'shimcha taomga", icon: "cookie", split: 0.1 },
+  ];
 
 // Qo'shimcha taom oxirida alohida tugma orqali xohlagancha qo'shilishi mumkin
 const MEAL_CARD_ORDER: MealType[] = ["breakfast", "lunch", "dinner"];
@@ -46,7 +76,10 @@ const MEAL_CARD_ORDER: MealType[] = ["breakfast", "lunch", "dinner"];
  *   - Popkin B.M., D'Anci K.E., Rosenberg I.H. (2010) — "Water, Hydration
  *     and Health" Nutrition Reviews 68(8):439–458
  */
-function calculateWaterIntake(weightKg: number, age: number): { liters: number; glasses: number; note: string } {
+function calculateWaterIntake(
+  weightKg: number,
+  age: number,
+): { liters: number; glasses: number; note: string } {
   // Bazaviy: 35 ml per kg (IOM / EFSA o'rtacha tavsiya)
   let mlPerDay = weightKg * 35;
 
@@ -55,16 +88,20 @@ function calculateWaterIntake(weightKg: number, age: number): { liters: number; 
   let ageNote: string;
   if (age < 18) {
     ageFactor = 1.1;
-    ageNote = "O'smir organizmi tez o'sadi — hujayra bo'linishi va gormonlar ishlab chiqarishi uchun ko'proq suv talab qilinadi (EFSA, 2010).";
+    ageNote =
+      "O'smir organizmi tez o'sadi — hujayra bo'linishi va gormonlar ishlab chiqarishi uchun ko'proq suv talab qilinadi (EFSA, 2010).";
   } else if (age <= 30) {
     ageFactor = 1.0;
-    ageNote = "Eng faol yosh davri — mushak massasi yuqori, moddalar almashinuvi tez ishlaydi, shuning uchun standart suv me'yori yetarli (IOM, 2004).";
+    ageNote =
+      "Eng faol yosh davri — mushak massasi yuqori, moddalar almashinuvi tez ishlaydi, shuning uchun standart suv me'yori yetarli (IOM, 2004).";
   } else if (age <= 55) {
     ageFactor = 0.95;
-    ageNote = "30 yoshdan keyin har 10 yilda mushak massasi 3–5% kamayadi, gormonlar (testosteron, estrogen) darajasi tushadi — natijada moddalar almashinuvi sekinlashib, suv ehtiyoji biroz pasayadi (Popkin et al., 2010).";
+    ageNote =
+      "30 yoshdan keyin har 10 yilda mushak massasi 3–5% kamayadi, gormonlar (testosteron, estrogen) darajasi tushadi — natijada moddalar almashinuvi sekinlashib, suv ehtiyoji biroz pasayadi (Popkin et al., 2010).";
   } else {
-    ageFactor = 0.90;
-    ageNote = "55 yoshdan keyin buyrak filtratsiya tezligi pasayadi va tashnalik hissini boshqaruvchi gipotalamus sezgirligi kamayadi — shuning uchun tashnalik sezilmasa ham muntazam suv ichish muhim (IOM, 2004).";
+    ageFactor = 0.9;
+    ageNote =
+      "55 yoshdan keyin buyrak filtratsiya tezligi pasayadi va tashnalik hissini boshqaruvchi gipotalamus sezgirligi kamayadi — shuning uchun tashnalik sezilmasa ham muntazam suv ichish muhim (IOM, 2004).";
   }
 
   mlPerDay *= ageFactor;
@@ -104,9 +141,10 @@ export default function AnalyticsPage() {
     profile.gender,
     profile.weightKg,
     profile.heightCm,
-    profile.goal
+    profile.goal,
+    profile.activityLevel,
   );
-  const { meals, addMeal, removeMeal } = useMealLog();
+  const { meals, error: mealError, addMeal, removeMeal } = useMealLog();
 
   const [activeMealType, setActiveMealType] = useState<MealType | null>(null);
   const consumedByType = useMemo(() => {
@@ -135,7 +173,7 @@ export default function AnalyticsPage() {
   const caloriePct = metrics.targetCalories > 0 ? (consumed.calories / metrics.targetCalories) * 100 : 0;
 
   // Haftalik Faollik bo'limi uchun — mashg'ulot tarixidan haftalik chastota.
-  const { sessions } = useWorkoutHistory();
+  const { sessions, hasMore, loadingMore, loadMore } = useWorkoutHistory();
   const weeklyActivity = useMemo(() => weeklyWorkoutFrequency(sessions), [sessions]);
   const avgSessionsPerWeek =
     weeklyActivity.length > 0
@@ -145,7 +183,7 @@ export default function AnalyticsPage() {
   // Suv iste'moli tavsiyasi — vazn va yoshga qarab dinamik hisoblanadi
   const waterIntake = useMemo(
     () => calculateWaterIntake(profile.weightKg, profile.age),
-    [profile.weightKg, profile.age]
+    [profile.weightKg, profile.age],
   );
 
   const resetScan = () => {
@@ -181,10 +219,12 @@ export default function AnalyticsPage() {
     }
   };
 
+  const scanInFlight = useRef(false);
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    if (scanning) return;
+    if (scanInFlight.current) return;
     const file = e.target.files?.[0];
     if (!file) return;
+    scanInFlight.current = true;
     e.target.value = "";
     setPreviewUrl(URL.createObjectURL(file));
     setResult(null);
@@ -206,6 +246,7 @@ export default function AnalyticsPage() {
     } catch {
       setError("Tarmoq xatosi yuz berdi.");
     } finally {
+      scanInFlight.current = false;
       setScanning(false);
     }
   };
@@ -215,7 +256,8 @@ export default function AnalyticsPage() {
   // og'irligiga (topilsa) ko'tariladi, keyin ikkalasi ham shu foizga
   // qisqartiriladi. Rasm-skaner uchun baza AI'ning to'liq taom bahosi.
   const eatenFraction = Math.max(0, Math.min(100, Number(eatenPct) || 0)) / 100;
-  const scaleToPackage = (value: number) => (isPer100g && packageGrams ? (value * packageGrams) / 100 : value);
+  const scaleToPackage = (value: number) =>
+    isPer100g && packageGrams ? (value * packageGrams) / 100 : value;
   const displayResult: ScanResult | null = result && {
     ...result,
     totalCalories: Math.round(scaleToPackage(result.totalCalories) * eatenFraction),
@@ -225,22 +267,32 @@ export default function AnalyticsPage() {
   };
   const eatenGramsHint = isPer100g && packageGrams ? Math.round(packageGrams * eatenFraction) : null;
 
-  const handleAddToLog = () => {
-    if (!displayResult || !activeMealType) return;
-    addMeal({
-      mealName: displayResult.mealName,
-      mealType: activeMealType,
-      calories: displayResult.totalCalories,
-      proteinG: displayResult.proteinG,
-      fatG: displayResult.fatG,
-      carbG: displayResult.carbG,
-      items: displayResult.items ?? [],
-    });
-    resetScan();
-    setActiveMealType(null);
+  const [addingMeal, setAddingMeal] = useState(false);
+  const handleAddToLog = async () => {
+    if (!displayResult || !activeMealType || addingMeal) return;
+    setAddingMeal(true);
+    try {
+      await addMeal({
+        mealName: displayResult.mealName,
+        mealType: activeMealType,
+        calories: displayResult.totalCalories,
+        proteinG: displayResult.proteinG,
+        fatG: displayResult.fatG,
+        carbG: displayResult.carbG,
+        items: displayResult.items ?? [],
+      });
+      resetScan();
+      setActiveMealType(null);
+    } catch {
+      setError("Taomni saqlab bo'lmadi. Qayta urinib ko'ring.");
+    } finally {
+      setAddingMeal(false);
+    }
   };
 
-  const resultMaxMacro = displayResult ? Math.max(displayResult.proteinG, displayResult.fatG, displayResult.carbG) : 0;
+  const resultMaxMacro = displayResult
+    ? Math.max(displayResult.proteinG, displayResult.fatG, displayResult.carbG)
+    : 0;
 
   // Rasm-skaner va barkod-skaner bir xil tasdiqlash/jurnalga-qo'shish
   // ekranidan foydalanadi — dublikat komponent yozilmaydi.
@@ -254,7 +306,10 @@ export default function AnalyticsPage() {
           {displayResult.items?.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {displayResult.items.map((item, i) => (
-                <span key={i} className="font-label-mono text-[11px] bg-[#1a1a1a] border border-white/20 text-on-surface-variant px-2 py-1 rounded">
+                <span
+                  key={i}
+                  className="font-label-mono text-[11px] bg-[#1a1a1a] border border-white/20 text-on-surface-variant px-2 py-1 rounded"
+                >
                   {item}
                 </span>
               ))}
@@ -302,7 +357,9 @@ export default function AnalyticsPage() {
 
       {displayResult.note && (
         <p className="font-body-md text-[14px] text-on-surface-variant">
-          <span className="material-symbols-outlined text-[14px] align-middle text-tertiary-fixed-dim mr-1">lightbulb</span>
+          <span className="material-symbols-outlined text-[14px] align-middle text-tertiary-fixed-dim mr-1">
+            lightbulb
+          </span>
           {displayResult.note}
         </p>
       )}
@@ -310,6 +367,7 @@ export default function AnalyticsPage() {
       <div className="flex flex-col md:flex-row gap-3 pt-2">
         <button
           onClick={handleAddToLog}
+          disabled={addingMeal}
           className="flex-1 bg-primary-container text-on-primary-container font-headline-md text-sm px-6 py-3 rounded-lg uppercase tracking-wider glow-button hover:bg-primary-fixed transition-colors"
         >
           Jurnalga Qo&apos;shish
@@ -340,26 +398,49 @@ export default function AnalyticsPage() {
       <section className="glass-card rounded-xl p-6 relative overflow-hidden glow-button border-l-[3px] border-l-primary-fixed-dim">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary-fixed-dim/10 rounded-full blur-2xl" />
         <h3 className="font-headline-md text-headline-md text-primary uppercase italic mb-stack-sm flex items-center gap-2 relative z-10">
-          <span className="material-symbols-outlined text-primary-fixed-dim">data_usage</span> Bugungi Ovqatlanish
+          <span className="material-symbols-outlined text-primary-fixed-dim">data_usage</span> Bugungi
+          Ovqatlanish
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center relative z-10">
           <div className="md:col-span-4 flex items-center gap-6 border-b md:border-b-0 md:border-r border-white/10 pb-4 md:pb-0 md:pr-6">
             <ProgressRing percentage={caloriePct} color="#abd600" glowColor="rgba(171,214,0,0.5)" />
             <div>
-              <div className="font-display-lg-mobile text-display-lg-mobile text-primary font-bold">{consumed.calories}</div>
+              <div className="font-display-lg-mobile text-display-lg-mobile text-primary font-bold">
+                {consumed.calories}
+              </div>
               <div className="font-label-mono text-label-mono text-on-surface-variant">
                 / {metrics.targetCalories} KCAL MAQSAD
               </div>
               <div className="font-label-mono text-label-mono text-tertiary-fixed-dim mt-1">
-                {remainingCalories >= 0 ? `${remainingCalories} KCAL QOLDI` : `${Math.abs(remainingCalories)} KCAL ORTIQCHA`}
+                {remainingCalories >= 0
+                  ? `${remainingCalories} KCAL QOLDI`
+                  : `${Math.abs(remainingCalories)} KCAL ORTIQCHA`}
               </div>
             </div>
           </div>
 
           <div className="md:col-span-8 space-y-3">
-            <MacroBar label="Oqsil" grams={consumed.proteinG} max={metrics.proteinG} color="#abd600" rightLabel={`${consumed.proteinG}g / ${metrics.proteinG}g`} />
-            <MacroBar label="Yog'" grams={consumed.fatG} max={metrics.fatG} color="#ffb4ab" rightLabel={`${consumed.fatG}g / ${metrics.fatG}g`} />
-            <MacroBar label="Uglevod" grams={consumed.carbG} max={metrics.carbG} color="#00dbe9" rightLabel={`${consumed.carbG}g / ${metrics.carbG}g`} />
+            <MacroBar
+              label="Oqsil"
+              grams={consumed.proteinG}
+              max={metrics.proteinG}
+              color="#abd600"
+              rightLabel={`${consumed.proteinG}g / ${metrics.proteinG}g`}
+            />
+            <MacroBar
+              label="Yog'"
+              grams={consumed.fatG}
+              max={metrics.fatG}
+              color="#ffb4ab"
+              rightLabel={`${consumed.fatG}g / ${metrics.fatG}g`}
+            />
+            <MacroBar
+              label="Uglevod"
+              grams={consumed.carbG}
+              max={metrics.carbG}
+              color="#00dbe9"
+              rightLabel={`${consumed.carbG}g / ${metrics.carbG}g`}
+            />
           </div>
         </div>
       </section>
@@ -367,7 +448,8 @@ export default function AnalyticsPage() {
       {/* Ovqat Qo'shish */}
       <section>
         <h3 className="font-headline-md text-headline-md text-primary uppercase italic mb-stack-sm flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary-fixed-dim">restaurant_menu</span> Ovqat Qo&apos;shish
+          <span className="material-symbols-outlined text-primary-fixed-dim">restaurant_menu</span> Ovqat
+          Qo&apos;shish
         </h3>
 
         {activeMealType === null ? (
@@ -387,10 +469,14 @@ export default function AnalyticsPage() {
                 >
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-12 h-12 rounded-xl bg-primary-fixed-dim/10 flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-primary-fixed-dim text-[26px]">{icon}</span>
+                      <span className="material-symbols-outlined text-primary-fixed-dim text-[26px]">
+                        {icon}
+                      </span>
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-headline-md text-[17px] text-primary font-bold truncate">{label}</h4>
+                      <h4 className="font-headline-md text-[17px] text-primary font-bold truncate">
+                        {label}
+                      </h4>
                       <p className="font-label-mono text-[11px] text-on-surface-variant uppercase truncate">
                         {eaten > 0 ? `${eaten} / ${target} kkal` : `Tavsiya etiladi: ${target} kkal`}
                       </p>
@@ -405,7 +491,7 @@ export default function AnalyticsPage() {
 
             {/* Qo'shimcha taom tugmasi */}
             {(() => {
-              const { label, icon, split } = MEAL_TYPES.find((m) => m.type === "snack")!;
+              const { icon, split } = MEAL_TYPES.find((m) => m.type === "snack")!;
               const target = Math.round(metrics.targetCalories * split);
               const eaten = consumedByType["snack"];
               return (
@@ -418,10 +504,14 @@ export default function AnalyticsPage() {
                 >
                   <div className="flex items-center gap-4 min-w-0">
                     <div className="w-12 h-12 rounded-xl bg-primary-fixed-dim/20 flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-primary-fixed-dim text-[26px]">{icon}</span>
+                      <span className="material-symbols-outlined text-primary-fixed-dim text-[26px]">
+                        {icon}
+                      </span>
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-headline-md text-[17px] text-primary font-bold truncate">Qo&apos;shimcha taom</h4>
+                      <h4 className="font-headline-md text-[17px] text-primary font-bold truncate">
+                        Qo&apos;shimcha taom
+                      </h4>
                       <p className="font-label-mono text-[11px] text-on-surface-variant uppercase truncate">
                         {eaten > 0 ? `${eaten} / ${target} kkal` : `Istalgancha qo'shishingiz mumkin`}
                       </p>
@@ -486,7 +576,9 @@ export default function AnalyticsPage() {
               <>
                 {!previewUrl && (
                   <label className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/15 rounded-xl py-12 cursor-pointer hover:border-primary-fixed-dim/50 hover:bg-white/5 transition-colors">
-                    <span className="material-symbols-outlined text-5xl text-primary-fixed-dim">add_a_photo</span>
+                    <span className="material-symbols-outlined text-5xl text-primary-fixed-dim">
+                      add_a_photo
+                    </span>
                     <span className="font-body-md text-body-md text-on-surface-variant text-center px-4">
                       Ovqat rasmini yuklang yoki suratga oling
                     </span>
@@ -501,7 +593,9 @@ export default function AnalyticsPage() {
                       <img src={previewUrl} className="w-full h-full object-cover" alt="Tanlangan ovqat" />
                       {scanning && (
                         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
-                          <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">progress_activity</span>
+                          <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">
+                            progress_activity
+                          </span>
                           <span className="font-label-mono text-label-mono text-primary-fixed-dim uppercase tracking-widest">
                             AI Tahlil Qilmoqda...
                           </span>
@@ -536,7 +630,9 @@ export default function AnalyticsPage() {
 
                 {barcodeLoading && (
                   <div className="flex flex-col items-center justify-center gap-3 py-12">
-                    <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">progress_activity</span>
+                    <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">
+                      progress_activity
+                    </span>
                     <span className="font-label-mono text-label-mono text-primary-fixed-dim uppercase tracking-widest">
                       Mahsulot Qidirilmoqda...
                     </span>
@@ -587,9 +683,11 @@ export default function AnalyticsPage() {
           <div className="bg-white/5 rounded-xl p-4 text-center border border-white/5">
             <div className="flex items-center justify-center gap-2 mb-2">
               <span className="text-[18px]">🥤</span>
-              <span className="font-label-mono text-[11px] text-on-surface-variant uppercase">Kunlik norma</span>
+              <span className="font-label-mono text-[11px] text-on-surface-variant uppercase">
+                Kunlik norma
+              </span>
             </div>
-            <div className="font-headline-md text-[28px] font-bold" style={{ color: '#00bcd4' }}>
+            <div className="font-headline-md text-[28px] font-bold" style={{ color: "#00bcd4" }}>
               {waterIntake.liters} L
             </div>
             <div className="font-label-mono text-[11px] text-on-surface-variant mt-1">
@@ -603,9 +701,7 @@ export default function AnalyticsPage() {
               <span className="text-[18px]">⚖️</span>
               <span className="font-label-mono text-[11px] text-on-surface-variant uppercase">Vazningiz</span>
             </div>
-            <div className="font-headline-md text-[24px] font-bold text-primary">
-              {profile.weightKg} kg
-            </div>
+            <div className="font-headline-md text-[24px] font-bold text-primary">{profile.weightKg} kg</div>
             <div className="font-label-mono text-[11px] text-on-surface-variant mt-1">
               35 ml × {profile.weightKg} kg
             </div>
@@ -621,7 +717,8 @@ export default function AnalyticsPage() {
               {profile.age} yosh
             </div>
             <div className="font-label-mono text-[11px] text-on-surface-variant mt-1">
-              Yosh koeffitsiyenti: ×{profile.age < 18 ? '1.1' : profile.age <= 30 ? '1.0' : profile.age <= 55 ? '0.95' : '0.90'}
+              Yosh koeffitsiyenti: ×
+              {profile.age < 18 ? "1.1" : profile.age <= 30 ? "1.0" : profile.age <= 55 ? "0.95" : "0.90"}
             </div>
           </div>
         </div>
@@ -635,14 +732,16 @@ export default function AnalyticsPage() {
                 {waterIntake.note}
               </p>
               <p className="font-label-mono text-[10px] text-on-surface-variant/60 mt-2 leading-relaxed">
-                Manbalar: EFSA Journal 2010;8(3):1459 · IOM (2004) Dietary Reference Intakes · Popkin B.M. et al. (2010) Nutrition Reviews 68(8):439–458
+                Manbalar: EFSA Journal 2010;8(3):1459 · IOM (2004) Dietary Reference Intakes · Popkin B.M. et
+                al. (2010) Nutrition Reviews 68(8):439–458
               </p>
             </div>
           </div>
         </div>
 
         <p className="font-body-md text-[12px] text-on-surface-variant/50 mt-3 italic">
-          💡 Mashg&apos;ulot paytida qo&apos;shimcha 500–1000 ml suv ichish tavsiya etiladi. Profildagi vazn o&apos;zgarsa, tavsiya avtomatik yangilanadi.
+          💡 Mashg&apos;ulot paytida qo&apos;shimcha 500–1000 ml suv ichish tavsiya etiladi. Profildagi vazn
+          o&apos;zgarsa, tavsiya avtomatik yangilanadi.
         </p>
       </section>
 
@@ -660,7 +759,10 @@ export default function AnalyticsPage() {
         ) : (
           <div className="space-y-3">
             {meals.map((meal) => (
-              <div key={meal.id} className="glass-card rounded-xl p-4 flex items-center justify-between gap-4">
+              <div
+                key={meal.id}
+                className="glass-card rounded-xl p-4 flex items-center justify-between gap-4"
+              >
                 <div className="flex items-center gap-4 min-w-0">
                   <div className="w-10 h-10 rounded-full bg-primary-fixed-dim/10 flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined text-primary-fixed-dim">
@@ -669,10 +771,14 @@ export default function AnalyticsPage() {
                   </div>
                   <div className="min-w-0">
                     <h4 className="font-body-md text-body-md text-on-surface truncate">{meal.mealName}</h4>
+                    <SyncStatus entityId={meal.id} />
                     <p className="font-label-mono text-[10px] text-on-surface-variant uppercase">
                       {MEAL_TYPES.find((m) => m.type === meal.mealType)?.label ?? "Ovqat"}
                       {" · "}
-                      {new Date(meal.timestamp).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
+                      {new Date(meal.timestamp).toLocaleTimeString("uz-UZ", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                       {" · "}O {meal.proteinG}g &middot; Y {meal.fatG}g &middot; U {meal.carbG}g
                     </p>
                   </div>
@@ -696,6 +802,28 @@ export default function AnalyticsPage() {
         )}
       </section>
 
+      {mealError && (
+        <p role="alert" className="text-error text-sm">
+          {mealError}
+        </p>
+      )}
+      <SavedMeals meals={meals} onAdd={addMeal} />
+      <ProgressSummary sessions={sessions} hasMore={hasMore} />
+      <WeightHistory />
+      <ExerciseProgress sessions={sessions} />
+      {hasMore && (
+        <div className="text-sm text-on-surface-variant space-y-2">
+          <p>Tahlil yuklangan {sessions.length} ta mashg&apos;ulotga asoslangan.</p>
+          <button
+            disabled={loadingMore}
+            onClick={() => void loadMore()}
+            className="text-primary underline disabled:opacity-50"
+          >
+            {loadingMore ? "Yuklanmoqda..." : "Eski tarixni ham yuklash"}
+          </button>
+        </div>
+      )}
+
       {/* Haftalik Faollik */}
       <section className="glass-card ai-accent-border rounded-xl p-6">
         <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
@@ -705,11 +833,11 @@ export default function AnalyticsPage() {
         <WeeklyActivityChart points={weeklyActivity} />
         {weeklyActivity.length > 1 && (
           <p className="font-body-md text-[13px] text-on-surface-variant mt-4">
-            O&apos;rtacha {avgSessionsPerWeek} mashg&apos;ulot/hafta (so&apos;nggi {weeklyActivity.length} hafta)
+            O&apos;rtacha {avgSessionsPerWeek} mashg&apos;ulot/hafta (so&apos;nggi {weeklyActivity.length}{" "}
+            hafta)
           </p>
         )}
       </section>
-
     </div>
   );
 }

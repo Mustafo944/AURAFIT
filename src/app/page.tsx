@@ -6,9 +6,22 @@ import { calculateFitnessMetrics, GOAL_LABELS } from "@/lib/fitness";
 import { ProgressRing } from "@/components/progress-ring";
 import { useMealLog, sumMeals } from "@/lib/meal-log";
 import { useWorkoutHistory, type WorkoutSession } from "@/lib/workout-log";
-import { MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
+import { MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercise-metadata";
 
-const UZ_MONTHS_SHORT = ["yan", "fev", "mar", "apr", "may", "iyun", "iyul", "avg", "sen", "okt", "noy", "dek"];
+const UZ_MONTHS_SHORT = [
+  "yan",
+  "fev",
+  "mar",
+  "apr",
+  "may",
+  "iyun",
+  "iyul",
+  "avg",
+  "sen",
+  "okt",
+  "noy",
+  "dek",
+];
 
 function formatSessionDate(iso: string): string {
   const d = new Date(iso);
@@ -47,7 +60,10 @@ const CARD_ACCENTS = [
 function dominantMuscleGroup(session: WorkoutSession) {
   const setsByGroup = new Map<MuscleGroupId, number>();
   for (const exercise of session.exercises) {
-    setsByGroup.set(exercise.muscleGroup, (setsByGroup.get(exercise.muscleGroup) ?? 0) + exercise.sets.length);
+    setsByGroup.set(
+      exercise.muscleGroup,
+      (setsByGroup.get(exercise.muscleGroup) ?? 0) + exercise.sets.length,
+    );
   }
   let bestGroup: MuscleGroupId = session.exercises[0]?.muscleGroup ?? "chest";
   let bestCount = -1;
@@ -67,7 +83,8 @@ export default function DashboardPage() {
     profile.gender,
     profile.weightKg,
     profile.heightCm,
-    profile.goal
+    profile.goal,
+    profile.activityLevel,
   );
   const { meals } = useMealLog();
   const consumed = sumMeals(meals);
@@ -84,40 +101,46 @@ export default function DashboardPage() {
     <div className="space-y-stack-lg">
       {/* Metabolik Profil */}
       <section>
-        <div className="glass-card rounded-xl p-6 relative overflow-hidden glow-button border-l-[3px] border-l-primary-fixed-dim">
-          <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary-fixed-dim/10 rounded-full blur-2xl" />
+        <div className="glass-card glass-card-hover rounded-2xl p-6 md:p-8 relative overflow-hidden border-l-[4px] border-l-primary-fixed-dim shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+          <div className="absolute -right-12 -top-12 w-48 h-48 bg-primary-fixed-dim/15 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-tertiary-fixed-dim/10 rounded-full blur-3xl pointer-events-none" />
           <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center relative z-10">
             {/* Hero: Target Calories */}
-            <div className="md:col-span-6 flex flex-col items-center md:items-start border-b md:border-b-0 md:border-r border-white/10 pb-4 md:pb-0 md:pr-6">
-              <span className="font-label-mono text-label-mono text-on-surface-variant uppercase mb-1">Kunlik Maqsad</span>
-              <div className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-primary font-bold leading-none">
+            <div className="md:col-span-6 flex flex-col items-center md:items-start border-b md:border-b-0 md:border-r border-white/10 pb-6 md:pb-0 md:pr-8">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="w-2 h-2 rounded-full bg-primary-fixed-dim shadow-[0_0_8px_#c3f400] animate-pulse" />
+                <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider">
+                  Kunlik Maqsad
+                </span>
+              </div>
+              <div className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-primary font-bold leading-none tracking-tight">
                 {metrics.targetCalories}
               </div>
-              <span className="font-label-mono text-label-mono text-tertiary-fixed-dim mt-1 text-center md:text-left">
-                KCAL &middot; {GOAL_LABELS[profile.goal].toUpperCase()}
-              </span>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="font-label-mono text-label-mono text-tertiary-fixed-dim font-bold">
+                  KCAL
+                </span>
+                <span className="text-white/20">&middot;</span>
+                <span className="font-label-mono text-[11px] px-2 py-0.5 rounded bg-tertiary-fixed-dim/15 text-tertiary-fixed-dim border border-tertiary-fixed-dim/30 uppercase">
+                  {GOAL_LABELS[profile.goal]}
+                </span>
+              </div>
             </div>
 
             {/* BMR / TDEE / BMI */}
-            <div className="md:col-span-6 grid grid-cols-3 gap-3">
-              <div className="text-center">
-                <div className="font-headline-md text-[22px] text-primary font-bold">
-                  {metrics.bmr}
-                </div>
-                <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">BMR</div>
+            <div className="md:col-span-6 grid grid-cols-3 gap-3 md:gap-4">
+              <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                <div className="font-headline-md text-[22px] md:text-[26px] text-primary font-bold tracking-tight">{metrics.bmr}</div>
+                <div className="font-label-mono text-[10px] text-on-surface-variant uppercase mt-0.5">BMR</div>
               </div>
-              <div className="text-center">
-                <div className="font-headline-md text-[22px] text-primary font-bold">
-                  {metrics.tdee}
-                </div>
-                <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">TDEE</div>
+              <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                <div className="font-headline-md text-[22px] md:text-[26px] text-primary font-bold tracking-tight">{metrics.tdee}</div>
+                <div className="font-label-mono text-[10px] text-on-surface-variant uppercase mt-0.5">TDEE</div>
               </div>
-              <div className="text-center">
-                <div className="font-headline-md text-[22px] text-primary font-bold">
-                  {metrics.bmi}
-                </div>
-                <div className="font-label-mono text-[10px] text-on-surface-variant uppercase">BMI</div>
-                <div className="font-label-mono text-[9px] text-tertiary-fixed-dim mt-0.5">
+              <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                <div className="font-headline-md text-[22px] md:text-[26px] text-primary font-bold tracking-tight">{metrics.bmi}</div>
+                <div className="font-label-mono text-[10px] text-on-surface-variant uppercase mt-0.5">BMI</div>
+                <div className="font-label-mono text-[9px] text-tertiary-fixed-dim mt-0.5 font-medium">
                   {metrics.bmiCategory}
                 </div>
               </div>
@@ -130,60 +153,92 @@ export default function DashboardPage() {
       <section>
         <div className="flex justify-between items-end mb-stack-sm">
           <h3 className="font-headline-md text-headline-md text-primary uppercase italic flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary-fixed-dim">data_usage</span> Bugungi Ozuqa Moddalari
+            <span className="material-symbols-outlined text-primary-fixed-dim">data_usage</span> Bugungi Ozuqa
+            Moddalari
           </h3>
           <Link
             href="/analytics"
-            className="font-label-mono text-label-mono text-primary-fixed-dim hover:text-primary transition-colors flex items-center gap-1"
+            className="font-label-mono text-label-mono text-primary-fixed-dim hover:text-primary transition-colors flex items-center gap-1 group"
           >
-            TAHLIL <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            TAHLIL <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">chevron_right</span>
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
           {/* Oqsil */}
-          <div className="glass-card rounded-xl p-6 relative overflow-hidden glow-button group">
+          <div className="glass-card glass-card-hover rounded-2xl p-6 relative overflow-hidden group">
             <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary-fixed-dim/10 rounded-full blur-2xl group-hover:bg-primary-fixed-dim/20 transition-all duration-500" />
             <div className="flex items-center justify-between mb-4 relative z-10">
-              <span className="font-label-mono text-label-mono text-on-surface-variant uppercase">Oqsil</span>
-              <span className="material-symbols-outlined text-primary-fixed-dim">egg</span>
+              <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider">Oqsil</span>
+              <div className="flex items-center gap-2">
+                <span className="font-label-mono text-[11px] text-primary-fixed-dim font-bold">
+                  {Math.round(proteinPct)}%
+                </span>
+                <span className="material-symbols-outlined text-primary-fixed-dim">egg</span>
+              </div>
             </div>
             <div className="flex items-center gap-6 relative z-10">
               <ProgressRing percentage={proteinPct} color="#abd600" glowColor="rgba(171,214,0,0.5)" />
               <div>
-                <div className="font-display-lg-mobile text-display-lg-mobile text-primary font-bold">{consumed.proteinG}g</div>
-                <div className="font-label-mono text-label-mono text-on-surface-variant">/ {metrics.proteinG}G MAQSAD</div>
+                <div className="font-display-lg-mobile text-display-lg-mobile text-primary font-bold">
+                  {consumed.proteinG}g
+                </div>
+                <div className="font-label-mono text-label-mono text-on-surface-variant">
+                  / {metrics.proteinG}G MAQSAD
+                </div>
               </div>
             </div>
           </div>
 
           {/* Yog' */}
-          <div className="glass-card rounded-xl p-6 relative overflow-hidden glow-button group">
+          <div className="glass-card glass-card-hover rounded-2xl p-6 relative overflow-hidden group">
             <div className="absolute -right-10 -top-10 w-32 h-32 bg-error/10 rounded-full blur-2xl group-hover:bg-error/20 transition-all duration-500" />
             <div className="flex items-center justify-between mb-4 relative z-10">
-              <span className="font-label-mono text-label-mono text-on-surface-variant uppercase">Yog&apos;</span>
-              <span className="material-symbols-outlined text-error">water_drop</span>
+              <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider">
+                Yog&apos;
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-label-mono text-[11px] text-error font-bold">
+                  {Math.round(fatPct)}%
+                </span>
+                <span className="material-symbols-outlined text-error">water_drop</span>
+              </div>
             </div>
             <div className="flex items-center gap-6 relative z-10">
               <ProgressRing percentage={fatPct} color="#ffb4ab" glowColor="rgba(255,180,171,0.5)" />
               <div>
-                <div className="font-display-lg-mobile text-display-lg-mobile text-primary font-bold">{consumed.fatG}g</div>
-                <div className="font-label-mono text-label-mono text-on-surface-variant">/ {metrics.fatG}G MAQSAD</div>
+                <div className="font-display-lg-mobile text-display-lg-mobile text-primary font-bold">
+                  {consumed.fatG}g
+                </div>
+                <div className="font-label-mono text-label-mono text-on-surface-variant">
+                  / {metrics.fatG}G MAQSAD
+                </div>
               </div>
             </div>
           </div>
 
           {/* Uglevod */}
-          <div className="glass-card rounded-xl p-6 relative overflow-hidden glow-button group">
+          <div className="glass-card glass-card-hover rounded-2xl p-6 relative overflow-hidden group">
             <div className="absolute -right-10 -top-10 w-32 h-32 bg-tertiary-fixed-dim/10 rounded-full blur-2xl group-hover:bg-tertiary-fixed-dim/20 transition-all duration-500" />
             <div className="flex items-center justify-between mb-4 relative z-10">
-              <span className="font-label-mono text-label-mono text-on-surface-variant uppercase">Uglevod</span>
-              <span className="material-symbols-outlined text-tertiary-fixed-dim">grain</span>
+              <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider">
+                Uglevod
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-label-mono text-[11px] text-tertiary-fixed-dim font-bold">
+                  {Math.round(carbPct)}%
+                </span>
+                <span className="material-symbols-outlined text-tertiary-fixed-dim">grain</span>
+              </div>
             </div>
             <div className="flex items-center gap-6 relative z-10">
               <ProgressRing percentage={carbPct} color="#00dbe9" glowColor="rgba(0,219,233,0.5)" />
               <div>
-                <div className="font-display-lg-mobile text-display-lg-mobile text-primary font-bold">{consumed.carbG}g</div>
-                <div className="font-label-mono text-label-mono text-on-surface-variant">/ {metrics.carbG}G MAQSAD</div>
+                <div className="font-display-lg-mobile text-display-lg-mobile text-primary font-bold">
+                  {consumed.carbG}g
+                </div>
+                <div className="font-label-mono text-label-mono text-on-surface-variant">
+                  / {metrics.carbG}G MAQSAD
+                </div>
               </div>
             </div>
           </div>
@@ -204,22 +259,32 @@ export default function DashboardPage() {
           </h3>
           <Link
             href="/workouts"
-            className="font-label-mono text-label-mono text-primary-fixed-dim hover:text-primary transition-colors flex items-center gap-1"
+            className="font-label-mono text-label-mono text-primary-fixed-dim hover:text-primary transition-colors flex items-center gap-1 group"
           >
-            BARCHASINI KO&apos;RISH <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+            BARCHASINI KO&apos;RISH{" "}
+            <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">chevron_right</span>
           </Link>
         </div>
 
         {recentSessions.length === 0 ? (
           <Link
             href="/workouts"
-            className="glass-card press-card ai-accent-border rounded-xl p-8 flex flex-col items-center gap-3 text-center hover:-translate-y-1 transition-transform duration-300"
+            className="glass-card glass-card-hover press-card rounded-2xl p-8 flex flex-col items-center gap-4 text-center border border-white/10 relative overflow-hidden group hover:border-primary/40 transition-all duration-300"
           >
-            <span className="material-symbols-outlined text-tertiary-fixed-dim text-4xl">fitness_center</span>
-            <h4 className="font-headline-md text-[18px] font-bold text-primary uppercase">Hali Mashg&apos;ulot Yo&apos;q</h4>
-            <p className="font-body-md text-[14px] text-on-surface-variant max-w-md">
-              Birinchi mashg&apos;ulotingizni yakunlang — bu yerda so&apos;nggi natijalaringiz chiqib turadi.
-            </p>
+            <div className="w-16 h-16 rounded-2xl bg-primary-fixed-dim/10 border border-primary-fixed-dim/30 flex items-center justify-center text-primary-fixed-dim group-hover:scale-110 group-hover:shadow-[0_0_24px_rgba(195,244,0,0.4)] transition-all duration-300">
+              <span className="material-symbols-outlined text-3xl">bolt</span>
+            </div>
+            <div>
+              <h4 className="font-headline-md text-[20px] font-bold text-primary uppercase tracking-tight mb-1">
+                Ilk Mashg&apos;ulotni Boshlang
+              </h4>
+              <p className="font-body-md text-[14px] text-on-surface-variant max-w-md">
+                137 ta mashqdan tanlang yoki tayyor split rejani ishga tushiring. Shaxsiy natijalaringiz shu yerda jamlanadi.
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-bold font-label-mono text-label-mono uppercase glow-button group-hover:bg-primary-fixed transition-all">
+              Mashg&apos;ulotni boshlash <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </span>
           </Link>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-gutter">
@@ -228,18 +293,24 @@ export default function DashboardPage() {
               const accent = CARD_ACCENTS[i % CARD_ACCENTS.length];
               const durationMin = Math.max(
                 1,
-                Math.round((new Date(session.finishedAt).getTime() - new Date(session.startedAt).getTime()) / 60000)
+                Math.round(
+                  (new Date(session.finishedAt).getTime() - new Date(session.startedAt).getTime()) / 60000,
+                ),
               );
               return (
                 <Link
                   key={session.id}
                   href="/workouts"
-                  className={`glass-card press-card rounded-xl overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform duration-300 relative border-l-[3px] ${accent.border} block`}
+                  className={`glass-card glass-card-hover press-card rounded-2xl overflow-hidden group cursor-pointer hover:-translate-y-1 transition-all duration-300 relative border-l-[4px] ${accent.border} block shadow-lg hover:shadow-2xl`}
                 >
                   <div className={`h-40 relative flex items-center justify-center ${accent.heroBg}`}>
-                    <span className={`material-symbols-outlined ${accent.icon} text-[64px] opacity-80`}>{group.icon}</span>
+                    <span className={`material-symbols-outlined ${accent.icon} text-[64px] opacity-80 group-hover:scale-110 transition-transform duration-300`}>
+                      {group.icon}
+                    </span>
                     <div className="absolute top-3 left-3 z-20 flex gap-2">
-                      <span className={`font-label-mono text-[10px] border px-2 py-1 rounded backdrop-blur-sm ${accent.badge}`}>
+                      <span
+                        className={`font-label-mono text-[10px] border px-2 py-1 rounded-lg backdrop-blur-md font-semibold ${accent.badge}`}
+                      >
                         {group.label.toUpperCase()}
                       </span>
                       <span className="font-label-mono text-[10px] bg-surface/80 text-on-surface border border-white/20 px-2 py-1 rounded backdrop-blur-sm">
@@ -253,11 +324,14 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="p-5 relative z-20">
-                    <h4 className={`font-headline-md text-[20px] font-bold text-primary mb-1 uppercase tracking-tight transition-colors ${accent.titleHover}`}>
+                    <h4
+                      className={`font-headline-md text-[20px] font-bold text-primary mb-1 uppercase tracking-tight transition-colors ${accent.titleHover}`}
+                    >
                       {group.label} Kuni
                     </h4>
                     <p className="font-body-md text-[14px] text-on-surface-variant mb-4">
-                      {session.exercises.length} mashq &middot; {session.totalSets} yondashuv &middot; {session.totalVolumeKg} kg hajm
+                      {session.exercises.length} mashq &middot; {session.totalSets} yondashuv &middot;{" "}
+                      {session.totalVolumeKg} kg hajm
                     </p>
                     <div className="flex items-center justify-between">
                       <div className="flex gap-2">
@@ -265,7 +339,9 @@ export default function DashboardPage() {
                           {session.caloriesBurned} KKAL
                         </span>
                       </div>
-                      <div className={`w-8 h-8 rounded-full text-on-primary flex items-center justify-center hover:bg-primary-fixed glow-button transition-all ${accent.button}`}>
+                      <div
+                        className={`w-8 h-8 rounded-full text-on-primary flex items-center justify-center hover:bg-primary-fixed glow-button transition-all ${accent.button}`}
+                      >
                         <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                       </div>
                     </div>

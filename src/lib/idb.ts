@@ -1,5 +1,10 @@
 "use client";
 
+import type { WorkoutSession } from "@/lib/workout-log";
+import type { MealEntry } from "@/lib/meal-log";
+import type { WeightEntry } from "@/lib/weight-log";
+import type { UserProfile } from "@/context/user-profile-context";
+
 // Minimalistik, tezkor va kutubxonalarga qaram bo'lmagan IndexedDB o'rami.
 // Oflayn ma'lumotlar va sinxronizatsiya navbatlarini boshqaradi.
 
@@ -33,73 +38,106 @@ function openDB(): Promise<IDBDatabase> {
 
 export async function idbGet<T>(key: string): Promise<T | undefined> {
   try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const req = tx.objectStore(STORE_NAME).get(key);
-      req.onsuccess = () => resolve(req.result as T);
-      req.onerror = () => reject(req.error);
-    });
+    return await idbGetStrict<T>(key);
   } catch {
     return undefined;
   }
 }
 
-export async function idbSet(key: string, value: any): Promise<void> {
+export async function idbGetStrict<T>(key: string): Promise<T | undefined> {
+  let db: IDBDatabase | undefined;
   try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, "readwrite");
-      const req = tx.objectStore(STORE_NAME).put(value, key);
-      req.onsuccess = () => resolve();
+    db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db!.transaction(STORE_NAME, "readonly");
+      const req = tx.objectStore(STORE_NAME).get(key);
+      req.onsuccess = () => resolve(req.result as T);
       req.onerror = () => reject(req.error);
     });
-  } catch {}
+  } finally {
+    db?.close();
+  }
+}
+
+// Cache failures are harmless; durable mutations use writeQueue below.
+export async function idbSetStrict(key: string, value: unknown): Promise<void> {
+  const db = await openDB();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(tx.error ?? new Error("Saqlash amalga oshmadi"));
+      tx.onerror = () => reject(tx.error);
+      tx.objectStore(STORE_NAME).put(value, key);
+    });
+  } finally {
+    db.close();
+  }
+}
+export async function idbSet(key: string, value: unknown): Promise<void> {
+  try {
+    await idbSetStrict(key, value);
+  } catch {
+    /* Disposable cache only. */
+  }
 }
 
 // === 2. OFLAYN NAVBAT (Sync Queue) ===
 
-export interface SyncTask {
-  id?: number;
-  type: string;
-  payload: any;
-  timestamp: number;
+export type SyncOperation =
+  | { type: "INSERT_SESSION"; payload: { userId: string; session: WorkoutSession } }
+  | { type: "DELETE_SESSION"; payload: { userId: string; sessionId: string } }
+  | {
+      type: "UPDATE_ADVICE";
+      payload: { userId: string; id: string; advice: { recoveryAdvice: string; progressAdvice: string } };
+    }
+  | {
+      type: "INSERT_MEAL";
+      payload: { userId: string; id: string; meal: Omit<MealEntry, "id" | "timestamp">; timestamp: string };
+    }
+  | { type: "DELETE_MEAL"; payload: { userId: string; id: string } }
+  | { type: "INSERT_WEIGHT"; payload: { userId: string; entry: WeightEntry } }
+  | { type: "UPDATE_PROFILE"; payload: { userId: string; profile: UserProfile } };
+export type SyncTask = SyncOperation & { id?: number; timestamp: number };
+
+async function writeQueue(write: (store: IDBObjectStore) => void): Promise<void> {
+  const db = await openDB();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(QUEUE_STORE, "readwrite");
+      tx.oncomplete = () => resolve();
+      tx.onabort = () => reject(tx.error ?? new Error("Saqlash amalga oshmadi"));
+      tx.onerror = () => reject(tx.error);
+      write(tx.objectStore(QUEUE_STORE));
+    });
+  } finally {
+    db.close();
+  }
 }
 
-export async function pushSyncTask(task: Omit<SyncTask, "id" | "timestamp">): Promise<void> {
-  try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(QUEUE_STORE, "readwrite");
-      const req = tx.objectStore(QUEUE_STORE).add({ ...task, timestamp: Date.now() });
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  } catch {}
+export async function pushSyncTask(task: SyncOperation): Promise<void> {
+  await writeQueue((store) => {
+    store.add({ ...task, timestamp: Date.now() });
+  });
+  window.dispatchEvent(new Event("aurafit-sync-needed"));
 }
 
 export async function getSyncQueue(): Promise<SyncTask[]> {
+  const db = await openDB();
   try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
+    return await new Promise((resolve, reject) => {
       const tx = db.transaction(QUEUE_STORE, "readonly");
       const req = tx.objectStore(QUEUE_STORE).getAll();
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
-  } catch {
-    return [];
+  } finally {
+    db.close();
   }
 }
 
 export async function removeSyncTask(id: number): Promise<void> {
-  try {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(QUEUE_STORE, "readwrite");
-      const req = tx.objectStore(QUEUE_STORE).delete(id);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  } catch {}
+  await writeQueue((store) => {
+    store.delete(id);
+  });
 }

@@ -1,5 +1,11 @@
-const CACHE_NAME = "aurafit-v3";
-const STATIC_ASSETS = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png", "/fonts/material-symbols-outlined.woff2"];
+const CACHE_NAME = "aurafit-v4";
+const STATIC_ASSETS = [
+  "/offline.html",
+  "/manifest.json",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/fonts/material-symbols-outlined.woff2",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
@@ -8,14 +14,20 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+    caches.keys().then(async (keys) => {
+      await Promise.all(
+        keys
+          .filter((key) => key.startsWith("aurafit-") && key !== CACHE_NAME)
+          .map((key) => caches.delete(key)),
+      );
+      await self.clients.claim();
+    }),
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  
+
   // Faqat GET so'rovlarni keshlaymiz
   if (request.method !== "GET") return;
 
@@ -23,43 +35,37 @@ self.addEventListener("fetch", (event) => {
 
   // API yoki Supabase so'rovlarini SW orqali o'tkazmaymiz
   // Ma'lumotlarni IDB da o'zimiz boshqaramiz
-  if (url.pathname.startsWith("/api/") || url.host.includes("supabase.co")) {
+  if (url.origin !== self.location.origin) {
     return;
   }
 
-  // HTML Sahifalar (Navigatsiya) -> Network First, falling back to cache
+  // Account HTML must never enter a cache shared by different signed-in users.
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const resClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, resClone));
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
+      fetch(request).catch(async () => {
+        const cache = await caches.open(CACHE_NAME);
+        return (await cache.match("/offline.html")) ?? Response.error();
+      }),
     );
     return;
   }
 
-  // Statik fayllar (_next/static, rasmlar, fontlar) -> Cache First
+  // Only public static assets; excludes APIs, RSC payloads and user avatars.
+  if (!STATIC_ASSETS.includes(url.pathname) && !url.pathname.startsWith("/_next/static/")) return;
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) {
-        // Fonda yangilab qo'yamiz (Stale-while-revalidate g'oyasi)
-        fetch(request).then((response) => {
-          if (response && response.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, response));
-          }
-        }).catch(() => {});
-        return cached;
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(request);
+      if (cached) return cached;
+      const response = await fetch(request);
+      if (response.ok && response.type === "basic") {
+        try {
+          await cache.put(request, response.clone());
+        } catch {
+          // Storage exhaustion must not prevent a successful network response.
+        }
       }
-      
-      return fetch(request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== "basic") return response;
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, responseToCache));
-        return response;
-      });
-    })
+      return response;
+    })(),
   );
 });

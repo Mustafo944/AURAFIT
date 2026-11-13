@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/context/auth-context";
-import { idbGet, idbSet, pushSyncTask } from "@/lib/idb";
+import { createUserResource, useUserResource } from "@/lib/user-resource";
+import { pushSyncTask, getSyncQueue } from "@/lib/idb";
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -49,122 +49,90 @@ function mapMealRow(row: {
   };
 }
 
-async function insertMeal(userId: string, id: string, meal: Omit<MealEntry, "id" | "timestamp">, timestamp: string) {
-  try {
-    const supabase = createClient();
-    const { error } = await supabase.from("meals").insert({
-      id,
-      user_id: userId,
-      meal_name: meal.mealName,
-      meal_type: meal.mealType,
-      calories: meal.calories,
-      protein_g: meal.proteinG,
-      fat_g: meal.fatG,
-      carb_g: meal.carbG,
-      items: meal.items,
-      logged_at: timestamp,
-    });
-    if (error) throw error;
-  } catch (err) {
-    if (!navigator.onLine || err instanceof TypeError) {
-      await pushSyncTask({ type: "INSERT_MEAL", payload: { userId, id, meal, timestamp } });
-    }
-  }
+interface MealState {
+  day: string;
+  meals: MealEntry[];
 }
-
-async function deleteMeal(id: string) {
-  try {
-    const supabase = createClient();
-    const { error } = await supabase.from("meals").delete().eq("id", id);
+const mealResource = createUserResource<MealState>(
+  "meal-history-v2",
+  { day: "", meals: [] },
+  async (userId) => {
+    const day = startOfTodayIso();
+    const before = await getSyncQueue().catch(() => []);
+    const end = new Date(day);
+    end.setDate(end.getDate() + 1);
+    const { data, error } = await createClient()
+      .from("meals")
+      .select("*")
+      .eq("user_id", userId)
+      .gte("logged_at", day)
+      .lt("logged_at", end.toISOString())
+      .order("logged_at", { ascending: true });
     if (error) throw error;
-  } catch (err) {
-    if (!navigator.onLine || err instanceof TypeError) {
-      await pushSyncTask({ type: "DELETE_MEAL", payload: { id } });
+    const meals = new Map((data ?? []).map((row) => [row.id, mapMealRow(row)]));
+    for (const task of [...before, ...(await getSyncQueue().catch(() => []))]) {
+      if (task.payload.userId !== userId) continue;
+      if (
+        task.type === "INSERT_MEAL" &&
+        task.payload.timestamp >= day &&
+        task.payload.timestamp < end.toISOString()
+      )
+        meals.set(task.payload.id, {
+          ...task.payload.meal,
+          id: task.payload.id,
+          timestamp: task.payload.timestamp,
+        });
+      if (task.type === "DELETE_MEAL") meals.delete(task.payload.id);
     }
-  }
-}
-
-// Modul darajasidagi kesh (stale-while-revalidate): bir sahifadan ikkinchisiga
-// o'tilganda oldingi natija darhol ko'rsatiladi, yangisi fonda tortib olinib
-// keshni yangilaydi. Shu hook bir nechta komponentda ishlatilganda ham har
-// navigatsiyada foydalanuvchi bo'sh holat/kutishni ko'rmaydi.
-const mealCache = new Map<string, MealEntry[]>();
-
+    return { day, meals: [...meals.values()].sort((a, b) => a.timestamp.localeCompare(b.timestamp)) };
+  },
+);
 export function useMealLog() {
-  const { userId } = useAuth();
-  // Kunga bog'langan kalit — yarim tundan keyin kechagi taomlar keshi ishlatilmaydi.
-  const cacheKey = `${userId}|${startOfTodayIso()}`;
-  const [meals, setMeals] = useState<MealEntry[]>(() => mealCache.get(cacheKey) ?? []);
-  const [loading, setLoading] = useState(() => userId != null && !mealCache.has(cacheKey));
-
-  // Kalit (foydalanuvchi yoki kun) o'zgarganda holat render vaqtida moslanadi —
-  // effect ichidagi sync setState kaskadli qo'shimcha render chiqarardi.
-  const [prevKey, setPrevKey] = useState(cacheKey);
-  if (prevKey !== cacheKey) {
-    setPrevKey(cacheKey);
-    setMeals(mealCache.get(cacheKey) ?? []);
-    setLoading(userId != null && !mealCache.has(cacheKey));
-  }
-
+  const { value, userId, loading, error } = useUserResource(mealResource);
+  const [actionError, setActionError] = useState<{ userId: string; message: string } | null>(null);
   useEffect(() => {
     if (!userId) return;
-    let cancelled = false;
-
-    // OFLAYN BAZADAN O'QISH
-    idbGet<MealEntry[]>(`meals_${cacheKey}`).then((cached) => {
-      if (cancelled) return;
-      if (cached && cached.length > 0 && mealCache.get(cacheKey) === undefined) {
-        mealCache.set(cacheKey, cached);
-        setMeals(cached);
-      }
-    });
-
-    const supabase = createClient();
-    supabase
-      .from("meals")
-      .select("id, meal_name, meal_type, calories, protein_g, fat_g, carb_g, items, logged_at")
-      .eq("user_id", userId)
-      .gte("logged_at", startOfTodayIso())
-      .order("logged_at", { ascending: true })
-      .then(({ data }) => {
-        if (cancelled) return;
-        if (data) {
-          const mapped = data.map(mapMealRow);
-          mealCache.set(cacheKey, mapped);
-          idbSet(`meals_${cacheKey}`, mapped);
-          setMeals(mapped);
-        }
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
+    const checkDay = () => {
+      if (mealResource.get(userId).value.day !== startOfTodayIso()) void mealResource.refresh(userId);
     };
-  }, [userId, cacheKey]);
-
-  const addMeal = (meal: Omit<MealEntry, "id" | "timestamp">) => {
-    if (!userId) return;
+    const timer = setInterval(checkDay, 30000);
+    window.addEventListener("focus", checkDay);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", checkDay);
+    };
+  }, [userId]);
+  const addMeal = async (meal: Omit<MealEntry, "id" | "timestamp">) => {
+    if (!userId) throw new Error("Tizimga kiring.");
     const timestamp = new Date().toISOString();
     const id = crypto.randomUUID();
-    setMeals((prev) => {
-      const next = [...prev, { ...meal, id, timestamp }];
-      mealCache.set(cacheKey, next);
-      idbSet(`meals_${cacheKey}`, next);
-      return next;
-    });
-    void insertMeal(userId, id, meal, timestamp);
+    await pushSyncTask({ type: "INSERT_MEAL", payload: { userId, id, meal, timestamp } });
+    const day = startOfTodayIso();
+    mealResource.update(userId, (current) => ({
+      day,
+      meals: [...(current.day === day ? current.meals : []), { ...meal, id, timestamp }],
+    }));
   };
-
-  const removeMeal = (id: string) => {
-    setMeals((prev) => {
-      const next = prev.filter((m) => m.id !== id);
-      mealCache.set(cacheKey, next);
-      idbSet(`meals_${cacheKey}`, next);
-      return next;
-    });
-    void deleteMeal(id);
+  const removeMeal = async (id: string) => {
+    if (!userId) return;
+    try {
+      await pushSyncTask({ type: "DELETE_MEAL", payload: { userId, id } });
+      mealResource.update(userId, (current) => ({
+        ...current,
+        meals: current.meals.filter((meal) => meal.id !== id),
+      }));
+      setActionError(null);
+    } catch {
+      setActionError({ userId, message: "Taomni o'chirish saqlanmadi. Qayta urinib ko'ring." });
+    }
   };
-
-  return { meals, loading, addMeal, removeMeal };
+  return {
+    meals: value.day === startOfTodayIso() ? value.meals : [],
+    loading,
+    error: actionError?.userId === userId ? actionError.message : error,
+    addMeal,
+    removeMeal,
+  };
 }
 
 export function sumMeals(meals: MealEntry[]) {
@@ -175,6 +143,6 @@ export function sumMeals(meals: MealEntry[]) {
       fatG: totals.fatG + meal.fatG,
       carbG: totals.carbG + meal.carbG,
     }),
-    { calories: 0, proteinG: 0, fatG: 0, carbG: 0 }
+    { calories: 0, proteinG: 0, fatG: 0, carbG: 0 },
   );
 }

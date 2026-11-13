@@ -1,3 +1,4 @@
+import { ACTIVITY_LEVELS, normalizeActivity, type ActivityLevel } from "@/lib/training-preferences";
 import type { Gender, Goal } from "@/context/user-profile-context";
 
 export interface FitnessMetrics {
@@ -11,15 +12,13 @@ export interface FitnessMetrics {
   carbG: number;
 }
 
-// Moderate activity assumption (exercise 3-5x/week) until a dedicated activity-level input exists.
-const ACTIVITY_MULTIPLIER = 1.55;
-
 export function calculateFitnessMetrics(
   age: number,
   gender: Gender,
   weightKg: number,
   heightCm: number,
-  goal: Goal
+  goal: Goal,
+  activityLevel: ActivityLevel = "moderate",
 ): FitnessMetrics {
   // Mifflin-St Jeor equation
   const bmr =
@@ -27,7 +26,7 @@ export function calculateFitnessMetrics(
       ? 10 * weightKg + 6.25 * heightCm - 5 * age + 5
       : 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
 
-  const tdee = bmr * ACTIVITY_MULTIPLIER;
+  const tdee = bmr * ACTIVITY_LEVELS[normalizeActivity(activityLevel)].multiplier;
 
   const targetCalories = goal === "lose" ? tdee - 500 : goal === "gain" ? tdee + 400 : tdee;
 

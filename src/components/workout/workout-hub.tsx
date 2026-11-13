@@ -1,15 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { WorkoutPlans } from "@/components/workout/workout-plans";
+import { useMemo, useRef, useState } from "react";
 import { useWorkoutSession } from "@/context/workout-session-context";
 import { useUserProfile } from "@/context/user-profile-context";
-import { useWorkoutHistory, compareExercises, type ExerciseComparison, type WorkoutSession } from "@/lib/workout-log";
+import {
+  useWorkoutHistory,
+  compareExercises,
+  type ExerciseComparison,
+  type WorkoutSession,
+} from "@/lib/workout-log";
 import { useMealLog, sumMeals } from "@/lib/meal-log";
 import { calculateFitnessMetrics } from "@/lib/fitness";
 import { recommendedWater, type WaterRecommendation } from "@/lib/cardio";
 import { fetchWorkoutRecovery } from "@/lib/workout-recovery";
 import { collectNewRecords, type RecordHighlight } from "@/lib/personal-records";
-import { MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
+import { EXERCISES, MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
 import { TrainingCalendar, toDateKey } from "@/components/workout/training-calendar";
 import { DayDetail } from "@/components/workout/day-detail";
 import { ActiveWorkout } from "@/components/workout/active-workout";
@@ -35,8 +41,17 @@ function estimatedWorkoutMinutes(session: WorkoutSession): number {
 }
 
 export function WorkoutHub() {
-  const { sessions, addSession, removeSession, updateSessionAdvice } = useWorkoutHistory();
-  const { activeSession, startSession, finishSession } = useWorkoutSession();
+  const {
+    sessions,
+    hasMore,
+    loadingMore,
+    error: historyError,
+    loadMore,
+    addSession,
+    removeSession,
+    updateSessionAdvice,
+  } = useWorkoutHistory();
+  const { activeSession, startSession, finishSession, discardSession } = useWorkoutSession();
   const { profile } = useUserProfile();
   const { meals } = useMealLog();
 
@@ -63,7 +78,12 @@ export function WorkoutHub() {
     return map;
   }, [sessions]);
 
+  const finishLock = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const handleFinish = async () => {
+    if (finishLock.current) return;
     const session = finishSession(profile.weightKg);
     if (!session) return;
 
@@ -74,7 +94,19 @@ export function WorkoutHub() {
     const sessionRecords = collectNewRecords(sessions, session);
     const cardioKcal = session.cardio.reduce((sum, c) => sum + c.caloriesBurned, 0);
 
-    addSession(session);
+    finishLock.current = true;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await addSession(session);
+      discardSession();
+    } catch {
+      setSaveError("Mashg'ulot saqlanmadi. Qoralama saqlanib qoldi; qayta urinib ko'ring.");
+      return;
+    } finally {
+      finishLock.current = false;
+      setSaving(false);
+    }
     setResult(session);
     setComparison(sessionComparison);
     setNewRecords(sessionRecords);
@@ -90,7 +122,8 @@ export function WorkoutHub() {
       profile.gender,
       profile.weightKg,
       profile.heightCm,
-      profile.goal
+      profile.goal,
+      profile.activityLevel,
     );
     const consumed = sumMeals(meals);
 
@@ -131,9 +164,19 @@ export function WorkoutHub() {
   // Faol mashg'ulot bo'lsa — butun ekran unga bag'ishlanadi.
   if (activeSession) {
     return (
-      <div className="max-w-3xl mx-auto space-y-stack-lg">
-        <Header />
-        <ActiveWorkout sessions={sessions} weightKg={profile.weightKg} onFinish={handleFinish} />
+      <div className="max-w-6xl mx-auto space-y-stack-lg">
+        <Header active />
+        {saveError && (
+          <p role="alert" className="text-error">
+            {saveError}
+          </p>
+        )}
+        <ActiveWorkout
+          sessions={sessions}
+          weightKg={profile.weightKg}
+          saving={saving}
+          onFinish={handleFinish}
+        />
       </div>
     );
   }
@@ -152,6 +195,20 @@ export function WorkoutHub() {
     <div className="max-w-3xl mx-auto space-y-stack-lg">
       <Header />
 
+      {historyError && (
+        <p role="alert" className="text-error text-sm">
+          {historyError}
+        </p>
+      )}
+      {hasMore && (
+        <button
+          disabled={loadingMore}
+          onClick={() => void loadMore()}
+          className="rounded-lg border border-white/20 px-4 py-3 text-sm disabled:opacity-50"
+        >
+          {loadingMore ? "Yuklanmoqda..." : "Oldingi mashg'ulotlarni yuklash"}
+        </button>
+      )}
       <TrainingCalendar sessions={sessions} selectedKey={selectedKey} onSelect={setSelectedKey} />
 
       {showResult ? (
@@ -167,13 +224,20 @@ export function WorkoutHub() {
           onClose={() => setResult(null)}
         />
       ) : selectedSessions.length > 0 ? (
-        <DayDetail dateKey={selectedKey} sessions={selectedSessions} isToday={isToday} onDeleteSession={removeSession} />
+        <DayDetail
+          dateKey={selectedKey}
+          sessions={selectedSessions}
+          isToday={isToday}
+          onDeleteSession={removeSession}
+        />
       ) : isToday ? (
-        <StartCard onStart={startSession} />
+        <StartCard onStart={() => startSession()} />
       ) : (
         <div className="glass-card rounded-xl p-8 text-center">
           <span className="material-symbols-outlined text-on-surface-variant/40 text-4xl">event</span>
-          <p className="font-body-md text-body-md text-on-surface-variant mt-2">Bu kuni mashg&apos;ulot bo&apos;lmagan.</p>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-2">
+            Bu kuni mashg&apos;ulot bo&apos;lmagan.
+          </p>
         </div>
       )}
 
@@ -183,19 +247,26 @@ export function WorkoutHub() {
         </div>
       )}
 
+      <WorkoutPlans
+        preferences={profile.training}
+        latest={sessions[sessions.length - 1]}
+        onStart={startSession}
+      />
       <PrPanel sessions={sessions} />
     </div>
   );
 }
 
-function Header() {
+function Header({ active = false }: { active?: boolean }) {
   return (
     <div>
       <h1 className="font-display-lg-mobile md:font-display-lg text-display-lg-mobile md:text-display-lg text-primary uppercase italic">
         Mashg&apos;ulotlar
       </h1>
       <p className="font-body-lg text-body-lg text-on-surface-variant mt-2">
-        Kalendardan kunni tanlang yoki yangi mashg&apos;ulotni boshlang
+        {active
+          ? "Rejangizni tuzing va bajarilgan podxodlarni qayd eting"
+          : "Kalendardan kunni tanlang yoki yangi mashg'ulotni boshlang"}
       </p>
     </div>
   );
@@ -208,9 +279,11 @@ function StartCard({ onStart }: { onStart: () => void }) {
         <span className="material-symbols-outlined text-primary-fixed-dim text-4xl">fitness_center</span>
       </div>
       <div>
-        <h3 className="font-headline-md text-headline-md text-primary uppercase italic">Bugun Mashg&apos;ulot Yo&apos;q</h3>
+        <h3 className="font-headline-md text-headline-md text-primary uppercase italic">
+          Bugungi rejangizni tuzing
+        </h3>
         <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-          Mushak guruhlari va mashqlarni tanlab, mashg&apos;ulotni boshlang.
+          {EXERCISES.length} ta mashq orasidan tanlang: rasmlar, texnika va jihoz bo&apos;yicha qulay qidiruv.
         </p>
       </div>
       <button

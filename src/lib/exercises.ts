@@ -1,52 +1,5 @@
-export type MuscleGroupId = "chest" | "back" | "shoulders" | "biceps" | "triceps" | "legs" | "abs";
-
-export interface MuscleGroupInfo {
-  id: MuscleGroupId;
-  label: string;
-  icon: string;
-}
-
-export const MUSCLE_GROUPS: MuscleGroupInfo[] = [
-  { id: "chest", label: "Ko'krak mashqlari", icon: "fitness_center" },
-  { id: "back", label: "Qanot mashqlari", icon: "rowing" },
-  { id: "shoulders", label: "Yelka mashqlari", icon: "sports_gymnastics" },
-  { id: "biceps", label: "Qo'l oldi mashqlari", icon: "sports_martial_arts" },
-  { id: "triceps", label: "Qo'l orqa mashqlari", icon: "front_hand" },
-  { id: "legs", label: "Oyoq mashqlari", icon: "directions_run" },
-  { id: "abs", label: "Pres mashqlari", icon: "self_improvement" },
-];
-
-export type Equipment = "barbell" | "dumbbell" | "cable" | "machine" | "bodyweight" | "ez-bar";
-
-export const EQUIPMENT_LABELS: Record<Equipment, string> = {
-  barbell: "Shtanga",
-  dumbbell: "Gantel",
-  cable: "Blok Trenajyor",
-  machine: "Trenajyor",
-  bodyweight: "Tana Og'irligi",
-  "ez-bar": "EZ-Shtanga",
-};
-
-export type Level = "beginner" | "intermediate" | "expert";
-
-export const LEVEL_LABELS: Record<Level, string> = {
-  beginner: "Boshlang'ich",
-  intermediate: "O'rta",
-  expert: "Yuqori",
-};
-
-export interface Exercise {
-  id: string;
-  name: string;
-  englishName: string;
-  muscleGroup: MuscleGroupId;
-  equipment: Equipment;
-  level: Level;
-  sets: string;
-  reps: string;
-  image: string;
-  instructions: string[];
-}
+import type { Exercise } from "@/lib/exercise-metadata";
+export * from "@/lib/exercise-metadata";
 
 const IMG_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises";
 
@@ -1447,10 +1400,943 @@ export const EXERCISES: Exercise[] = [
       "Sekin, umurtqani birma-bir yerga qo'yib, boshlang'ich holatga qayting.",
     ],
   },
+  // Additional curated exercises. Source attribution: README.md.
+  {
+    id: "Incline_Push-Up",
+    name: "Tayanchga suyanib otjimaniya",
+    englishName: "Incline Push-Up",
+    muscleGroup: "chest",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Push-Up/0.jpg",
+    instructions: [
+      "Kaftlarni mustahkam baland tayanchga qo'ying, tanani tekis tuting.",
+      "Tirsaklarni bukib, ko'krakni tayanchga yaqinlashtiring.",
+      "Tayanchni itarib, dastlabki holatga qayting.",
+    ],
+  },
+  {
+    id: "Push-Up_Wide",
+    name: "Keng qo'yilgan qo'llarda otjimaniya",
+    englishName: "Push-Up Wide",
+    muscleGroup: "chest",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Push-Up_Wide/0.jpg",
+    instructions: [
+      "Kaftlarni yelkadan kengroq, oyoqlarni orqaga qo'ying.",
+      "Belni bukmasdan ko'krakni yerga tushiring.",
+      "Kaftlar orqali itarilib, tanani tekis ko'taring.",
+    ],
+  },
+  {
+    id: "Push-Ups_With_Feet_Elevated",
+    name: "Oyoqlar balandda otjimaniya",
+    englishName: "Push-Ups With Feet Elevated",
+    muscleGroup: "chest",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Push-Ups_With_Feet_Elevated/0.jpg",
+    instructions: [
+      "Oyoqlarni mustahkam skameykaga, kaftlarni yerga qo'ying.",
+      "Qorinni tarang tutib, ko'krakni yerga yaqinlashtiring.",
+      "Tirsaklarni yozib boshlang'ich holatga qayting.",
+    ],
+  },
+  {
+    id: "Decline_Barbell_Bench_Press",
+    name: "Pastga qiya skameykada shtanga zhim",
+    englishName: "Decline Barbell Bench Press",
+    muscleGroup: "chest",
+    equipment: "barbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Decline_Barbell_Bench_Press/0.jpg",
+    instructions: [
+      "Oyoqlarni skameyka tayanchiga mahkamlang va shtangani ushlang.",
+      "Shtangani nazorat bilan ko'krakning pastki qismiga tushiring.",
+      "Kuraklarni tayanchda saqlab, shtangani yuqoriga itaring.",
+    ],
+  },
+  {
+    id: "Machine_Bench_Press",
+    name: "Trenajyorda ko'krak zhim",
+    englishName: "Machine Bench Press",
+    muscleGroup: "chest",
+    equipment: "machine",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Machine_Bench_Press/0.jpg",
+    instructions: [
+      "O'rindiqni tutqichlar ko'krak balandligida bo'ladigan qilib sozlang.",
+      "Orqani suyanchiqqa tirab, tutqichlarni oldinga itaring.",
+      "Og'irlikni urmasdan, tutqichlarni sekin qaytaring.",
+    ],
+  },
+  {
+    id: "Low_Cable_Crossover",
+    name: "Pastki blokda qo'llarni birlashtirish",
+    englishName: "Low Cable Crossover",
+    muscleGroup: "chest",
+    equipment: "cable",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Low_Cable_Crossover/0.jpg",
+    instructions: [
+      "Pastki blok tutqichlarini ushlab, bir oyoqni oldinga qo'ying.",
+      "Tirsakni yengil bukib, qo'llarni ko'krak oldida yuqoriga birlashtiring.",
+      "Qo'llarni nazorat bilan ikki yonga tushiring.",
+    ],
+  },
+  {
+    id: "Dumbbell_Bench_Press_with_Neutral_Grip",
+    name: "Kaftlar ichkariga qaratilgan gantel zhim",
+    englishName: "Dumbbell Bench Press with Neutral Grip",
+    muscleGroup: "chest",
+    equipment: "dumbbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Bench_Press_with_Neutral_Grip/0.jpg",
+    instructions: [
+      "Skameykaga yotib, gantellarni kaftlar bir-biriga qaragan holda tuting.",
+      "Tirsaklarni yonlarga haddan tashqari ochmasdan gantellarni tushiring.",
+      "Gantellarni ko'krak ustiga bir tekis itaring.",
+    ],
+  },
+  {
+    id: "Incline_Cable_Flye",
+    name: "Qiya skameykada blok bilan razvedeniya",
+    englishName: "Incline Cable Flye",
+    muscleGroup: "chest",
+    equipment: "cable",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Cable_Flye/0.jpg",
+    instructions: [
+      "Qiya skameykani pastki bloklar orasiga qo'yib yoting.",
+      "Tirsaklarni yengil bukib, tutqichlarni ko'krak ustida birlashtiring.",
+      "Yelkani zo'riqtirmaydigan oraliqda qo'llarni sekin oching.",
+    ],
+  },
+  {
+    id: "Dumbbell_Incline_Row",
+    name: "Qiya skameykaga tayanib gantel tortish",
+    englishName: "Dumbbell Incline Row",
+    muscleGroup: "back",
+    equipment: "dumbbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Incline_Row/0.jpg",
+    instructions: [
+      "Ko'krakni qiya skameykaga tirab, gantellarni pastga tushiring.",
+      "Tirsaklarni orqaga tortib, kuraklarni bir-biriga yaqinlashtiring.",
+      "Ko'krakni tayanchdan uzmay, gantellarni tushiring.",
+    ],
+  },
+  {
+    id: "Bent_Over_Two-Dumbbell_Row",
+    name: "Egilgan holda ikki gantel tortish",
+    englishName: "Bent Over Two-Dumbbell Row",
+    muscleGroup: "back",
+    equipment: "dumbbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Bent_Over_Two-Dumbbell_Row/0.jpg",
+    instructions: [
+      "Tizzalarni biroz bukib, tosdan oldinga egiling.",
+      "Belni tekis tutib, gantellarni yonboshga torting.",
+      "Tanani silkitmasdan qo'llarni sekin yozing.",
+    ],
+  },
+  {
+    id: "Reverse_Grip_Bent-Over_Rows",
+    name: "Teskari ushlashda shtanga tortish",
+    englishName: "Reverse Grip Bent-Over Rows",
+    muscleGroup: "back",
+    equipment: "barbell",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Reverse_Grip_Bent-Over_Rows/0.jpg",
+    instructions: [
+      "Shtangani kaftlar oldinga qaragan holda ushlab, tosdan egiling.",
+      "Shtangani qorin pastiga tortib, tirsaklarni orqaga olib boring.",
+      "Bel holatini saqlagan holda shtangani tushiring.",
+    ],
+  },
+  {
+    id: "One_Arm_Lat_Pulldown",
+    name: "Bir qo'lda yuqori blok tortish",
+    englishName: "One Arm Lat Pulldown",
+    muscleGroup: "back",
+    equipment: "cable",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/One_Arm_Lat_Pulldown/0.jpg",
+    instructions: [
+      "Yuqori blok tutqichini bir qo'l bilan ushlab, gavdani barqaror tuting.",
+      "Tirsakni yonbosh tomon pastga torting.",
+      "Yelkani ko'tarmasdan qo'lni nazorat bilan yuqoriga yozing.",
+    ],
+  },
+  {
+    id: "Underhand_Cable_Pulldowns",
+    name: "Teskari ushlashda yuqori blok tortish",
+    englishName: "Underhand Cable Pulldowns",
+    muscleGroup: "back",
+    equipment: "cable",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Underhand_Cable_Pulldowns/0.jpg",
+    instructions: [
+      "Yuqori blok dastasini kaftlar o'zingizga qaragan holda ushlang.",
+      "Dastani yuqori ko'krakka tortib, tirsaklarni pastga yo'naltiring.",
+      "Gavdani silkitmasdan dastani yuqoriga qaytaring.",
+    ],
+  },
+  {
+    id: "Leverage_High_Row",
+    name: "Trenajyorda yuqoridan eshkak tortish",
+    englishName: "Leverage High Row",
+    muscleGroup: "back",
+    equipment: "machine",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leverage_High_Row/0.jpg",
+    instructions: [
+      "Ko'krakni tayanchga tirab, baland tutqichlarni ushlang.",
+      "Tutqichlarni pastga va o'zingizga torting.",
+      "Kuraklarni nazorat qilib, qo'llarni oldinga yozing.",
+    ],
+  },
+  {
+    id: "Seated_One-arm_Cable_Pulley_Rows",
+    name: "O'tirib bir qo'lda blok tortish",
+    englishName: "Seated One-arm Cable Pulley Rows",
+    muscleGroup: "back",
+    equipment: "cable",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_One-arm_Cable_Pulley_Rows/0.jpg",
+    instructions: [
+      "Blok qarshisida o'tirib, bir qo'lda tutqichni ushlang.",
+      "Gavdani burmasdan tirsakni orqaga torting.",
+      "Qo'lni asta yozing va keyin ikkinchi tomonni bajaring.",
+    ],
+  },
+  {
+    id: "V-Bar_Pullup",
+    name: "V-tutqichda turnik tortilish",
+    englishName: "V-Bar Pullup",
+    muscleGroup: "back",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/V-Bar_Pullup/0.jpg",
+    instructions: [
+      "Turnikka mustahkam o'rnatilgan V-tutqichni ushlang.",
+      "Tirsaklarni pastga tortib, ko'krakni tutqichga yaqinlashtiring.",
+      "Silkinmasdan boshlang'ich osilgan holatga qayting.",
+    ],
+  },
+  {
+    id: "Seated_Side_Lateral_Raise",
+    name: "O'tirib gantellarni yonga ko'tarish",
+    englishName: "Seated Side Lateral Raise",
+    muscleGroup: "shoulders",
+    equipment: "dumbbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Side_Lateral_Raise/0.jpg",
+    instructions: [
+      "Skameykada tik o'tirib, gantellarni yonlarda tuting.",
+      "Tirsaklarni yengil bukib, qo'llarni yelka balandligigacha ko'taring.",
+      "Yelkalarni qisib yubormasdan gantellarni sekin tushiring.",
+    ],
+  },
+  {
+    id: "Front_Cable_Raise",
+    name: "Pastki blokni oldinga ko'tarish",
+    englishName: "Front Cable Raise",
+    muscleGroup: "shoulders",
+    equipment: "cable",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Front_Cable_Raise/0.jpg",
+    instructions: [
+      "Pastki blok tutqichini ushlab, oyoqlarni barqaror qo'ying.",
+      "Qo'lni deyarli tekis tutib, yelka balandligigacha oldinga ko'taring.",
+      "Gavdani orqaga tashlamasdan tutqichni tushiring.",
+    ],
+  },
+  {
+    id: "Reverse_Machine_Flyes",
+    name: "Trenajyorda orqa yelka ochish",
+    englishName: "Reverse Machine Flyes",
+    muscleGroup: "shoulders",
+    equipment: "machine",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Reverse_Machine_Flyes/0.jpg",
+    instructions: [
+      "Ko'krakni suyanchiqqa tirab, tutqichlarni oldinda ushlang.",
+      "Qo'llarni ikki yonga ochib, orqa yelka mushaklarini ishlating.",
+      "Og'irliklarni urmasdan tutqichlarni qaytaring.",
+    ],
+  },
+  {
+    id: "Leverage_Shoulder_Press",
+    name: "Yelka trenajyorida yuqoriga zhim",
+    englishName: "Leverage Shoulder Press",
+    muscleGroup: "shoulders",
+    equipment: "machine",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Leverage_Shoulder_Press/0.jpg",
+    instructions: [
+      "O'rindiqni tutqichlar yelka balandligida bo'ladigan qilib sozlang.",
+      "Orqani suyanchiqqa tirab, tutqichlarni yuqoriga itaring.",
+      "Belni ortiqcha qayirmasdan tutqichlarni tushiring.",
+    ],
+  },
+  {
+    id: "Dumbbell_One-Arm_Shoulder_Press",
+    name: "Bir qo'lda gantelni yuqoriga itarish",
+    englishName: "Dumbbell One-Arm Shoulder Press",
+    muscleGroup: "shoulders",
+    equipment: "dumbbell",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_One-Arm_Shoulder_Press/0.jpg",
+    instructions: [
+      "Gantelni bir yelka yonida tutib, qorinni tarang qiling.",
+      "Gavdani yon tomonga og'dirmasdan gantelni yuqoriga itaring.",
+      "Gantelni nazorat bilan yelka yoniga qaytaring.",
+    ],
+  },
+  {
+    id: "Seated_Bent-Over_Rear_Delt_Raise",
+    name: "O'tirib egilgan holda orqa yelka ko'tarish",
+    englishName: "Seated Bent-Over Rear Delt Raise",
+    muscleGroup: "shoulders",
+    equipment: "dumbbell",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Bent-Over_Rear_Delt_Raise/0.jpg",
+    instructions: [
+      "Skameykada o'tirib, ko'krakni tizzalar tomon egib, belni tekis tuting.",
+      "Gantellarni ikki yonga oching, tirsaklarni yengil bukilgan tuting.",
+      "Gavdani ko'tarmasdan gantellarni pastga tushiring.",
+    ],
+  },
+  {
+    id: "Standing_Low-Pulley_Deltoid_Raise",
+    name: "Bir qo'lda blokni yonga ko'tarish",
+    englishName: "Standing Low-Pulley Deltoid Raise",
+    muscleGroup: "shoulders",
+    equipment: "cable",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Low-Pulley_Deltoid_Raise/0.jpg",
+    instructions: [
+      "Pastki blokka yon turib, tutqichni uzoqdagi qo'l bilan ushlang.",
+      "Qo'lni yonga, yelka balandligigacha ko'taring.",
+      "Tirsak burchagini saqlab, qo'lni sekin qaytaring.",
+    ],
+  },
+  {
+    id: "Dumbbell_Shrug",
+    name: "Gantellar bilan yelka qisish",
+    englishName: "Dumbbell Shrug",
+    muscleGroup: "shoulders",
+    equipment: "dumbbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Shrug/0.jpg",
+    instructions: [
+      "Tik turib, gantellarni yonlarda, qo'llarni tekis tuting.",
+      "Yelkalarni quloqlar tomon to'g'ri yuqoriga ko'taring.",
+      "Yelkalarni aylantirmasdan nazorat bilan tushiring.",
+    ],
+  },
+  {
+    id: "Cross_Body_Hammer_Curl",
+    name: "Gantelni ko'ndalang bolg'acha ko'tarish",
+    englishName: "Cross Body Hammer Curl",
+    muscleGroup: "biceps",
+    equipment: "dumbbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cross_Body_Hammer_Curl/0.jpg",
+    instructions: [
+      "Gantellarni kaftlar ichkariga qaragan holda tuting.",
+      "Bir gantelni qarama-qarshi ko'krak tomon ko'taring.",
+      "Tirsakni joyida saqlab tushiring va tomonlarni almashtiring.",
+    ],
+  },
+  {
+    id: "Cable_Preacher_Curl",
+    name: "Skott tayanchida blok bilan bukish",
+    englishName: "Cable Preacher Curl",
+    muscleGroup: "biceps",
+    equipment: "cable",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_Preacher_Curl/0.jpg",
+    instructions: [
+      "Yuqori qo'llarni Skott tayanchiga qo'yib, pastki blokni ushlang.",
+      "Tirsaklarni tayanchdan uzmay qo'llarni buking.",
+      "Tutqichni sekin tushiring, tirsaklarni keskin yozmang.",
+    ],
+  },
+  {
+    id: "Machine_Bicep_Curl",
+    name: "Biseps trenajyorida qo'l bukish",
+    englishName: "Machine Bicep Curl",
+    muscleGroup: "biceps",
+    equipment: "machine",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Machine_Bicep_Curl/0.jpg",
+    instructions: [
+      "O'rindiqni tirsaklar aylanish o'qiga mos keladigan qilib sozlang.",
+      "Tutqichlarni ko'tarib, bisepsni qisqartiring.",
+      "Yuqori qo'llarni tayanchda saqlab, og'irlikni qaytaring.",
+    ],
+  },
+  {
+    id: "High_Cable_Curls",
+    name: "Yuqori bloklarda ikki qo'lni bukish",
+    englishName: "High Cable Curls",
+    muscleGroup: "biceps",
+    equipment: "cable",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/High_Cable_Curls/0.jpg",
+    instructions: [
+      "Ikki yuqori blok orasida turib, qo'llarni yonga yozing.",
+      "Yuqori qo'llarni qimirlatmay tutqichlarni bosh yoniga torting.",
+      "Tirsaklarni nazorat bilan yozing.",
+    ],
+  },
+  {
+    id: "Incline_Hammer_Curls",
+    name: "Qiya skameykada bolg'acha bukish",
+    englishName: "Incline Hammer Curls",
+    muscleGroup: "biceps",
+    equipment: "dumbbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Hammer_Curls/0.jpg",
+    instructions: [
+      "Qiya skameykaga suyanib, gantellarni kaftlar ichkariga qaragan holda tuting.",
+      "Tirsaklarni oldinga surmasdan gantellarni ko'taring.",
+      "Gantellarni to'liq nazorat bilan pastga qaytaring.",
+    ],
+  },
+  {
+    id: "Reverse_Barbell_Curl",
+    name: "Shtangani teskari ushlab bukish",
+    englishName: "Reverse Barbell Curl",
+    muscleGroup: "biceps",
+    equipment: "barbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Reverse_Barbell_Curl/0.jpg",
+    instructions: [
+      "Shtangani kaftlar pastga qaragan holda yelka kengligida ushlang.",
+      "Tirsaklarni gavdaga yaqin tutib shtangani ko'taring.",
+      "Bilaklarni tekis saqlab, shtangani sekin tushiring.",
+    ],
+  },
+  {
+    id: "One_Arm_Dumbbell_Preacher_Curl",
+    name: "Skott tayanchida bir qo'lda gantel bukish",
+    englishName: "One Arm Dumbbell Preacher Curl",
+    muscleGroup: "biceps",
+    equipment: "dumbbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/One_Arm_Dumbbell_Preacher_Curl/0.jpg",
+    instructions: [
+      "Bir yuqori qo'lni tayanchga qo'yib, gantelni ushlang.",
+      "Yelkani ko'tarmasdan tirsakni buking.",
+      "Tirsakni qulflamasdan gantelni tushiring, keyin qo'lni almashtiring.",
+    ],
+  },
+  {
+    id: "Standing_One-Arm_Cable_Curl",
+    name: "Tik turib bir qo'lda blok bukish",
+    englishName: "Standing One-Arm Cable Curl",
+    muscleGroup: "biceps",
+    equipment: "cable",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_One-Arm_Cable_Curl/0.jpg",
+    instructions: [
+      "Pastki blok tutqichini bir qo'l bilan ushlang.",
+      "Tirsakni yonboshda saqlab, tutqichni yelka tomon ko'taring.",
+      "Tanani silkitmasdan qo'lni asta yozing.",
+    ],
+  },
+  {
+    id: "Triceps_Pushdown_-_Rope_Attachment",
+    name: "Arqon bilan trisepsni pastga yozish",
+    englishName: "Triceps Pushdown - Rope Attachment",
+    muscleGroup: "triceps",
+    equipment: "cable",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown_-_Rope_Attachment/0.jpg",
+    instructions: [
+      "Yuqori blok arqonini ushlab, tirsaklarni gavdaga yaqin tuting.",
+      "Tirsaklarni yozib, pastda arqon uchlarini ikki tomonga ajrating.",
+      "Yuqori qo'llarni qimirlatmasdan arqonni qaytaring.",
+    ],
+  },
+  {
+    id: "Triceps_Pushdown_-_V-Bar_Attachment",
+    name: "V-dasta bilan trisepsni pastga yozish",
+    englishName: "Triceps Pushdown - V-Bar Attachment",
+    muscleGroup: "triceps",
+    equipment: "cable",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Triceps_Pushdown_-_V-Bar_Attachment/0.jpg",
+    instructions: [
+      "Yuqori blokdagi V-dastani ushlab, gavdani barqaror tuting.",
+      "Tirsaklarni joyida saqlab, dastani pastga itaring.",
+      "Bilaklarni tekis tutib, tirsaklarni yana buking.",
+    ],
+  },
+  {
+    id: "Lying_Dumbbell_Tricep_Extension",
+    name: "Yotib gantel bilan triseps yozish",
+    englishName: "Lying Dumbbell Tricep Extension",
+    muscleGroup: "triceps",
+    equipment: "dumbbell",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Lying_Dumbbell_Tricep_Extension/0.jpg",
+    instructions: [
+      "Skameykaga yotib, gantellarni ko'krak ustida tuting.",
+      "Faqat tirsaklarni bukib, gantellarni bosh yoniga tushiring.",
+      "Yuqori qo'llarni barqaror tutib, tirsaklarni yozing.",
+    ],
+  },
+  {
+    id: "Cable_One_Arm_Tricep_Extension",
+    name: "Bir qo'lda triseps blok yozish",
+    englishName: "Cable One Arm Tricep Extension",
+    muscleGroup: "triceps",
+    equipment: "cable",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Cable_One_Arm_Tricep_Extension/0.jpg",
+    instructions: [
+      "Yuqori blok tutqichini bir qo'l bilan ushlang.",
+      "Tirsakni yonboshga mahkam tutib, qo'lni pastga yozing.",
+      "Og'irlikni nazorat bilan qaytaring va tomonlarni almashtiring.",
+    ],
+  },
+  {
+    id: "Dip_Machine",
+    name: "Trenajyorda triseps itarish",
+    englishName: "Dip Machine",
+    muscleGroup: "triceps",
+    equipment: "machine",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dip_Machine/0.jpg",
+    instructions: [
+      "O'rindiqqa o'tirib, tutqichlarni ikki yonda ushlang.",
+      "Gavdani tik saqlab, tutqichlarni pastga itaring.",
+      "Yelkani qulay oraliqda ushlab, tutqichlarni qaytaring.",
+    ],
+  },
+  {
+    id: "Push-Ups_-_Close_Triceps_Position",
+    name: "Tor qo'llarda triseps otjimaniya",
+    englishName: "Push-Ups - Close Triceps Position",
+    muscleGroup: "triceps",
+    equipment: "bodyweight",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Push-Ups_-_Close_Triceps_Position/0.jpg",
+    instructions: [
+      "Kaftlarni ko'krak ostida bir-biriga yaqin joylashtiring.",
+      "Tirsaklarni gavdaga yaqin tutib, ko'krakni tushiring.",
+      "Tanani tekis saqlab, yerni itarib ko'tariling.",
+    ],
+  },
+  {
+    id: "Incline_Push-Up_Close-Grip",
+    name: "Baland tayanchda tor otjimaniya",
+    englishName: "Incline Push-Up Close-Grip",
+    muscleGroup: "triceps",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Incline_Push-Up_Close-Grip/0.jpg",
+    instructions: [
+      "Kaftlarni mustahkam tayanchga tor oraliqda qo'ying.",
+      "Tirsaklarni orqaga yo'naltirib, ko'krakni tayanchga yaqinlashtiring.",
+      "Tana chizig'ini saqlab, qo'llarni yozing.",
+    ],
+  },
+  {
+    id: "Dumbbell_One-Arm_Triceps_Extension",
+    name: "Bosh ortida bir qo'lda gantel yozish",
+    englishName: "Dumbbell One-Arm Triceps Extension",
+    muscleGroup: "triceps",
+    equipment: "dumbbell",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_One-Arm_Triceps_Extension/0.jpg",
+    instructions: [
+      "Gantelni bir qo'lda bosh ustida tuting.",
+      "Tirsakni yuqoriga qaratib, gantelni bosh ortiga tushiring.",
+      "Yuqori qo'lni qimirlatmay tirsakni yozing.",
+    ],
+  },
+  {
+    id: "Bodyweight_Squat",
+    name: "Tana vaznida o'tirib turish",
+    englishName: "Bodyweight Squat",
+    muscleGroup: "legs",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Bodyweight_Squat/0.jpg",
+    instructions: [
+      "Oyoqlarni yelka kengligida qo'yib, kaftlarni oldinga uzating.",
+      "Tosni orqaga va pastga tushiring, tizzalarni oyoq yo'nalishida tuting.",
+      "Oyoq kaftlarini yerda saqlab tik turing.",
+    ],
+  },
+  {
+    id: "Butt_Lift_Bridge",
+    name: "Yotib tos ko'tarish",
+    englishName: "Butt Lift (Bridge)",
+    muscleGroup: "legs",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Butt_Lift_Bridge/0.jpg",
+    instructions: [
+      "Chalqancha yotib, tizzalarni buking, kaftlarni yerga qo'ying.",
+      "Dumba mushaklarini qisib, tosni tana tekis chiziq bo'lguncha ko'taring.",
+      "Belni ortiqcha qayirmasdan tosni tushiring.",
+    ],
+  },
+  {
+    id: "Single_Leg_Glute_Bridge",
+    name: "Bir oyoqda tos ko'tarish",
+    englishName: "Single Leg Glute Bridge",
+    muscleGroup: "legs",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Single_Leg_Glute_Bridge/0.jpg",
+    instructions: [
+      "Chalqancha yotib, bir oyoqni yerga tirang, ikkinchisini ko'taring.",
+      "Tosni qiyshaytirmasdan yuqoriga ko'taring.",
+      "Sekin tushiring va keyin oyoqlarni almashtiring.",
+    ],
+  },
+  {
+    id: "Split_Squat_with_Dumbbells",
+    name: "Gantellar bilan ajratilgan turishda skvot",
+    englishName: "Split Squat with Dumbbells",
+    muscleGroup: "legs",
+    equipment: "dumbbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Split_Squat_with_Dumbbells/0.jpg",
+    instructions: [
+      "Gantellarni yonlarda ushlab, bir oyoqni oldinga qo'ying.",
+      "Orqa tizzani yerga yaqin tushirib, oldingi tizzani oyoq yo'nalishida tuting.",
+      "Oldingi oyoq bilan itarilib, dastlabki holatga qayting.",
+    ],
+  },
+  {
+    id: "Dumbbell_Rear_Lunge",
+    name: "Gantel bilan orqaga qadam tashlash",
+    englishName: "Dumbbell Rear Lunge",
+    muscleGroup: "legs",
+    equipment: "dumbbell",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Rear_Lunge/0.jpg",
+    instructions: [
+      "Tik turib, gantellarni yonlarda tuting.",
+      "Bir oyoq bilan orqaga qadam tashlab, ikkala tizzani buking.",
+      "Oldingi oyoqqa tayanib tik turing va oyoqlarni almashtiring.",
+    ],
+  },
+  {
+    id: "Seated_Leg_Curl",
+    name: "O'tirib oyoq orqasini bukish",
+    englishName: "Seated Leg Curl",
+    muscleGroup: "legs",
+    equipment: "machine",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Seated_Leg_Curl/0.jpg",
+    instructions: [
+      "Trenajyor o'rindig'i va boldir roligini tanangizga moslang.",
+      "Sonlarni tayanchda saqlab, oyoqlarni pastga-orqaga buking.",
+      "Og'irliklarni urmasdan oyoqlarni asta yozing.",
+    ],
+  },
+  {
+    id: "Hack_Squat",
+    name: "Gakk trenajyorida skvot",
+    englishName: "Hack Squat",
+    muscleGroup: "legs",
+    equipment: "machine",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Hack_Squat/0.jpg",
+    instructions: [
+      "Yelkalarni yostiq ostiga, orqani suyanchiqqa joylashtiring.",
+      "Tizzalarni oyoq yo'nalishida bukib, qulay chuqurlikka tushing.",
+      "Tovonlarni ko'tarmasdan platformani itaring.",
+    ],
+  },
+  {
+    id: "Calf_Press_On_The_Leg_Press_Machine",
+    name: "Leg pressda boldir ko'tarish",
+    englishName: "Calf Press On The Leg Press Machine",
+    muscleGroup: "legs",
+    equipment: "machine",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Calf_Press_On_The_Leg_Press_Machine/0.jpg",
+    instructions: [
+      "Oyoq uchlarini platformaga qo'yib, xavfsizlik tayanchlarini sozlang.",
+      "Tizzalarni barqaror tutib, oyoq uchlari bilan platformani itaring.",
+      "Tovonlarni nazorat bilan qaytaring.",
+    ],
+  },
+  {
+    id: "Dead_Bug",
+    name: "Chalqancha qarama-qarshi qo'l-oyoq uzatish",
+    englishName: "Dead Bug",
+    muscleGroup: "abs",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dead_Bug/0.jpg",
+    instructions: [
+      "Chalqancha yotib, qo'llarni yuqoriga va tizzalarni 90 darajaga ko'taring.",
+      "Qarama-qarshi qo'l va oyoqni sekin uzating, belni yerda tuting.",
+      "Markazga qayting va tomonlarni almashtiring.",
+    ],
+  },
+  {
+    id: "Alternate_Heel_Touchers",
+    name: "Yotib navbatma-navbat tovonga tegish",
+    englishName: "Alternate Heel Touchers",
+    muscleGroup: "abs",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Alternate_Heel_Touchers/0.jpg",
+    instructions: [
+      "Tizzalarni bukib yoting va yelkalarni yerdan biroz ko'taring.",
+      "Bir yon tomonga egilib, qo'lni tovonga yaqinlashtiring.",
+      "Qorin tarangligini saqlab, ikkinchi tomonga o'ting.",
+    ],
+  },
+  {
+    id: "Ab_Crunch_Machine",
+    name: "Trenajyorda qorin bukish",
+    englishName: "Ab Crunch Machine",
+    muscleGroup: "abs",
+    equipment: "machine",
+    level: "intermediate",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Ab_Crunch_Machine/0.jpg",
+    instructions: [
+      "O'rindiq va tutqichlarni tanangizga moslang.",
+      "Qorin mushaklari bilan gavdani oldinga buking.",
+      "Qo'llar bilan tortmasdan boshlang'ich holatga qayting.",
+    ],
+  },
+  {
+    id: "Pallof_Press",
+    name: "Blokda burilishga qarshi itarish",
+    englishName: "Pallof Press",
+    muscleGroup: "abs",
+    equipment: "cable",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Pallof_Press/0.jpg",
+    instructions: [
+      "Blokka yon turib, tutqichni ikki qo'lda ko'krak oldida tuting.",
+      "Gavdani burmasdan qo'llarni oldinga yozing.",
+      "Tutqichni ko'krakka qaytaring, keyin boshqa yon bilan bajaring.",
+    ],
+  },
+  {
+    id: "Standing_Cable_Wood_Chop",
+    name: "Tik turib blokni diagonal tortish",
+    englishName: "Standing Cable Wood Chop",
+    muscleGroup: "abs",
+    equipment: "cable",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Standing_Cable_Wood_Chop/0.jpg",
+    instructions: [
+      "Yuqori blokka yon turib, tutqichni ikki qo'lda ushlang.",
+      "Tutqichni nazorat bilan qarama-qarshi son tomon diagonal torting.",
+      "Oyoq va tos aylanishini tabiiy saqlab, tutqichni qaytaring.",
+    ],
+  },
+  {
+    id: "Dumbbell_Side_Bend",
+    name: "Gantel bilan yon tomonga egilish",
+    englishName: "Dumbbell Side Bend",
+    muscleGroup: "abs",
+    equipment: "dumbbell",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image:
+      "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Dumbbell_Side_Bend/0.jpg",
+    instructions: [
+      "Bir qo'lda gantelni ushlab, tik turing.",
+      "Oldinga bukilmasdan gantel tomonga yengil egiling.",
+      "Yon qorin mushaklari bilan tik holatga qayting, keyin tomonni almashtiring.",
+    ],
+  },
+  {
+    id: "Jackknife_Sit-Up",
+    name: "Yotib qo'l va oyoqlarni birga ko'tarish",
+    englishName: "Jackknife Sit-Up",
+    muscleGroup: "abs",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Jackknife_Sit-Up/0.jpg",
+    instructions: [
+      "Chalqancha yotib, qo'llarni bosh ortiga uzating.",
+      "Qorin kuchi bilan oyoqlar va gavdani bir-biriga yaqinlashtiring.",
+      "Belni nazorat qilib, qo'l va oyoqlarni sekin tushiring.",
+    ],
+  },
+  {
+    id: "Tuck_Crunch",
+    name: "Tizzalarni yig'ib qorin bukish",
+    englishName: "Tuck Crunch",
+    muscleGroup: "abs",
+    equipment: "bodyweight",
+    level: "beginner",
+    sets: "3",
+    reps: "10-15",
+    image: "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/Tuck_Crunch/0.jpg",
+    instructions: [
+      "Chalqancha yotib, tizzalarni bukilgan holda ko'taring.",
+      "Yelkalarni yerdan ko'tarib, tizzalarni ko'krakka yaqinlashtiring.",
+      "Bo'yinni tortmasdan dastlabki holatga qayting.",
+    ],
+  },
 ];
-
-// Har bir mashqning manba papkasida boshlang'ich va yakuniy holat suratlari
-// (0.jpg / 1.jpg) mavjud — shu ikkisini almashtirib, harakatni "jonlantirish" uchun.
-export function getAnimationFrames(exercise: Exercise): [string, string] {
-  return [exercise.image, exercise.image.replace("/0.jpg", "/1.jpg")];
-}

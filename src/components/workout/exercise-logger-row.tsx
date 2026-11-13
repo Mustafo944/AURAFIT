@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import { ExerciseImage } from "@/components/workout/exercise-image";
 import { ExerciseDemo } from "@/components/workout/exercise-demo";
 import { suggestNextLoad } from "@/lib/progression";
 import { isNewRecord, type PersonalRecord } from "@/lib/personal-records";
-import type { Exercise } from "@/lib/exercises";
+import type { Exercise } from "@/lib/exercise-metadata";
 import type { SetEntry } from "@/lib/workout-log";
 
 const WEIGHT_STEP = 2.5; // eng keng tarqalgan disk qadami
@@ -86,7 +86,9 @@ export function ExerciseLoggerRow({
     lastSets && lastSets.length > 0
       ? lastSets.reduce((best, s) => (s.weightKg > best.weightKg ? s : best))
       : null;
-  const [weight, setWeight] = useState(lastBest ? String(lastBest.weightKg) : "");
+  const [weight, setWeight] = useState(
+    lastBest ? String(lastBest.weightKg) : exercise.equipment === "bodyweight" ? "0" : "",
+  );
   const [reps, setReps] = useState(lastBest ? String(lastBest.reps) : "");
   // Mashg'ulot payti texnikani eslash uchun: rasm bosilsa animatsiyali demo ochiladi.
   const [demoOpen, setDemoOpen] = useState(false);
@@ -94,7 +96,14 @@ export function ExerciseLoggerRow({
   const add = () => {
     const weightKg = Number(weight);
     const repsCount = Number(reps);
-    if (!(weightKg > 0) || !(repsCount > 0)) return;
+    if (
+      !Number.isFinite(weightKg) ||
+      weightKg < 0 ||
+      (weightKg === 0 && exercise.equipment !== "bodyweight") ||
+      !Number.isInteger(repsCount) ||
+      repsCount <= 0
+    )
+      return;
     onLogSet({ weightKg, reps: repsCount });
   };
 
@@ -105,7 +114,7 @@ export function ExerciseLoggerRow({
   };
 
   // Double progression tavsiyasi — bosilganda stepperlarni o'zi to'ldiradi.
-  const suggestion = suggestNextLoad(exercise, lastBest);
+  const suggestion = suggestNextLoad(exercise, lastSets);
   const applySuggestion = () => {
     if (!suggestion) return;
     setWeight(String(suggestion.weightKg));
@@ -121,9 +130,10 @@ export function ExerciseLoggerRow({
       (set.weightKg === sets[bestIdx].weightKg && set.reps > sets[bestIdx].reps)
         ? i
         : bestIdx,
-    -1
+    -1,
   );
-  const recordIndex = sessionBestIndex !== -1 && isNewRecord(record, sets[sessionBestIndex]) ? sessionBestIndex : -1;
+  const recordIndex =
+    sessionBestIndex !== -1 && isNewRecord(record, sets[sessionBestIndex]) ? sessionBestIndex : -1;
 
   return (
     <div
@@ -137,11 +147,11 @@ export function ExerciseLoggerRow({
           onClick={() => setDemoOpen((v) => !v)}
           aria-expanded={demoOpen}
           aria-label="Bajarilish texnikasini ko'rish"
-          className={`relative w-12 h-12 shrink-0 rounded-lg overflow-hidden transition-all ${
+          className={`relative w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-[#f5f5f1] transition-all ${
             demoOpen ? "ring-2 ring-primary-fixed-dim" : "hover:ring-2 hover:ring-white/30"
           }`}
         >
-          <Image src={exercise.image} alt={exercise.englishName} fill sizes="48px" className="object-cover" />
+          <ExerciseImage exercise={exercise} sizes="80px" />
           <span className="absolute inset-0 flex items-center justify-center bg-black/30">
             <span
               className="material-symbols-outlined text-white text-[18px] drop-shadow"
@@ -152,9 +162,7 @@ export function ExerciseLoggerRow({
           </span>
         </button>
         <div className="min-w-0 flex-1">
-          <div className="font-headline-md text-[16px] text-primary uppercase italic leading-tight truncate">
-            {exercise.name}
-          </div>
+          <div className="text-[16px] font-semibold text-white leading-snug">{exercise.name}</div>
           <div className="font-label-mono text-[11px] text-on-surface-variant">
             Maqsad: {exercise.sets} × {exercise.reps}
             {lastBest && (
@@ -221,7 +229,9 @@ export function ExerciseLoggerRow({
                   <span className="text-primary-fixed-dim">{index + 1}.</span>
                 )}
                 {set.weightKg}kg × {set.reps}
-                {isRecordChip && <span className="text-[10px] uppercase text-primary-fixed-dim">Rekord!</span>}
+                {isRecordChip && (
+                  <span className="text-[10px] uppercase text-primary-fixed-dim">Rekord!</span>
+                )}
                 <button
                   type="button"
                   onClick={() => onRemoveSet(index)}
@@ -247,9 +257,12 @@ export function ExerciseLoggerRow({
             <span className="material-symbols-outlined text-[14px]">lightbulb</span>
             Tavsiya: {suggestion.weightKg}kg × {suggestion.reps}
             <span className="text-on-surface-variant">
-              {suggestion.weightIncreased ? "(+2.5kg)" : "(+1 takror)"}
+              {suggestion.weightIncreased ? "(+2.5kg)" : "(shu og'irlikda)"}
             </span>
           </button>
+          <p className="text-xs text-on-surface-variant mt-2">
+            {suggestion.reason} Qiymatlarni o&apos;zingizga moslab o&apos;zgartirishingiz mumkin.
+          </p>
         </div>
       )}
 

@@ -1,3 +1,4 @@
+import type { ActivityLevel, TrainingPreferences } from "@/lib/training-preferences";
 // supabase/schema.sql bilan qo'lda mos qilib yozilgan tur ta'riflari
 // (Supabase CLI orqali avtomatik generatsiya qilingan emas).
 
@@ -20,6 +21,8 @@ export interface Database {
           target_weight_kg: number | null;
           avatar_url: string | null;
           updated_at: string;
+          activity_level: ActivityLevel;
+          training_preferences: TrainingPreferences;
         };
         Insert: {
           id: string;
@@ -33,6 +36,8 @@ export interface Database {
           target_weight_kg?: number | null;
           avatar_url?: string | null;
           updated_at?: string;
+          activity_level?: ActivityLevel;
+          training_preferences?: TrainingPreferences;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];
@@ -115,6 +120,6 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: { consume_api_limit: { Args: { p_scope: string }; Returns: boolean } };
   };
 }

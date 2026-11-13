@@ -42,9 +42,12 @@ export function WeeklyActivityChart({ points }: { points: WeeklyActivityChartPoi
       <div className="flex items-end gap-2 h-36">
         {points.map((point, index) => {
           const isLatest = index === latestIndex;
-          const heightPct = Math.max(6, (point.count / max) * 100);
+          const heightPct = point.count === 0 ? 0 : Math.max(6, (point.count / max) * 100);
           return (
-            <div key={point.weekStart} className="flex-1 flex flex-col items-center justify-end h-full min-w-0">
+            <div
+              key={point.weekStart}
+              className="flex-1 flex flex-col items-center justify-end h-full min-w-0"
+            >
               <span
                 className={`font-label-mono text-[10px] mb-1 whitespace-nowrap ${
                   isLatest ? "text-tertiary-fixed-dim" : "text-on-surface-variant"

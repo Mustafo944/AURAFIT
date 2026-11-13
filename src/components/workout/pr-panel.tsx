@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { getPersonalRecords, type PersonalRecord } from "@/lib/personal-records";
 import { getExerciseHistory, type WorkoutSession } from "@/lib/workout-log";
-import { MUSCLE_GROUPS } from "@/lib/exercises";
+import { MUSCLE_GROUPS } from "@/lib/exercise-metadata";
 import { TrendLineChart, type TrendPoint } from "@/components/trend-line-chart";
 
 // Grafikda ko'rsatiladigan so'nggi natijalar soni — sana yorliqlari siqilib
