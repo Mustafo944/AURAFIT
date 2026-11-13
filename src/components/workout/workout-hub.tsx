@@ -16,6 +16,7 @@ import { fetchWorkoutRecovery, type WorkoutRecoveryRequest } from "@/lib/workout
 import { collectNewRecords, type RecordHighlight } from "@/lib/personal-records";
 import { EXERCISES, MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
 import { MonthCalendar } from "@/components/month-calendar";
+import { CollapsiblePanel } from "@/components/collapsible-panel";
 import { dayKey as toDateKey } from "@/lib/date-key";
 import { DayDetail } from "@/components/workout/day-detail";
 import { ActiveWorkout } from "@/components/workout/active-workout";
@@ -57,6 +58,7 @@ export function WorkoutHub() {
 
   const todayKey = toDateKey(new Date());
   const [selectedKey, setSelectedKey] = useState(todayKey);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [calendarView, setCalendarView] = useState(() => ({
     year: new Date().getFullYear(),
     month: new Date().getMonth(),
@@ -231,6 +233,36 @@ export function WorkoutHub() {
           {historyError}
         </p>
       )}
+      <CollapsiblePanel
+        title="Mashg'ulot tarixi"
+        icon="calendar_month"
+        open={historyOpen}
+        onToggle={() => setHistoryOpen((v) => !v)}
+      >
+        <MonthCalendar
+          year={calendarView.year}
+          month={calendarView.month}
+          onMonthChange={(year, month) => setCalendarView({ year, month })}
+          selectedKey={selectedKey}
+          onSelect={setSelectedKey}
+          markedDays={new Set(sessionsByDay.keys())}
+          markedLabel="mashg'ulot bor"
+          loading={loadingMore}
+        />
+        {selectedSessions.length > 0 ? (
+          <DayDetail
+            dateKey={selectedKey}
+            sessions={selectedSessions}
+            isToday={isToday}
+            onDeleteSession={removeSession}
+          />
+        ) : (
+          <p className="text-center text-sm text-on-surface-variant">
+            {isToday ? "Bugun hali mashg'ulot bo'lmagan." : "Bu kuni mashg'ulot bo'lmagan."}
+          </p>
+        )}
+      </CollapsiblePanel>
+
       {showResult ? (
         <WorkoutResult
           result={result}
@@ -256,36 +288,6 @@ export function WorkoutHub() {
       )}
 
       <PrPanel sessions={sessions} />
-
-      {/* Tarix — sahifa oxirida: ixcham oylik kalendar va tanlangan kun tafsiloti. */}
-      <section className="glass-card rounded-xl p-5 space-y-4" aria-label="Mashg'ulot tarixi">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary-fixed-dim">history</span>
-          <h3 className="font-headline-md text-[18px] text-primary uppercase">Mashg&apos;ulot tarixi</h3>
-        </div>
-        <MonthCalendar
-          year={calendarView.year}
-          month={calendarView.month}
-          onMonthChange={(year, month) => setCalendarView({ year, month })}
-          selectedKey={selectedKey}
-          onSelect={setSelectedKey}
-          markedDays={new Set(sessionsByDay.keys())}
-          markedLabel="mashg'ulot bor"
-          loading={loadingMore}
-        />
-      </section>
-      {selectedSessions.length > 0 ? (
-        <DayDetail
-          dateKey={selectedKey}
-          sessions={selectedSessions}
-          isToday={isToday}
-          onDeleteSession={removeSession}
-        />
-      ) : (
-        <p className="text-center text-sm text-on-surface-variant">
-          {isToday ? "Bugun hali mashg'ulot bo'lmagan." : "Bu kuni mashg'ulot bo'lmagan."}
-        </p>
-      )}
     </div>
   );
 }

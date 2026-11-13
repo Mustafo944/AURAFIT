@@ -6,6 +6,7 @@ import { sumMeals, useMealLog, type MealEntry } from "@/lib/meal-log";
 import { MEAL_TYPE_LABELS, fetchMealsForMonth, groupMealsByDay } from "@/lib/meal-history";
 import { dayKey, formatDayKey } from "@/lib/date-key";
 import { MonthCalendar } from "@/components/month-calendar";
+import { CollapsiblePanel } from "@/components/collapsible-panel";
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -20,6 +21,7 @@ export function MealHistory() {
   const today = new Date();
   const [view, setView] = useState({ year: today.getFullYear(), month: today.getMonth() });
   const [selected, setSelected] = useState(() => dayKey(today));
+  const [open, setOpen] = useState(false);
   const [reload, setReload] = useState(0);
   // Natija qaysi oy (va qayta urinish) uchun yuklanganini kalit bilan belgilaymiz:
   // kalit mos kelmasa — yangi oy hali yuklanmoqda.
@@ -32,7 +34,8 @@ export function MealHistory() {
   const loading = state.key !== fetchKey;
 
   useEffect(() => {
-    if (!userId) return;
+    // Panel ochilmaguncha tarix serverdan so'ralmaydi.
+    if (!userId || !open) return;
     let cancelled = false;
     fetchMealsForMonth(userId, view.year, view.month)
       .then((meals) => {
@@ -45,7 +48,7 @@ export function MealHistory() {
     return () => {
       cancelled = true;
     };
-  }, [userId, view.year, view.month, fetchKey]);
+  }, [userId, open, view.year, view.month, fetchKey]);
 
   // Bugun qo'shilgan/o'chirilgan taomlar sahifani yangilamasdan ham tarixda
   // darhol ko'rinishi uchun bugungi kun jonli jurnaldan olinadi.
@@ -61,14 +64,7 @@ export function MealHistory() {
   const totals = sumMeals(dayMeals);
 
   return (
-    <section className="glass-card rounded-xl p-5 space-y-4" aria-label="Ovqatlanish tarixi">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-primary-fixed-dim">restaurant_menu</span>
-          <h3 className="font-headline-md text-[18px] text-primary uppercase">Ovqatlanish tarixi</h3>
-        </div>
-      </div>
-
+    <CollapsiblePanel title="Ovqatlanish tarixi" icon="calendar_month" open={open} onToggle={() => setOpen((v) => !v)}>
       <MonthCalendar
         year={view.year}
         month={view.month}
@@ -159,6 +155,6 @@ export function MealHistory() {
           )}
         </div>
       )}
-    </section>
+    </CollapsiblePanel>
   );
 }

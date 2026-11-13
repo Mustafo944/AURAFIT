@@ -397,6 +397,8 @@ export default function AnalyticsPage() {
         </p>
       </div>
 
+      <MealHistory />
+
       {/* Today's Summary */}
       <section className="glass-card rounded-xl p-6 relative overflow-hidden glow-button border-l-[3px] border-l-primary-fixed-dim">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary-fixed-dim/10 rounded-full blur-2xl" />
@@ -811,7 +813,6 @@ export default function AnalyticsPage() {
         </p>
       )}
       <WeightHistory />
-      <MealHistory />
     </div>
   );
 }
