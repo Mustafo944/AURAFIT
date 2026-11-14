@@ -2,6 +2,7 @@ import type { MuscleGroupId } from "@/lib/exercise-metadata";
 import type { SetEntry, WorkoutSession } from "@/lib/workout-log";
 
 export interface PersonalRecord {
+  sessionId?: string;
   exerciseId: string;
   exerciseName: string;
   muscleGroup: MuscleGroupId;
@@ -29,6 +30,7 @@ export function getPersonalRecords(sessions: WorkoutSession[]): Map<string, Pers
         const current = records.get(exercise.exerciseId);
         if (!current || isBetter(set, current)) {
           records.set(exercise.exerciseId, {
+            sessionId: session.id,
             exerciseId: exercise.exerciseId,
             exerciseName: exercise.exerciseName,
             muscleGroup: exercise.muscleGroup,

@@ -21,7 +21,13 @@ function formatPointDate(iso: string): string {
 
 // Shaxsiy rekordlar paneli: mushak guruhlari bo'yicha eng yaxshi natijalar.
 // Mashq bosilganda o'sha mashqning og'irlik tarixi grafigi ochiladi.
-export function PrPanel({ sessions }: { sessions: WorkoutSession[] }) {
+export function PrPanel({
+  sessions,
+  onDeleteSession,
+}: {
+  sessions: WorkoutSession[];
+  onDeleteSession?: (sessionId: string) => Promise<void> | void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const [openExerciseId, setOpenExerciseId] = useState<string | null>(null);
 
@@ -93,6 +99,7 @@ export function PrPanel({ sessions }: { sessions: WorkoutSession[] }) {
                   record={record}
                   open={openExerciseId === record.exerciseId}
                   sessions={sessions}
+                  onDeleteSession={onDeleteSession}
                   onToggle={() =>
                     setOpenExerciseId(openExerciseId === record.exerciseId ? null : record.exerciseId)
                   }
@@ -111,12 +118,31 @@ function RecordRow({
   open,
   sessions,
   onToggle,
+  onDeleteSession,
 }: {
   record: PersonalRecord;
   open: boolean;
   sessions: WorkoutSession[];
   onToggle: () => void;
+  onDeleteSession?: (sessionId: string) => Promise<void> | void;
 }) {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onDeleteSession || !record.sessionId) return;
+    const ok = window.confirm(
+      `"${record.exerciseName}" (${record.weightKg}kg) qayd etilgan ushbu mashg'ulot o'chirilsinmi?`
+    );
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await onDeleteSession(record.sessionId);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // Grafik faqat qator ochilganda hisoblanadi — panel katta tarixda ham yengil qoladi.
   const points = useMemo<TrendPoint[]>(() => {
     if (!open) return [];
@@ -132,23 +158,56 @@ function RecordRow({
         open ? "border-primary-fixed-dim/40 bg-primary-fixed-dim/5" : "border-white/10 bg-white/[0.02]"
       }`}
     >
-      <button type="button" onClick={onToggle} aria-expanded={open} className="w-full flex items-center gap-3 p-3 text-left">
-        <div className="flex-1 min-w-0">
-          <div className="font-body-md text-[14px] text-on-surface font-semibold truncate">{record.exerciseName}</div>
-          <div className="font-label-mono text-[10px] text-on-surface-variant mt-0.5">
-            {formatRecordDate(record.finishedAt)}
+      <div className="flex items-center gap-2 pr-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex-1 min-w-0 flex items-center gap-3 p-3 text-left"
+        >
+          <div className="flex-1 min-w-0">
+            <div className="font-body-md text-[14px] text-on-surface font-semibold truncate">{record.exerciseName}</div>
+            <div className="font-label-mono text-[10px] text-on-surface-variant mt-0.5">
+              {formatRecordDate(record.finishedAt)}
+            </div>
           </div>
-        </div>
-        <div className="shrink-0 text-right">
-          <div className="font-headline-md text-[17px] text-primary-fixed-dim font-bold leading-none">
-            {record.weightKg}kg
+          <div className="shrink-0 text-right">
+            <div className="font-headline-md text-[17px] text-primary-fixed-dim font-bold leading-none">
+              {record.weightKg}kg
+            </div>
+            <div className="font-label-mono text-[10px] text-on-surface-variant mt-0.5">&times; {record.reps} takror</div>
           </div>
-          <div className="font-label-mono text-[10px] text-on-surface-variant mt-0.5">&times; {record.reps} takror</div>
-        </div>
-        <span className="material-symbols-outlined text-[18px] text-on-surface-variant shrink-0">
-          {open ? "expand_more" : "trending_up"}
-        </span>
-      </button>
+          <span className="material-symbols-outlined text-[18px] text-on-surface-variant shrink-0">
+            {open ? "expand_more" : "trending_up"}
+          </span>
+        </button>
+        {onDeleteSession && record.sessionId && (
+          <button
+            type="button"
+            disabled={deleting}
+            onClick={handleDelete}
+            aria-label={`${record.exerciseName} rekordini o'chirish`}
+            title="Ushbu rekord qayd etilgan mashg'ulotni o'chirish"
+            className="p-2 rounded-lg text-on-surface-variant/40 hover:text-error hover:bg-error/10 transition-colors shrink-0 disabled:opacity-50"
+          >
+            <svg
+              className="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <line x1="10" y1="11" x2="10" y2="17" />
+              <line x1="14" y1="11" x2="14" y2="17" />
+            </svg>
+          </button>
+        )}
+      </div>
       {open && points.length > 0 && (
         <div className="px-3 pb-3">
           <TrendLineChart label="Og'irlik Tarixi" unit="kg" points={points} />

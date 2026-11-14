@@ -64,7 +64,7 @@ test("weight history saves and renders a chart", async ({ page, context, request
 test("offline workout survives reload, syncs and can be deleted", async ({ page, context, request }) => {
   await signIn(context, request);
   await page.goto("/workouts");
-  await page.getByRole("button", { name: /Push kuni/ }).click();
+  await page.getByRole("button", { name: /Push/ }).click();
   await page.getByRole("spinbutton", { name: "1-podxod og'irligi, kilogramm" }).fill("40");
   await page.getByRole("spinbutton", { name: "1-podxod takrori" }).fill("10");
   await page.getByRole("button", { name: "1-podxodni saqlash" }).click();
@@ -140,7 +140,7 @@ test("start panel: a ready program starts a prepared plan", async ({ page, conte
   await signIn(context, request);
   await page.goto("/workouts");
   await expect(page.getByRole("button", { name: "Takrorlash" })).toHaveCount(0);
-  await page.getByRole("button", { name: /Push kuni/ }).click();
+  await page.getByRole("button", { name: /Push/ }).click();
   await expect(page.getByText("Shtanga Yotib Zhim (O'rta Ushlab)").first()).toBeVisible();
   await expect(page.getByRole("button", { name: /Mashg'ulotni yakunlash/i })).toBeDisabled();
   await page.reload();

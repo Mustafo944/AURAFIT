@@ -17,7 +17,7 @@ export interface WorkoutProgram {
 export const WORKOUT_PROGRAMS: WorkoutProgram[] = [
   {
     id: "push",
-    name: "Push kuni",
+    name: "Ko'krak & Yelka (Push)",
     focus: "Ko'krak · Yelka · Triseps",
     muscleGroup: "chest",
     exerciseIds: [
@@ -30,7 +30,7 @@ export const WORKOUT_PROGRAMS: WorkoutProgram[] = [
   },
   {
     id: "pull",
-    name: "Pull kuni",
+    name: "Qanot & Biseps (Pull)",
     focus: "Qanot · Biseps",
     muscleGroup: "back",
     exerciseIds: [
@@ -43,7 +43,7 @@ export const WORKOUT_PROGRAMS: WorkoutProgram[] = [
   },
   {
     id: "legs",
-    name: "Oyoq kuni",
+    name: "Oyoq & Press",
     focus: "Son · Dumba · Boldir",
     muscleGroup: "legs",
     exerciseIds: [

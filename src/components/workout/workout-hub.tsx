@@ -290,7 +290,7 @@ export function WorkoutHub() {
         </div>
       )}
 
-      <PrPanel sessions={sessions} />
+      <PrPanel sessions={sessions} onDeleteSession={removeSession} />
     </div>
   );
 }
