@@ -14,7 +14,8 @@ import { calculateFitnessMetrics } from "@/lib/fitness";
 import { recommendedWater, type WaterRecommendation } from "@/lib/cardio";
 import { fetchWorkoutRecovery, type WorkoutRecoveryRequest } from "@/lib/workout-recovery";
 import { collectNewRecords, type RecordHighlight } from "@/lib/personal-records";
-import { EXERCISES, MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
+import { MUSCLE_GROUPS, type MuscleGroupId } from "@/lib/exercises";
+import { resolveExercises } from "@/lib/workout-programs";
 import { MonthCalendar } from "@/components/month-calendar";
 import { CollapsiblePanel } from "@/components/collapsible-panel";
 import { dayKey as toDateKey } from "@/lib/date-key";
@@ -22,6 +23,7 @@ import { DayDetail } from "@/components/workout/day-detail";
 import { ActiveWorkout } from "@/components/workout/active-workout";
 import { WorkoutResult } from "@/components/workout/workout-result";
 import { PrPanel } from "@/components/workout/pr-panel";
+import { StartPanel } from "@/components/workout/start-panel";
 import { VolumeChart } from "@/components/volume-chart";
 
 function muscleLabel(id: MuscleGroupId): string {
@@ -255,6 +257,7 @@ export function WorkoutHub() {
             sessions={selectedSessions}
             isToday={isToday}
             onDeleteSession={removeSession}
+            onRepeatSession={(session) => startSession(resolveExercises(session.exercises.map((e) => e.exerciseId)))}
           />
         ) : (
           <p className="text-center text-sm text-on-surface-variant">
@@ -278,7 +281,7 @@ export function WorkoutHub() {
           onClose={() => setResult(null)}
         />
       ) : (
-        <StartCard onStart={() => startSession()} />
+        <StartPanel sessions={sessions} onStart={startSession} />
       )}
 
       {trendPoints.length > 1 && (
@@ -303,34 +306,6 @@ function Header({ active = false }: { active?: boolean }) {
           ? "Rejangizni tuzing va bajarilgan podxodlarni qayd eting"
           : "Kalendardan kunni tanlang yoki yangi mashg'ulotni boshlang"}
       </p>
-    </div>
-  );
-}
-
-function StartCard({ onStart }: { onStart: () => void }) {
-  return (
-    <div className="glass-card rounded-xl p-8 text-center space-y-4">
-      <div className="w-16 h-16 mx-auto rounded-full bg-primary-fixed-dim/15 flex items-center justify-center">
-        <span className="material-symbols-outlined text-primary-fixed-dim text-4xl">fitness_center</span>
-      </div>
-      <div>
-        <h3 className="font-headline-md text-headline-md text-primary uppercase italic">
-          Bugungi rejangizni tuzing
-        </h3>
-        <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-          {EXERCISES.length} ta mashq orasidan tanlang: rasmlar, texnika va jihoz bo&apos;yicha qulay qidiruv.
-        </p>
-      </div>
-      <button
-        type="button"
-        onClick={onStart}
-        className="w-full bg-primary-container text-on-primary-container font-headline-md text-headline-md uppercase italic py-4 rounded-xl flex items-center justify-center gap-2 hover:bg-primary-fixed glow-button transition-all active:scale-[0.98]"
-      >
-        <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>
-          play_arrow
-        </span>
-        Mashg&apos;ulotni Boshlash
-      </button>
     </div>
   );
 }

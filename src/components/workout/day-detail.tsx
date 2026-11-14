@@ -47,11 +47,14 @@ export function DayDetail({
   sessions,
   isToday,
   onDeleteSession,
+  onRepeatSession,
 }: {
   dateKey: string;
   sessions: WorkoutSession[];
   isToday: boolean;
   onDeleteSession?: (sessionId: string) => void;
+  // Tanlangan mashg'ulotdagi mashqlar bilan yangi mashg'ulot boshlaydi.
+  onRepeatSession?: (session: WorkoutSession) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -184,6 +187,17 @@ export function DayDetail({
                   </span>
                 </div>
               ))}
+
+              {onRepeatSession && session.exercises.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => onRepeatSession(session)}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary-container text-on-primary-container font-label-mono text-[12px] uppercase py-2.5 hover:bg-primary-fixed transition-colors active:scale-[0.98]"
+                >
+                  <span className="material-symbols-outlined text-[18px]">replay</span>
+                  Shuni takrorlash
+                </button>
+              )}
 
               {/* O'chirish tugmasi */}
               {onDeleteSession && (

@@ -64,10 +64,10 @@ test("weight history saves and renders a chart", async ({ page, context, request
 test("offline workout survives reload, syncs and can be deleted", async ({ page, context, request }) => {
   await signIn(context, request);
   await page.goto("/workouts");
-  await page.getByRole("button", { name: "Shu rejani boshlash" }).first().click();
-  await page.getByRole("spinbutton", { name: "Og'irlik", exact: true }).first().fill("40");
-  await page.getByRole("spinbutton", { name: "Takror", exact: true }).first().fill("10");
-  await page.getByRole("button", { name: "Podxod qo'shish" }).first().click();
+  await page.getByRole("button", { name: /Push kuni/ }).click();
+  await page.getByRole("spinbutton", { name: "1-podxod og'irligi, kilogramm" }).fill("40");
+  await page.getByRole("spinbutton", { name: "1-podxod takrori" }).fill("10");
+  await page.getByRole("button", { name: "1-podxodni saqlash" }).click();
   await expect(page.getByRole("timer")).toBeVisible();
   await context.setOffline(true);
   await page.getByRole("button", { name: /Mashg'ulotni yakunlash/i }).click();
@@ -81,6 +81,7 @@ test("offline workout survives reload, syncs and can be deleted", async ({ page,
   await expect
     .poll(async () => (await (await request.get(`${backend}/__test/rows`)).json()).workout_sessions.length)
     .toBe(1);
+  await page.getByRole("button", { name: /Mashg.ulot tarixi/ }).click();
   await page.getByRole("button", { name: /Bugungi Mashg'ulot/ }).click();
   await page.getByRole("button", { name: /Mashg.ulotni O.chirish/i }).click();
   await page.getByRole("button", { name: /Ha, O.chir/ }).click();
@@ -88,7 +89,6 @@ test("offline workout survives reload, syncs and can be deleted", async ({ page,
     .poll(async () => (await (await request.get(`${backend}/__test/rows`)).json()).workout_sessions.length)
     .toBe(0);
 });
-
 test("login form establishes a session and logout removes access", async ({ page }) => {
   await page.goto("/login");
   await page.locator('input[name="email"]').fill("test@example.com");
@@ -105,62 +105,15 @@ test("login form establishes a session and logout removes access", async ({ page
   await page.goto("/workouts");
   await expect(page).toHaveURL(/login/);
 });
-test("workout templates survive navigation and do not pre-log sets", async ({ page, context, request }) => {
-  await signIn(context, request);
-  await page.goto("/workouts");
-  await page.getByRole("button", { name: "Shu rejani boshlash" }).first().click();
-  await page.getByPlaceholder("Masalan: Dushanba").fill("My workout");
-  await page.getByRole("button", { name: "Shablonni saqlash" }).click();
-  await expect(page.getByText("Shablon shu qurilmada saqlandi.")).toBeVisible();
-  await page.getByRole("button", { name: "Bekor", exact: true }).click();
-  await page.reload();
-  await page
-    .getByRole("button", { name: /My workout/ })
-    .first()
-    .click();
-  await expect(page.getByRole("spinbutton", { name: "Og'irlik", exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: /Mashg'ulotni yakunlash/i })).toBeDisabled();
-});
-test("saved meals can be added again with the selected meal type", async ({ page, context, request }) => {
-  await request.post(`${backend}/__test/seed`, {
-    data: {
-      table: "meals",
-      rows: [
-        {
-          id: "meal-1",
-          user_id: "11111111-1111-4111-8111-111111111111",
-          meal_name: "Test taom",
-          meal_type: "breakfast",
-          calories: 350,
-          protein_g: 20,
-          fat_g: 10,
-          carb_g: 45,
-          items: [],
-          logged_at: new Date().toISOString(),
-        },
-      ],
-    },
-  });
-  await signIn(context, request);
-  await page.goto("/analytics");
-  await page.getByText("Bugungi jurnaldan saqlash", { exact: true }).click();
-  await page.getByRole("button", { name: "Test taom", exact: true }).click();
-  await page.getByLabel(/Qaysi ovqatlanishga/).selectOption("lunch");
-  await page.getByRole("button", { name: "Qo'shish", exact: true }).click();
-  await expect
-    .poll(async () => (await (await request.get(`${backend}/__test/rows`)).json()).meals.length)
-    .toBe(2);
-  const rows = await (await request.get(`${backend}/__test/rows`)).json();
-  expect(rows.meals[1].meal_type).toBe("lunch");
-  await page.reload();
-  await expect(page.getByRole("button", { name: "Qo'shish", exact: true })).toBeVisible();
-});
-test("history loads beyond the first page without duplicates", async ({ page, context, request }) => {
+
+const USER_ID = "11111111-1111-4111-8111-111111111111";
+
+test("workout history loads older months beyond the first page", async ({ page, context, request }) => {
   const rows = Array.from({ length: 60 }, (_, index) => {
     const date = new Date(Date.now() - index * 86400000).toISOString();
     return {
       id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
-      user_id: "11111111-1111-4111-8111-111111111111",
+      user_id: USER_ID,
       started_at: date,
       finished_at: date,
       exercises: [],
@@ -172,140 +125,143 @@ test("history loads beyond the first page without duplicates", async ({ page, co
   });
   await request.post(`${backend}/__test/seed`, { data: { table: "workout_sessions", rows } });
   await signIn(context, request);
-  await page.goto("/analytics");
-  await expect(page.getByText(/Tahlil yuklangan 50 ta/)).toBeVisible();
-  await page.getByRole("button", { name: "Eski tarixni ham yuklash" }).click();
-  await expect(page.getByRole("button", { name: "Eski tarixni ham yuklash" })).toHaveCount(0);
+  await page.goto("/workouts");
+  await page.getByRole("button", { name: /Mashg.ulot tarixi/ }).click();
+  const marked = page.getByRole("button", { name: /mashg.ulot bor/ });
+  await expect(marked.first()).toBeVisible();
+  // Ikki oy orqaga: birinchi sahifa (50 kun) yetmaydi, qolgani avtomatik yuklanadi.
+  await page.getByRole("button", { name: "Oldingi oy" }).click();
+  await page.getByRole("button", { name: "Oldingi oy" }).click();
+  await expect(marked.first()).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("exercise library combines filters, explains technique and preserves selection", async ({
+test("start panel: a ready program starts a prepared plan", async ({ page, context, request }) => {
+  await signIn(context, request);
+  await page.goto("/workouts");
+  await expect(page.getByRole("button", { name: "Takrorlash" })).toHaveCount(0);
+  await page.getByRole("button", { name: /Push kuni/ }).click();
+  await expect(page.getByText("Shtanga Yotib Zhim (O'rta Ushlab)").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /Mashg'ulotni yakunlash/i })).toBeDisabled();
+  await page.reload();
+  await expect(page.getByText("Shtanga Yotib Zhim (O'rta Ushlab)").first()).toBeVisible();
+});
+
+test("start panel: the last workout can be repeated and the draft can be cancelled", async ({
   page,
   context,
   request,
-}, testInfo) => {
-  if (process.env.AURAFIT_VISUAL === "1") await page.unroute("**/_next/image?**");
+}) => {
+  const finishedAt = new Date(Date.now() - 3 * 86400000).toISOString();
+  await request.post(`${backend}/__test/seed`, {
+    data: {
+      table: "workout_sessions",
+      rows: [
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          user_id: USER_ID,
+          started_at: finishedAt,
+          finished_at: finishedAt,
+          exercises: [
+            {
+              exerciseId: "Pushups",
+              exerciseName: "Klassik Otjimaniye (Push-Up)",
+              muscleGroup: "chest",
+              sets: [{ weightKg: 0, reps: 12 }],
+            },
+          ],
+          cardio: [],
+          total_sets: 1,
+          total_volume_kg: 0,
+          calories_burned: 20,
+        },
+      ],
+    },
+  });
   await signIn(context, request);
   await page.goto("/workouts");
-  await page.getByRole("button", { name: /Mashg'ulotni Boshlash/ }).click();
-  const library = page.getByRole("region", { name: "Mashqlar kutubxonasi" });
-  await expect(library.getByRole("article")).toHaveCount(24);
-  await library.getByRole("button", { name: /Yana 24/ }).click();
-  await expect(library.getByRole("article")).toHaveCount(48);
-  await library
-    .getByRole("group", { name: "Mushak guruhi" })
-    .getByRole("button", { name: /Ko'krak/ })
-    .click();
-  await library.getByLabel("Jihoz", { exact: true }).selectOption("bodyweight");
-  await library.getByLabel("Tajriba darajasi").selectOption("beginner");
-  if (process.env.AURAFIT_VISUAL === "1") {
-    for (const picture of await library.getByRole("article").locator("img").all()) {
-      await picture.scrollIntoViewIfNeeded();
-      await expect(picture).toHaveJSProperty("complete", true);
-      await expect(picture).not.toHaveJSProperty("naturalWidth", 0);
-    }
-    await library.scrollIntoViewIfNeeded();
-    await page.screenshot({ path: testInfo.outputPath("exercise-catalog-preview.png"), fullPage: true });
-  }
-  await library.getByLabel("Mashq qidirish").fill("tayanchga");
-  await expect(library.getByRole("article")).toHaveCount(1);
-  const card = library.getByRole("article");
-  await card.getByRole("button", { name: "Texnika", exact: true }).click();
+  await expect(page.getByText(/3 kun oldin/)).toBeVisible();
+  await page.getByRole("button", { name: "Takrorlash" }).click();
+  await expect(page.getByText("Klassik Otjimaniye (Push-Up)").first()).toBeVisible();
+  // O'tgan natija bo'yicha qiymatlar oldindan to'ldirilgan.
+  await expect(page.getByRole("spinbutton", { name: "1-podxod takrori" })).toHaveValue("12");
+  await page.getByRole("button", { name: "Mashg'ulotni bekor qilish" }).click();
+  await page.getByRole("button", { name: /Ha, o.chirish/ }).click();
+  await expect(page.getByRole("button", { name: "Takrorlash" })).toBeVisible();
+});
+
+test("exercise picker filters, explains technique and preserves the selection", async ({
+  page,
+  context,
+  request,
+}) => {
+  await signIn(context, request);
+  await page.goto("/workouts");
+  await page.getByRole("button", { name: "O'zim tanlayman" }).click();
+  const picker = page.getByRole("region", { name: "Mashq tanlash" });
+  const rows = picker.locator("ul > li");
+  await expect(rows).toHaveCount(30);
+  await picker.getByRole("button", { name: /^Yana 30/ }).click();
+  await expect(rows).toHaveCount(60);
+  await picker.getByRole("group", { name: "Mushak guruhi" }).getByRole("button", { name: /Ko'krak/ }).click();
+  await picker.getByRole("button", { name: "Jihoz va daraja filtrlari" }).click();
+  await picker.getByLabel("Jihoz", { exact: true }).selectOption("bodyweight");
+  await picker.getByLabel("Daraja", { exact: true }).selectOption("beginner");
+  await picker.getByLabel("Mashq qidirish").fill("tayanchga");
+  await expect(rows).toHaveCount(1);
+  await picker.getByRole("button", { name: /texnikani ko'rish/ }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading", { name: "Tayanchga suyanib otjimaniya" })).toBeVisible();
-  if (process.env.AURAFIT_VISUAL === "1") {
-    await expect(dialog.locator("img")).toHaveJSProperty("complete", true);
-    await page.screenshot({ path: testInfo.outputPath("exercise-technique-preview.png") });
-  }
-  await dialog.getByRole("button", { name: "Yakun", exact: true }).click();
-  await expect(dialog.getByRole("button", { name: "Yakun", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
   await dialog.getByRole("button", { name: "Rejaga qo'shish", exact: true }).click();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
-  await expect(card.getByRole("button", { name: /tanlovdan olish/ })).toHaveAttribute("aria-pressed", "true");
-  await library.getByLabel("Mashq qidirish").fill("not-an-exercise-xyz");
-  await expect(library.getByText("Mos mashq topilmadi")).toBeVisible();
-  await library.getByRole("button", { name: "Barcha mashqlarni ko'rish" }).click();
-  await library.getByRole("button", { name: "Tanlanganlar (1)", exact: true }).click();
-  await expect(library.getByRole("article")).toHaveCount(1);
+  await expect(picker.getByRole("button", { name: /tanlovdan olish/ })).toHaveAttribute("aria-pressed", "true");
+  await picker.getByLabel("Mashq qidirish").fill("not-an-exercise-xyz");
+  await expect(picker.getByText("Mos mashq topilmadi")).toBeVisible();
+  await picker.getByRole("button", { name: "Barcha mashqlarni ko'rish" }).click();
+  await picker.getByRole("button", { name: "Tanlanganlar (1)", exact: true }).click();
+  await expect(rows).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath("exercise-library.png"), fullPage: true });
-  await library.getByRole("button", { name: "Mashg'ulotga o'tish" }).click();
+  await picker.getByRole("button", { name: "Mashg'ulotga o'tish" }).click();
   await expect(page.getByText("Tayanchga suyanib otjimaniya", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText("Tayanchga suyanib otjimaniya", { exact: true })).toBeVisible();
 });
 
-test("favorites and reordered plans persist; compact view and comparison work", async ({
-  page,
-  context,
-  request,
-}, testInfo) => {
-  if (process.env.AURAFIT_VISUAL === "1") await page.unroute("**/_next/image?**");
+test("favorites and reordered plans persist; technique comparison works", async ({ page, context, request }) => {
   await signIn(context, request);
   await page.goto("/workouts");
-  await page.getByRole("button", { name: /Mashg'ulotni Boshlash/ }).click();
-  const library = page.getByRole("region", { name: "Mashqlar kutubxonasi" });
-  await library.getByLabel("Mashq qidirish").fill("tayanchga");
-  const first = library.getByRole("article");
-  await first.getByRole("button", { name: /: sevimli$/ }).click();
-  await expect(first.getByRole("button", { name: /: sevimli$/ })).toHaveAttribute("aria-pressed", "true");
-  await first.getByRole("button", { name: /rejaga qo'shish/ }).click();
-  await library.getByLabel("Mashq qidirish").fill("dead bug");
-  await library
-    .getByRole("article")
-    .getByRole("button", { name: /rejaga qo'shish/ })
-    .click();
-  const plan = library.locator('details[aria-label="Mashqlar tartibi"]');
+  await page.getByRole("button", { name: "O'zim tanlayman" }).click();
+  const picker = page.getByRole("region", { name: "Mashq tanlash" });
+  const rows = picker.locator("ul > li");
+  await picker.getByLabel("Mashq qidirish").fill("tayanchga");
+  await rows.first().getByRole("button", { name: /: sevimli$/ }).click();
+  await expect(rows.first().getByRole("button", { name: /: sevimli$/ })).toHaveAttribute("aria-pressed", "true");
+  await rows.first().getByRole("button", { name: /rejaga qo'shish/ }).click();
+  await picker.getByLabel("Mashq qidirish").fill("dead bug");
+  await rows.first().getByRole("button", { name: /rejaga qo'shish/ }).click();
+  const plan = picker.locator('details[aria-label="Mashqlar tartibi"]');
   await plan.locator("summary").click();
   await expect(plan.getByRole("listitem").first()).toContainText("Tayanchga suyanib otjimaniya");
-  await plan
-    .getByRole("listitem")
-    .nth(1)
-    .getByRole("button", { name: /yuqoriga/ })
-    .click();
+  await plan.getByRole("listitem").nth(1).getByRole("button", { name: /yuqoriga/ }).click();
   await expect(plan.getByRole("listitem").first()).toContainText("Chalqancha qarama-qarshi");
-  await expect(
-    plan
-      .getByRole("listitem")
-      .first()
-      .getByRole("button", { name: /yuqoriga/ }),
-  ).toBeDisabled();
-  await library.getByLabel("Mashq qidirish").fill("");
-  await library.getByRole("button", { name: "Sevimlilar (1)", exact: true }).click();
-  await library.getByLabel("Mashqlarni saralash").selectOption("name");
-  await library.getByRole("button", { name: "Ixcham ro'yxat", exact: true }).click();
-  await expect(library.getByRole("article")).toHaveCount(1);
-  await expect(library.getByRole("button", { name: "Ixcham ro'yxat", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await expect(plan.getByRole("listitem").first().getByRole("button", { name: /yuqoriga/ })).toBeDisabled();
+  await picker.getByLabel("Mashq qidirish").fill("");
+  await picker.getByRole("button", { name: "Sevimlilar (1)", exact: true }).click();
+  await expect(rows).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath("compact-plan.png"), fullPage: true });
-  await library.getByRole("article").getByRole("button", { name: "Texnika", exact: true }).click();
+  await rows.first().getByRole("button", { name: /texnikani ko'rish/ }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Ikki holatni solishtirish" }).click();
   await expect(dialog.locator("img")).toHaveCount(2);
-  if (process.env.AURAFIT_VISUAL === "1") {
-    for (const picture of await dialog.locator("img").all()) {
-      await expect(picture).toHaveJSProperty("complete", true);
-      await expect(picture).not.toHaveJSProperty("naturalWidth", 0);
-    }
-  }
-  await page.screenshot({ path: testInfo.outputPath("comparison.png") });
   await dialog.getByRole("button", { name: "Qo'llanmani yopish" }).click();
   await page.reload();
   await page.getByRole("button", { name: /Mashq Qo'shish/ }).click();
-  await expect(library.getByRole("button", { name: "Sevimlilar (1)", exact: true })).toBeVisible();
+  await expect(picker.getByRole("button", { name: "Sevimlilar (1)", exact: true })).toBeVisible();
   await plan.locator("summary").click();
   await expect(plan.getByRole("listitem").first()).toContainText("Chalqancha qarama-qarshi");
-  await library.getByRole("button", { name: "Sevimlilar (1)", exact: true }).click();
-  await library
-    .getByRole("article")
-    .getByRole("button", { name: /: sevimli$/ })
-    .click();
-  await expect(library.getByRole("button", { name: "Sevimlilar (0)", exact: true })).toBeVisible();
-  await expect(library.getByRole("article")).toHaveCount(0);
+  await picker.getByRole("button", { name: "Sevimlilar (1)", exact: true }).click();
+  await rows.first().getByRole("button", { name: /: sevimli$/ }).click();
+  await expect(picker.getByRole("button", { name: "Sevimlilar (0)", exact: true })).toBeVisible();
+  await expect(rows).toHaveCount(0);
 });

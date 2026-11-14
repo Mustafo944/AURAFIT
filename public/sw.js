@@ -1,4 +1,4 @@
-const CACHE_NAME = "aurafit-v7";
+const CACHE_NAME = "aurafit-v8";
 const STATIC_ASSETS = [
   "/offline.html",
   "/manifest.json",

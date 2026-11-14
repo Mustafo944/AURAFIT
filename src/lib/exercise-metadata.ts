@@ -16,6 +16,17 @@ export const MUSCLE_GROUPS: MuscleGroupInfo[] = [
   { id: "abs", label: "Pres mashqlari", icon: "self_improvement" },
 ];
 
+// Qisqa nomlar — chip, sarlavha va qidiruv uchun ("Ko'krak mashqlari" o'rniga "Ko'krak").
+export const MUSCLE_SHORT_LABELS: Record<MuscleGroupId, string> = {
+  chest: "Ko'krak",
+  back: "Qanot",
+  shoulders: "Yelka",
+  biceps: "Biseps",
+  triceps: "Triseps",
+  legs: "Oyoq va dumba",
+  abs: "Qorin",
+};
+
 export type Equipment = "barbell" | "dumbbell" | "cable" | "machine" | "bodyweight" | "ez-bar";
 
 export const EQUIPMENT_LABELS: Record<Equipment, string> = {

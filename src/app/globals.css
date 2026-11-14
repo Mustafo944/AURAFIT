@@ -160,6 +160,15 @@ input[type="number"]::-webkit-inner-spin-button {
   font-weight: 700;
 }
 
+/* Telefonda pastki menyu va yopishqoq panellar (jami ~9rem) tugma va maydonlarni
+   yopib qo'ymasligi uchun: brauzer elementni ko'rinishga keltirganda (fokus,
+   scrollIntoView) shu masofani qoldiradi. */
+@media (max-width: 767px) {
+  html {
+    scroll-padding-bottom: calc(9rem + env(safe-area-inset-bottom));
+  }
+}
+
 @layer utilities {
   /* backdrop-filter har scroll kadrida GPU'da qayta hisoblanadi — sahifada
      5-8 ta karta bo'lganda telefonlarda scroll qotishining (jank) asosiy

@@ -526,3 +526,51 @@ test("auth callback only redirects to same-site paths", () => {
   ])
     assert.equal(safeNextPath(bad), "/", bad);
 });
+
+test("workout programs use catalog exercises; repeat and recent helpers behave", () => {
+  const exercises = load("src/lib/exercises.ts");
+  const programs = load("src/lib/workout-programs.ts", {
+    "@/lib/exercises": exercises,
+    "@/lib/date-key": load("src/lib/date-key.ts"),
+  });
+  const catalog = new Set(exercises.EXERCISES.map((exercise) => exercise.id));
+  for (const program of programs.WORKOUT_PROGRAMS) {
+    assert.ok(program.exerciseIds.length >= 4, program.id);
+    assert.equal(new Set(program.exerciseIds).size, program.exerciseIds.length, `${program.id}: duplicates`);
+    for (const id of program.exerciseIds) assert.ok(catalog.has(id), `${program.id}: ${id}`);
+    assert.equal(programs.resolveExercises(program.exerciseIds).length, program.exerciseIds.length);
+  }
+  assert.deepEqual(
+    Array.from(programs.resolveExercises(["Barbell_Squat", "removed-exercise", "Barbell_Squat"]), (e) => e.id),
+    ["Barbell_Squat"],
+  );
+  const session = (finishedAt, list) => ({
+    finishedAt,
+    exercises: list.map(([exerciseId, muscleGroup, sets]) => ({
+      exerciseId,
+      muscleGroup,
+      sets: Array.from({ length: sets }, () => ({})),
+    })),
+  });
+  const old = session("2026-10-01T10:00:00Z", [["Barbell_Squat", "legs", 3]]);
+  const chest = session("2026-10-05T10:00:00Z", [
+    ["Barbell_Bench_Press_-_Medium_Grip", "chest", 4],
+    ["Triceps_Pushdown", "triceps", 3],
+    ["Crunches", "abs", 1],
+  ]);
+  const unknownOnly = session("2026-10-09T10:00:00Z", [["removed-exercise", "chest", 2]]);
+  assert.equal(programs.lastRepeatableSession([old, chest, unknownOnly]), chest);
+  assert.equal(programs.lastRepeatableSession([unknownOnly]), null);
+  assert.equal(programs.sessionTitle(chest), "Ko'krak + Triseps");
+  assert.equal(programs.sessionTitle(session("2026-10-09T10:00:00Z", [])), "Mashg'ulot");
+  assert.deepEqual(Array.from(programs.recentExerciseIds([old, chest])), [
+    "Barbell_Bench_Press_-_Medium_Grip",
+    "Triceps_Pushdown",
+    "Crunches",
+    "Barbell_Squat",
+  ]);
+  const now = new Date(2026, 9, 10, 9);
+  assert.equal(programs.daysAgoLabel(new Date(2026, 9, 10, 1).toISOString(), now), "bugun");
+  assert.equal(programs.daysAgoLabel(new Date(2026, 9, 9, 23).toISOString(), now), "kecha");
+  assert.equal(programs.daysAgoLabel(new Date(2026, 9, 5, 12).toISOString(), now), "5 kun oldin");
+});

@@ -2,11 +2,15 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useWorkoutSession } from "@/context/workout-session-context";
-import { ExerciseImage } from "@/components/workout/exercise-image";
 import { ExerciseDetails } from "@/components/workout/exercise-details";
+import { ExerciseRow } from "@/components/workout/exercise-row";
+import { ExercisePlan } from "@/components/workout/exercise-plan";
+import { ExerciseIcon } from "@/components/workout/exercise-icon";
+import { MuscleIcon } from "@/components/workout/muscle-icon";
 import {
   EXERCISES,
   MUSCLE_GROUPS,
+  MUSCLE_SHORT_LABELS,
   EQUIPMENT_LABELS,
   LEVEL_LABELS,
   type Equipment,
@@ -14,15 +18,10 @@ import {
   type Exercise,
   type MuscleGroupId,
 } from "@/lib/exercises";
-
-import { ExerciseCard } from "@/components/workout/exercise-card";
-import { ExercisePlan } from "@/components/workout/exercise-plan";
-import { ExerciseIcon } from "@/components/workout/exercise-icon";
-import { MuscleIcon } from "@/components/workout/muscle-icon";
 import { useFavoriteExercises } from "@/lib/saved-items";
-import styles from "./exercise-library.module.css";
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 30;
+
 const normalize = (text: string) =>
   text
     .toLowerCase()
@@ -30,15 +29,6 @@ const normalize = (text: string) =>
     .replace(/[-_]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-const SHORT_LABELS: Record<MuscleGroupId, string> = {
-  chest: "Ko'krak",
-  back: "Qanot",
-  shoulders: "Yelka",
-  biceps: "Biseps",
-  triceps: "Triseps",
-  legs: "Oyoq va dumba",
-  abs: "Qorin",
-};
 
 // Har bir renderda 137 ta mashq matnini regex bilan qayta normallashtirmaslik
 // uchun qidiruv indeksini bir marta hisoblab olamiz.
@@ -46,43 +36,38 @@ const EXERCISE_SEARCH_INDEX = new Map<string, string>(
   EXERCISES.map((exercise) => [
     exercise.id,
     normalize(
-      `${exercise.name} ${exercise.englishName} ${SHORT_LABELS[exercise.muscleGroup]} ${MUSCLE_GROUPS.find((item) => item.id === exercise.muscleGroup)?.label ?? ""} ${EQUIPMENT_LABELS[exercise.equipment]}`,
+      `${exercise.name} ${exercise.englishName} ${MUSCLE_SHORT_LABELS[exercise.muscleGroup]} ${
+        MUSCLE_GROUPS.find((item) => item.id === exercise.muscleGroup)?.label ?? ""
+      } ${EQUIPMENT_LABELS[exercise.equipment]}`,
     ),
   ]),
 );
 
-export function ExercisePicker({ onDone }: { onDone: () => void }) {
-  const { activeSession, addExercises, removeExercise } = useWorkoutSession();
+const chipBase =
+  "flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px] whitespace-nowrap transition-colors";
+const chipOn = "border-primary-container bg-primary-container text-on-primary-container font-semibold";
+const chipOff = "border-white/10 bg-white/5 text-on-surface-variant hover:text-primary";
+
+// Mashq tanlash: qidiruv + mushak chiplari + ixcham ro'yxat. Bitta ekranga 6-7 ta
+// mashq sig'adi; qator yoki "+" bosilsa mashq rejaga qo'shiladi. Pastdagi panel
+// doim ko'rinadi.
+export function ExercisePicker({ onDone, recentIds }: { onDone: () => void; recentIds: string[] }) {
+  const { activeSession, addExercises, removeExercise, discardSession } = useWorkoutSession();
   const { items: favorites, loading: favoritesLoading, save: saveFavorites } = useFavoriteExercises();
   const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [recentOnly, setRecentOnly] = useState(false);
+  const [selectedOnly, setSelectedOnly] = useState(false);
   const [favoriteBusy, setFavoriteBusy] = useState(false);
   const favoriteLock = useRef(false);
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
-  const [compact, setCompact] = useState(false);
-  const [sort, setSort] = useState("catalog");
-  const toggleFavorite = async (id: string) => {
-    if (favoriteLock.current || favoritesLoading) return;
-    favoriteLock.current = true;
-    setFavoriteBusy(true);
-    setFavoriteError(null);
-    try {
-      await saveFavorites(
-        favorites.includes(id) ? favorites.filter((item) => item !== id) : [...favorites, id],
-      );
-    } catch {
-      setFavoriteError("Sevimlilarga saqlanmadi. Qayta urinib ko'ring.");
-    } finally {
-      favoriteLock.current = false;
-      setFavoriteBusy(false);
-    }
-  };
   const [group, setGroup] = useState<MuscleGroupId | "all">("all");
   const [equipment, setEquipment] = useState<Equipment | "all">("all");
   const [level, setLevel] = useState<Level | "all">("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [selectedOnly, setSelectedOnly] = useState(false);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [detail, setDetail] = useState<Exercise | null>(null);
+
   const selected = useMemo(
     () => new Set(activeSession?.exercises.map((exercise) => exercise.exerciseId) ?? []),
     [activeSession?.exercises],
@@ -90,15 +75,17 @@ export function ExercisePicker({ onDone }: { onDone: () => void }) {
   const locked = useMemo(
     () =>
       new Set(
-        activeSession?.exercises
-          .filter((exercise) => exercise.sets.length > 0)
-          .map((exercise) => exercise.exerciseId) ?? [],
+        activeSession?.exercises.filter((exercise) => exercise.sets.length > 0).map((exercise) => exercise.exerciseId) ??
+          [],
       ),
     [activeSession?.exercises],
   );
+  const recent = useMemo(() => new Set(recentIds), [recentIds]);
+  const hasLoggedSets = locked.size > 0;
+
   const filtered = useMemo(() => {
     const tokens = normalize(query).split(" ").filter(Boolean);
-    const result = EXERCISES.filter((exercise) => {
+    return EXERCISES.filter((exercise) => {
       const text = EXERCISE_SEARCH_INDEX.get(exercise.id) ?? "";
       return (
         (group === "all" || exercise.muscleGroup === group) &&
@@ -106,122 +93,77 @@ export function ExercisePicker({ onDone }: { onDone: () => void }) {
         (level === "all" || exercise.level === level) &&
         (!selectedOnly || selected.has(exercise.id)) &&
         (!favoriteOnly || favorites.includes(exercise.id)) &&
+        (!recentOnly || recent.has(exercise.id)) &&
         tokens.every((token) => text.includes(token))
       );
     });
+  }, [query, group, equipment, level, selectedOnly, selected, favoriteOnly, favorites, recentOnly, recent]);
 
-    if (sort === "name") {
-      return [...result].sort((a, b) => a.name.localeCompare(b.name, "uz"));
-    }
-    if (sort === "level") {
-      const rank = { beginner: 0, intermediate: 1, expert: 2 };
-      return [...result].sort((a, b) => rank[a.level] - rank[b.level]);
-    }
-    return result;
-  }, [query, group, equipment, level, selectedOnly, selected, favoriteOnly, favorites, sort]);
-  const featured = EXERCISES.find((exercise) => exercise.muscleGroup === group) ?? EXERCISES[0];
-  const reset = () => {
+  const activeFilterCount = Number(equipment !== "all") + Number(level !== "all");
+  const filtersActive =
+    group !== "all" || activeFilterCount > 0 || query !== "" || selectedOnly || favoriteOnly || recentOnly;
+
+  const resetFilters = () => {
     setFavoriteOnly(false);
+    setRecentOnly(false);
+    setSelectedOnly(false);
     setGroup("all");
     setEquipment("all");
     setLevel("all");
     setQuery("");
-    setSelectedOnly(false);
     setLimit(PAGE_SIZE);
   };
+  // Filtr o'zgarsa ro'yxat boshidan boshlanadi.
+  const withReset = <T,>(setter: (value: T) => void) => (value: T) => {
+    setter(value);
+    setLimit(PAGE_SIZE);
+  };
+
   const toggle = (exercise: Exercise) => {
     if (locked.has(exercise.id)) return;
     if (selected.has(exercise.id)) removeExercise(exercise.id);
     else addExercises([exercise]);
   };
-  const filteredActive =
-    group !== "all" || equipment !== "all" || level !== "all" || query !== "" || selectedOnly || favoriteOnly;
+  const toggleFavorite = async (id: string) => {
+    if (favoriteLock.current || favoritesLoading) return;
+    favoriteLock.current = true;
+    setFavoriteBusy(true);
+    setFavoriteError(null);
+    try {
+      await saveFavorites(favorites.includes(id) ? favorites.filter((item) => item !== id) : [...favorites, id]);
+    } catch {
+      setFavoriteError("Sevimlilarga saqlanmadi. Qayta urinib ko'ring.");
+    } finally {
+      favoriteLock.current = false;
+      setFavoriteBusy(false);
+    }
+  };
 
   return (
-    <section aria-label="Mashqlar kutubxonasi" className={styles.library}>
-      <header className={styles.hero}>
-        <div>
-          <p className={styles.eyebrow}>AuraFit / Mashqlar kutubxonasi</p>
-          <h2 className={styles.title}>
-            Mashqingizni toping.
-            <br />
-            <span>Rejangizni yarating.</span>
-          </h2>
-          <p className={styles.description}>
-            Har bir mashq uchun aniq ko&apos;rsatmalar. O&apos;zingizga mosini tanlang va harakatni boshlang.
-          </p>
-          <div className={styles.stats}>
-            <div>
-              <strong>{EXERCISES.length}</strong>ta mashq
-            </div>
-            <div>
-              <strong>{MUSCLE_GROUPS.length}</strong>mushak guruhi
-            </div>
-            <div>
-              <strong>{selected.size.toString().padStart(2, "0")}</strong>rejangizda
-            </div>
-          </div>
+    <section aria-label="Mashq tanlash" className="rounded-2xl border border-white/10 bg-[#121815]">
+      <div className="sticky top-[calc(4.25rem+env(safe-area-inset-top))] z-20 space-y-3 rounded-t-2xl border-b border-white/10 bg-[#121815]/95 p-3 backdrop-blur-xl md:top-0">
+        <div className="flex items-center justify-between gap-3 px-1">
+          <h2 className="font-headline-md text-[20px] uppercase italic text-primary">Mashq tanlash</h2>
+          {!hasLoggedSets && (
+            <button
+              type="button"
+              onClick={discardSession}
+              className="font-label-mono text-[11px] uppercase text-on-surface-variant underline underline-offset-4 hover:text-error"
+            >
+              Bekor qilish
+            </button>
+          )}
         </div>
-        <div className={styles.poster}>
-          <ExerciseImage eager key={featured.id} exercise={featured} sizes="(max-width: 640px) 0px, 320px" />
-          <div className={styles.posterLabel}>
-            <span>Texnikani o&apos;rganing · ongli mashq qiling</span>
-            {featured.name}
-          </div>
-        </div>
-      </header>
 
-      <div className="grid lg:grid-cols-[190px_minmax(0,1fr)]">
-        <aside className="min-w-0 border-b border-white/10 p-4 lg:border-b-0 lg:border-r lg:p-5">
-          <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant">
-            Mushak guruhi
-          </p>
-          <div
-            className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible"
-            role="group"
-            aria-label="Mushak guruhi"
-          >
-            {(
-              [
-                { id: "all", label: "Barchasi", icon: "grid_view" },
-                ...MUSCLE_GROUPS.map((item) => ({ ...item, label: SHORT_LABELS[item.id] })),
-              ] as const
-            ).map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                aria-pressed={group === item.id}
-                onClick={() => {
-                  setGroup(item.id as MuscleGroupId | "all");
-                  setLimit(PAGE_SIZE);
-                }}
-                className={`flex min-h-11 shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${group === item.id ? "bg-primary-container font-semibold text-on-primary-container" : "text-on-surface-variant hover:bg-white/5"}`}
-              >
-                <MuscleIcon group={item.id as MuscleGroupId | "all"} size={22} />
-                <span>{item.label}</span>
-                <span className="ml-auto hidden pl-1 text-[10px] opacity-60 lg:inline">
-                  {item.id === "all"
-                    ? EXERCISES.length
-                    : EXERCISES.filter((exercise) => exercise.muscleGroup === item.id).length}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="mt-6 hidden rounded-xl border border-white/10 p-3 text-xs leading-relaxed text-on-surface-variant lg:block">
-            Kartochkadagi <span className="text-primary">Texnika</span> tugmasi rasmlar va bajarish
-            bosqichlarini ochadi.
-          </div>
-        </aside>
-
-        <div className="min-w-0 p-4 md:p-6">
-          <div className="relative">
+        <div className="flex gap-2">
+          <div className="relative min-w-0 flex-1">
             <svg
               aria-hidden="true"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.8"
-              className="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-on-surface-variant"
+              className="pointer-events-none absolute left-3.5 top-3 h-5 w-5 text-on-surface-variant"
             >
               <circle cx="10.5" cy="10.5" r="6.5" />
               <path d="m16 16 4.5 4.5" strokeLinecap="round" />
@@ -229,28 +171,43 @@ export function ExercisePicker({ onDone }: { onDone: () => void }) {
             <input
               type="search"
               value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setLimit(PAGE_SIZE);
-              }}
+              onChange={(event) => withReset(setQuery)(event.target.value)}
               aria-label="Mashq qidirish"
-              placeholder="Mashq nomi: otjimaniya, gantel, squat..."
-              className="min-h-12 w-full rounded-xl border border-white/15 bg-black/20 py-3 pl-12 pr-4 text-sm text-white outline-none focus:border-primary"
+              placeholder="Qidirish: zhim, skvot, gantel..."
+              className="h-11 w-full rounded-xl border border-white/15 bg-black/30 pl-11 pr-3 text-sm text-white outline-none focus:border-primary"
             />
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <label className="text-xs text-on-surface-variant">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+            aria-label="Jihoz va daraja filtrlari"
+            className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${
+              filtersOpen || activeFilterCount > 0
+                ? "border-primary-container bg-primary-container/15 text-primary-fixed-dim"
+                : "border-white/15 text-on-surface-variant"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[22px]">tune</span>
+            {activeFilterCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary-container font-label-mono text-[9px] text-on-primary-container">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {filtersOpen && (
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-[11px] text-on-surface-variant">
               Jihoz
               <select
                 aria-label="Jihoz"
                 value={equipment}
-                onChange={(event) => {
-                  setEquipment(event.target.value as Equipment | "all");
-                  setLimit(PAGE_SIZE);
-                }}
-                className="mt-1.5 min-h-11 w-full rounded-xl border border-white/10 bg-[#202621] px-3 text-sm text-white"
+                onChange={(event) => withReset(setEquipment)(event.target.value as Equipment | "all")}
+                className="mt-1 h-11 w-full rounded-xl border border-white/10 bg-[#202621] px-3 text-sm text-white"
               >
-                <option value="all">Barcha jihozlar</option>
+                <option value="all">Barchasi</option>
                 {Object.entries(EQUIPMENT_LABELS).map(([id, label]) => (
                   <option key={id} value={id}>
                     {label}
@@ -258,18 +215,15 @@ export function ExercisePicker({ onDone }: { onDone: () => void }) {
                 ))}
               </select>
             </label>
-            <label className="text-xs text-on-surface-variant">
-              Tajriba darajasi
+            <label className="text-[11px] text-on-surface-variant">
+              Daraja
               <select
-                aria-label="Tajriba darajasi"
+                aria-label="Daraja"
                 value={level}
-                onChange={(event) => {
-                  setLevel(event.target.value as Level | "all");
-                  setLimit(PAGE_SIZE);
-                }}
-                className="mt-1.5 min-h-11 w-full rounded-xl border border-white/10 bg-[#202621] px-3 text-sm text-white"
+                onChange={(event) => withReset(setLevel)(event.target.value as Level | "all")}
+                className="mt-1 h-11 w-full rounded-xl border border-white/10 bg-[#202621] px-3 text-sm text-white"
               >
-                <option value="all">Barcha darajalar</option>
+                <option value="all">Barchasi</option>
                 {Object.entries(LEVEL_LABELS).map(([id, label]) => (
                   <option key={id} value={id}>
                     {label}
@@ -278,155 +232,144 @@ export function ExercisePicker({ onDone }: { onDone: () => void }) {
               </select>
             </label>
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
-            <button
-              type="button"
-              aria-pressed={favoriteOnly}
-              onClick={() => {
-                setFavoriteOnly(!favoriteOnly);
-                setLimit(PAGE_SIZE);
-              }}
-              className={`flex min-h-10 items-center gap-2 rounded-full px-3 text-xs ${favoriteOnly ? "bg-primary/15 text-primary" : "bg-white/5 text-on-surface-variant"}`}
-            >
-              <ExerciseIcon name="heart" width="15" height="15" />
-              Sevimlilar ({favorites.length})
-            </button>
-            <div className="flex items-center gap-2">
-              <select
-                aria-label="Mashqlarni saralash"
-                value={sort}
-                onChange={(event) => {
-                  setSort(event.target.value);
-                  setLimit(PAGE_SIZE);
-                }}
-                className="min-h-10 max-w-36 rounded-lg border border-white/10 bg-[#202621] px-2 text-xs text-on-surface-variant"
-              >
-                <option value="catalog">Katalog tartibi</option>
-                <option value="name">Nomi bo&apos;yicha</option>
-                <option value="level">Osondan qiyinga</option>
-              </select>
-              <div
-                className="flex rounded-lg border border-white/10 p-1"
-                role="group"
-                aria-label="Katalog ko'rinishi"
-              >
-                <button
-                  type="button"
-                  aria-label="Kartochkalar"
-                  aria-pressed={!compact}
-                  onClick={() => setCompact(false)}
-                  className={`flex h-9 w-9 items-center justify-center rounded-md ${!compact ? "bg-white/10 text-primary" : "text-on-surface-variant"}`}
-                >
-                  <ExerciseIcon name="grid" width="16" height="16" />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Ixcham ro'yxat"
-                  aria-pressed={compact}
-                  onClick={() => setCompact(true)}
-                  className={`flex h-9 w-9 items-center justify-center rounded-md ${compact ? "bg-white/10 text-primary" : "text-on-surface-variant"}`}
-                >
-                  <ExerciseIcon name="list" width="18" height="18" />
-                </button>
-              </div>
-            </div>
-          </div>
-          {favoriteError && (
-            <p role="alert" className="mt-3 text-sm text-error">
-              {favoriteError}
-            </p>
-          )}
-          {favoriteOnly && (
-            <p className="mt-3 text-xs text-on-surface-variant">
-              Sevimlilar shu qurilmada, hisobingiz uchun saqlanadi.
-            </p>
-          )}
-          <div className="my-5 flex flex-wrap items-center justify-between gap-3">
-            <p role="status" className="text-sm text-on-surface-variant">
-              <strong className="text-white">{filtered.length}</strong> ta mashq topildi
-            </p>
-            <div className="flex flex-wrap items-center gap-3">
-              {filteredActive && (
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="min-h-10 text-xs text-on-surface-variant underline underline-offset-4"
-                >
-                  Filtrlarni tozalash
-                </button>
-              )}
-              <button
-                type="button"
-                aria-pressed={selectedOnly}
-                onClick={() => {
-                  setSelectedOnly(!selectedOnly);
-                  setLimit(PAGE_SIZE);
-                }}
-                className={`min-h-10 rounded-full border px-3 text-xs ${selectedOnly ? "border-primary text-primary" : "border-white/15 text-on-surface-variant"}`}
-              >
-                Tanlanganlar ({selected.size})
-              </button>
-            </div>
-          </div>
+        )}
 
-          {filtered.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/15 px-6 py-14 text-center">
-              <p className="text-lg font-semibold">Mos mashq topilmadi</p>
-              <p className="mt-2 text-sm text-on-surface-variant">
-                Qidiruv so&apos;zini yoki tanlangan filtrlarni o&apos;zgartiring.
-              </p>
-              <button
-                type="button"
-                onClick={reset}
-                className="mt-5 rounded-xl bg-primary/10 px-5 py-3 text-sm text-primary"
-              >
-                Barcha mashqlarni ko&apos;rish
-              </button>
-            </div>
-          ) : (
-            <div className={compact ? "grid gap-3" : "grid gap-4 sm:grid-cols-2 2xl:grid-cols-3"}>
-              {filtered.slice(0, limit).map((exercise) => (
-                <ExerciseCard
-                  key={exercise.id}
-                  exercise={exercise}
-                  compact={compact}
-                  favorite={favorites.includes(exercise.id)}
-                  favoriteDisabled={favoriteBusy || favoritesLoading}
-                  onFavorite={() => void toggleFavorite(exercise.id)}
-                  selected={selected.has(exercise.id)}
-                  locked={locked.has(exercise.id)}
-                  onToggle={() => toggle(exercise)}
-                  onDetails={() => setDetail(exercise)}
-                />
-              ))}
-            </div>
-          )}
-          {filtered.length > limit && (
+        <div
+          className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 [scrollbar-width:none]"
+          role="group"
+          aria-label="Mushak guruhi"
+        >
+          <button
+            type="button"
+            aria-pressed={group === "all"}
+            onClick={() => withReset(setGroup)("all")}
+            className={`${chipBase} ${group === "all" ? chipOn : chipOff}`}
+          >
+            Barchasi
+          </button>
+          {MUSCLE_GROUPS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={group === item.id}
+              onClick={() => withReset(setGroup)(item.id)}
+              className={`${chipBase} ${group === item.id ? chipOn : chipOff}`}
+            >
+              <MuscleIcon group={item.id} size={18} />
+              {MUSCLE_SHORT_LABELS[item.id]}
+            </button>
+          ))}
+        </div>
+        <div className="-mx-3 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none]" role="group" aria-label="Ro'yxat turi">
+          {recent.size > 0 && (
             <button
               type="button"
-              onClick={() => setLimit(limit + PAGE_SIZE)}
-              className="mt-5 min-h-12 w-full rounded-xl border border-white/15 text-sm text-on-surface-variant hover:border-primary/50"
+              aria-pressed={recentOnly}
+              onClick={() => withReset(setRecentOnly)(!recentOnly)}
+              className={`${chipBase} ${recentOnly ? chipOn : chipOff}`}
             >
-              Yana {Math.min(PAGE_SIZE, filtered.length - limit)} ta mashqni ko&apos;rsatish
+              <span className="material-symbols-outlined text-[16px]">history</span>
+              Oxirgilar ({recent.size})
             </button>
           )}
+          <button
+            type="button"
+            aria-pressed={favoriteOnly}
+            onClick={() => withReset(setFavoriteOnly)(!favoriteOnly)}
+            className={`${chipBase} ${favoriteOnly ? chipOn : chipOff}`}
+          >
+            <ExerciseIcon name="heart" width="15" height="15" />
+            Sevimlilar ({favorites.length})
+          </button>
+          <button
+            type="button"
+            aria-pressed={selectedOnly}
+            onClick={() => withReset(setSelectedOnly)(!selectedOnly)}
+            className={`${chipBase} ${selectedOnly ? chipOn : chipOff}`}
+          >
+            <ExerciseIcon name="check" width="15" height="15" />
+            Tanlanganlar ({selected.size})
+          </button>
         </div>
       </div>
-      <ExercisePlan />
-      <div className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-20 flex items-center justify-between gap-2 rounded-b-3xl border-t border-white/15 bg-[#20281f]/95 p-4 backdrop-blur-xl md:bottom-0 md:px-6">
-        <div>
-          <p className="text-sm font-semibold text-white">{selected.size} ta mashq tanlandi</p>
-          <p className="mt-1 text-[11px] text-on-surface-variant">Rejangiz saqlanadi.</p>
+
+      <div className="p-3">
+        <div className="mb-3 flex items-center justify-between gap-3 px-1">
+          <p role="status" className="text-[13px] text-on-surface-variant">
+            <strong className="text-white">{filtered.length}</strong> ta mashq
+          </p>
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="text-xs text-on-surface-variant underline underline-offset-4"
+            >
+              Filtrlarni tozalash
+            </button>
+          )}
         </div>
+        {favoriteError && (
+          <p role="alert" className="mb-3 text-sm text-error">
+            {favoriteError}
+          </p>
+        )}
+
+        {filtered.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-white/15 px-6 py-12 text-center">
+            <p className="text-lg font-semibold">Mos mashq topilmadi</p>
+            <p className="mt-2 text-sm text-on-surface-variant">
+              Qidiruv so&apos;zini yoki tanlangan filtrlarni o&apos;zgartiring.
+            </p>
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="mt-5 rounded-xl bg-primary/10 px-5 py-3 text-sm text-primary"
+            >
+              Barcha mashqlarni ko&apos;rish
+            </button>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {filtered.slice(0, limit).map((exercise) => (
+              <ExerciseRow
+                key={exercise.id}
+                exercise={exercise}
+                selected={selected.has(exercise.id)}
+                locked={locked.has(exercise.id)}
+                favorite={favorites.includes(exercise.id)}
+                favoriteDisabled={favoriteBusy || favoritesLoading}
+                onToggle={() => toggle(exercise)}
+                onFavorite={() => void toggleFavorite(exercise.id)}
+                onDetails={() => setDetail(exercise)}
+              />
+            ))}
+          </ul>
+        )}
+        {filtered.length > limit && (
+          <button
+            type="button"
+            onClick={() => setLimit(limit + PAGE_SIZE)}
+            className="mt-3 h-12 w-full rounded-xl border border-white/15 text-sm text-on-surface-variant hover:border-primary/50"
+          >
+            Yana {Math.min(PAGE_SIZE, filtered.length - limit)} ta mashqni ko&apos;rsatish
+          </button>
+        )}
+      </div>
+
+      <ExercisePlan />
+
+      <div className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-20 flex items-center justify-between gap-3 rounded-b-2xl border-t border-white/15 bg-[#20281f]/95 p-3 backdrop-blur-xl md:bottom-0">
+        <p className="pl-1 text-sm font-semibold text-white">{selected.size} ta mashq tanlandi</p>
         <button
           type="button"
           aria-label={selected.size ? "Mashg'ulotga o'tish" : "Keyinroq tanlash"}
           onClick={onDone}
-          className="min-h-12 shrink-0 rounded-xl bg-primary-container px-5 py-3 text-sm font-semibold text-on-primary-container hover:bg-primary-fixed"
+          className="h-12 shrink-0 rounded-xl bg-primary-container px-6 text-sm font-semibold text-on-primary-container hover:bg-primary-fixed"
         >
-          {selected.size ? "Tayyor →" : "Keyinroq"}
+          {selected.size ? "Boshlash →" : "Keyinroq"}
         </button>
       </div>
+
       {detail && (
         <ExerciseDetails
           exercise={detail}

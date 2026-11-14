@@ -2,6 +2,18 @@ import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
 
+// Supabase manzili muhit o'zgaruvchisidan olinadi: shunda maxsus domen, lokal
+// Supabase yoki E2E test serveri ham CSP tomonidan bloklanmaydi.
+function originOf(value: string | undefined): string | null {
+  try {
+    return value ? new URL(value).origin : null;
+  } catch {
+    return null;
+  }
+}
+const supabaseOrigin = originOf(process.env.NEXT_PUBLIC_SUPABASE_URL);
+const supabaseRealtime = supabaseOrigin?.replace(/^http/, "ws") ?? null;
+
 // Content-Security-Policy: faqat o'z domenimiz, Supabase va mashq rasmlari manbalariga ruxsat.
 // Next.js sahifa ichiga inline skript qo'yadi (nonce'siz), shu sabab script-src'da
 // 'unsafe-inline' kerak; dev rejimida HMR uchun 'unsafe-eval' va ws ham qo'shiladi.
@@ -9,9 +21,13 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://raw.githubusercontent.com https://*.supabase.co https://lh3.googleusercontent.com",
+  ["img-src 'self' data: blob: https://raw.githubusercontent.com https://lh3.googleusercontent.com", supabaseOrigin]
+    .filter(Boolean)
+    .join(" "),
   "font-src 'self' data:",
-  `connect-src 'self' https://*.supabase.co wss://*.supabase.co${isProduction ? "" : " ws: wss:"}`,
+  ["connect-src 'self'", supabaseOrigin, supabaseRealtime, isProduction ? null : "ws: wss:"]
+    .filter(Boolean)
+    .join(" "),
   "worker-src 'self'",
   "manifest-src 'self'",
   "object-src 'none'",

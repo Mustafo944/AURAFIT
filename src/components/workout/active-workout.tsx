@@ -3,6 +3,7 @@
 import { WorkoutHud } from "@/components/workout/workout-hud";
 import { CollapsiblePanel } from "@/components/collapsible-panel";
 import { parseTargetSets, restSecondsFor, setVolume } from "@/lib/workout-rows";
+import { recentExerciseIds } from "@/lib/workout-programs";
 import { useMemo, useState } from "react";
 import { useWorkoutSession } from "@/context/workout-session-context";
 import { getPersonalRecords } from "@/lib/personal-records";
@@ -41,6 +42,7 @@ export function ActiveWorkout({
   // Tarixiy rekordlar bir marta hisoblanadi — har podxod kiritilishida
   // qatorlar 80 ta mashq bo'ylab qayta izlanmasin.
   const records = useMemo(() => getPersonalRecords(sessions), [sessions]);
+  const recentIds = useMemo(() => recentExerciseIds(sessions), [sessions]);
 
   const [cardioOpen, setCardioOpen] = useState(false);
   // null — avtomatik (birinchi tugallanmagan mashq ochiq); "" — hammasi yopiq;
@@ -77,7 +79,7 @@ export function ActiveWorkout({
         />
       )}
       {pickerOpen ? (
-        <ExercisePicker onDone={() => setPickerOpen(false)} />
+        <ExercisePicker onDone={() => setPickerOpen(false)} recentIds={recentIds} />
       ) : (
         <>
           <div className="space-y-2.5">
