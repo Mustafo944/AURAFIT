@@ -477,3 +477,32 @@ test("meal history groups meals by local day in time order", () => {
   assert.deepEqual(Array.from(days.get("2026-10-19"), (m) => m.id), ["early", "late"]);
   assert.equal(history.dayKey(new Date(2026, 0, 5)), "2026-01-05");
 });
+
+test("workout rows prefill from the previous session, validate input and pick rest by exercise", () => {
+  const rows = load("src/lib/workout-rows.ts");
+  assert.equal(rows.parseTargetSets("4"), 4);
+  assert.equal(rows.parseTargetSets("abc"), 3);
+  assert.equal(rows.parseTargetSets("99"), 10);
+  const last = [
+    { weightKg: 60, reps: 10 },
+    { weightKg: 70, reps: 8 },
+  ];
+  // O'tgan mashg'ulotdagi shu raqamli podxod, keyin bugungi oxirgi, keyin o'tgan oxirgisi.
+  assert.deepEqual({ ...rows.defaultDraft(1, [], last, false) }, { weight: "70", reps: "8" });
+  assert.deepEqual({ ...rows.defaultDraft(2, [], last, false) }, { weight: "70", reps: "8" });
+  assert.deepEqual({ ...rows.defaultDraft(2, [{ weightKg: 72.5, reps: 7 }], last, false) }, { weight: "72.5", reps: "7" });
+  assert.deepEqual({ ...rows.defaultDraft(0, [], null, true) }, { weight: "0", reps: "" });
+  assert.deepEqual({ ...rows.defaultDraft(0, [], null, false) }, { weight: "", reps: "" });
+  assert.deepEqual({ ...rows.draftToSet({ weight: "60", reps: "10" }, false) }, { weightKg: 60, reps: 10 });
+  assert.equal(rows.draftToSet({ weight: "", reps: "10" }, false), null);
+  assert.equal(rows.draftToSet({ weight: "0", reps: "10" }, false), null);
+  assert.deepEqual({ ...rows.draftToSet({ weight: "0", reps: "12" }, true) }, { weightKg: 0, reps: 12 });
+  assert.equal(rows.draftToSet({ weight: "60", reps: "8.5" }, false), null);
+  assert.equal(rows.adjustValue("60", 2.5), "62.5");
+  assert.equal(rows.adjustValue("1", -2.5), "0");
+  assert.equal(rows.restSecondsFor({ equipment: "barbell", muscleGroup: "legs" }), 150);
+  assert.equal(rows.restSecondsFor({ equipment: "barbell", muscleGroup: "chest" }), 120);
+  assert.equal(rows.restSecondsFor({ equipment: "dumbbell", muscleGroup: "biceps" }), 60);
+  assert.equal(rows.restSecondsFor({ equipment: "machine", muscleGroup: "back" }), 90);
+  assert.equal(rows.setVolume([{ weightKg: 60, reps: 10 }, { weightKg: 20, reps: 5 }]), 700);
+});

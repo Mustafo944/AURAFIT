@@ -32,7 +32,8 @@ interface WorkoutSessionContextValue {
   addExercises: (exercises: Exercise[]) => void;
   removeExercise: (exerciseId: string) => void;
   moveExercise: (exerciseId: string, direction: -1 | 1) => void;
-  logSet: (exerciseId: string, set: SetEntry) => void;
+  // restSeconds — shu podxoddan keyin dam olish taymeri davomiyligi (standart 90 soniya).
+  logSet: (exerciseId: string, set: SetEntry, restSeconds?: number) => void;
   removeSet: (exerciseId: string, setIndex: number) => void;
   addCardio: (entry: CardioEntry) => void;
   removeCardio: (index: number) => void;
@@ -139,10 +140,10 @@ export function WorkoutSessionProvider({ children }: { children: ReactNode }) {
 
   const setRestEndsAt = (deadline: number | null) => mutate((prev) => ({ ...prev, restEndsAt: deadline }));
 
-  const logSet = (exerciseId: string, set: SetEntry) => {
+  const logSet = (exerciseId: string, set: SetEntry, restSeconds = 90) => {
     mutate((prev) => ({
       ...prev,
-      restEndsAt: Date.now() + 90_000,
+      restEndsAt: Date.now() + restSeconds * 1000,
       exercises: prev.exercises.map((e) =>
         e.exerciseId === exerciseId ? { ...e, sets: [...e.sets, set] } : e,
       ),
