@@ -41,8 +41,8 @@ export async function signUp(formData: FormData) {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
 
-  if (password.length < 6) {
-    redirect(`/signup?error=${encodeURIComponent("Parol kamida 6 belgidan iborat bo'lishi kerak.")}`);
+  if (password.length < 8) {
+    redirect(`/signup?error=${encodeURIComponent("Parol kamida 8 belgidan iborat bo'lishi kerak.")}`);
   }
 
   try {

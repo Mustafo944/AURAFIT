@@ -1,5 +1,38 @@
 import type { NextConfig } from "next";
 
+const isProduction = process.env.NODE_ENV === "production";
+
+// Content-Security-Policy: faqat o'z domenimiz, Supabase va mashq rasmlari manbalariga ruxsat.
+// Next.js sahifa ichiga inline skript qo'yadi (nonce'siz), shu sabab script-src'da
+// 'unsafe-inline' kerak; dev rejimida HMR uchun 'unsafe-eval' va ws ham qo'shiladi.
+const csp = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://raw.githubusercontent.com https://*.supabase.co https://lh3.googleusercontent.com",
+  "font-src 'self' data:",
+  `connect-src 'self' https://*.supabase.co wss://*.supabase.co${isProduction ? "" : " ws: wss:"}`,
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  ...(isProduction ? ["upgrade-insecure-requests"] : []),
+].join("; ");
+
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  ...(isProduction
+    ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]
+    : []),
+];
+
 const nextConfig: NextConfig = {
   ...(process.env.AURAFIT_E2E === "1"
     ? { distDir: ".next/e2e", typescript: { tsconfigPath: "tsconfig.e2e.json" } }
@@ -14,6 +47,11 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      {
+        // Barcha sahifa va API javoblari uchun xavfsizlik sarlavhalari.
+        source: "/(.*)",
+        headers: securityHeaders,
+      },
       {
         source: "/sw.js",
         headers: [

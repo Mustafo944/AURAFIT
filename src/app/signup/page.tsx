@@ -69,12 +69,12 @@ export default async function SignupPage({
                 name="password"
                 type="password"
                 required
-                minLength={6}
+                minLength={8}
                 autoComplete="new-password"
                 className="w-full bg-white/[0.03] border border-white/10 rounded pl-11 pr-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:bg-white/[0.06] focus:ring-1 focus:ring-primary-container transition-colors outline-none"
               />
             </div>
-            <p className="font-label-mono text-[10px] text-on-surface-variant mt-1.5">Kamida 6 belgi</p>
+            <p className="font-label-mono text-[10px] text-on-surface-variant mt-1.5">Kamida 8 belgi</p>
           </div>
           <button
             type="submit"

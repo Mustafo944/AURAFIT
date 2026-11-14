@@ -506,3 +506,23 @@ test("workout rows prefill from the previous session, validate input and pick re
   assert.equal(rows.restSecondsFor({ equipment: "machine", muscleGroup: "back" }), 90);
   assert.equal(rows.setVolume([{ weightKg: 60, reps: 10 }, { weightKg: 20, reps: 5 }]), 700);
 });
+
+test("auth callback only redirects to same-site paths", () => {
+  const { safeNextPath } = load("src/lib/safe-redirect.ts", {}, { URL });
+  assert.equal(safeNextPath(null), "/");
+  assert.equal(safeNextPath(""), "/");
+  assert.equal(safeNextPath("/"), "/");
+  assert.equal(safeNextPath("/profile"), "/profile");
+  assert.equal(safeNextPath("/analytics?tab=1#x"), "/analytics?tab=1#x");
+  for (const bad of [
+    ".evil.com",
+    "@evil.com",
+    "//evil.com",
+    "/\\evil.com",
+    "https://evil.com",
+    "javascript:alert(1)",
+    "/ok\r\nSet-Cookie: x=1",
+    "profile",
+  ])
+    assert.equal(safeNextPath(bad), "/", bad);
+});

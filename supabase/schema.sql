@@ -192,9 +192,10 @@ alter table public.profiles add column if not exists last_name text not null def
 -- papka segmentini auth.uid() bilan solishtirib, faqat egasiga yozish/o'chirish
 -- huquqini beradi. Bucket public — hammaga o'qish uchun ochiq (rasmlar sir emas).
 -- ============================================================================
-insert into storage.buckets (id, name, public)
-values ('avatars', 'avatars', true)
-on conflict (id) do nothing;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update
+  set file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "Profil rasmlari hammaga ko'rinadi" on storage.objects;
 create policy "Profil rasmlari hammaga ko'rinadi"
@@ -204,12 +205,21 @@ create policy "Profil rasmlari hammaga ko'rinadi"
 drop policy if exists "Foydalanuvchi faqat o'z papkasiga rasm yuklaydi" on storage.objects;
 create policy "Foydalanuvchi faqat o'z papkasiga rasm yuklaydi"
   on storage.objects for insert
-  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+    and lower(storage.extension(name)) in ('jpg', 'jpeg', 'png', 'webp')
+  );
 
 drop policy if exists "Foydalanuvchi faqat o'z rasmini yangilaydi" on storage.objects;
 create policy "Foydalanuvchi faqat o'z rasmini yangilaydi"
   on storage.objects for update
-  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+    and lower(storage.extension(name)) in ('jpg', 'jpeg', 'png', 'webp')
+  );
 
 drop policy if exists "Foydalanuvchi faqat o'z rasmini o'chiradi" on storage.objects;
 create policy "Foydalanuvchi faqat o'z rasmini o'chiradi"
