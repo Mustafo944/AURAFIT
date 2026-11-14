@@ -683,71 +683,61 @@ export default function AnalyticsPage() {
           <h3 className="font-headline-md text-headline-md text-primary uppercase">Suv Iste&apos;moli</h3>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+        <div className="grid grid-cols-3 gap-2 mb-4">
           {/* Kunlik norma */}
-          <div className="bg-white/5 rounded-xl p-4 text-center border border-white/5">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="text-[18px]">🥤</span>
-              <span className="font-label-mono text-[11px] text-on-surface-variant uppercase">
-                Kunlik norma
-              </span>
-            </div>
-            <div className="font-headline-md text-[28px] font-bold" style={{ color: "#00bcd4" }}>
+          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
+            <div className="text-[16px] mb-1">🥤</div>
+            <div className="font-headline-md text-[20px] leading-tight font-bold" style={{ color: "#00bcd4" }}>
               {waterIntake.liters} L
             </div>
-            <div className="font-label-mono text-[11px] text-on-surface-variant mt-1">
-              {waterIntake.glasses} stakan (250 ml)
+            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Norma</div>
+            <div className="font-label-mono text-[9px] text-on-surface-variant">
+              {waterIntake.glasses} stakan
             </div>
           </div>
 
           {/* Vazn asosida */}
-          <div className="bg-white/5 rounded-xl p-4 text-center border border-white/5">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="text-[18px]">⚖️</span>
-              <span className="font-label-mono text-[11px] text-on-surface-variant uppercase">Vazningiz</span>
+          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
+            <div className="text-[16px] mb-1">⚖️</div>
+            <div className="font-headline-md text-[20px] leading-tight font-bold text-primary">
+              {profile.weightKg} kg
             </div>
-            <div className="font-headline-md text-[24px] font-bold text-primary">{profile.weightKg} kg</div>
-            <div className="font-label-mono text-[11px] text-on-surface-variant mt-1">
-              35 ml × {profile.weightKg} kg
-            </div>
+            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Vazn</div>
+            <div className="font-label-mono text-[9px] text-on-surface-variant">35 ml/kg</div>
           </div>
 
           {/* Yosh asosida */}
-          <div className="bg-white/5 rounded-xl p-4 text-center border border-white/5">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="text-[18px]">🎂</span>
-              <span className="font-label-mono text-[11px] text-on-surface-variant uppercase">Yoshingiz</span>
-            </div>
-            <div className="font-headline-md text-[24px] font-bold text-tertiary-fixed-dim">
+          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
+            <div className="text-[16px] mb-1">🎂</div>
+            <div className="font-headline-md text-[20px] leading-tight font-bold text-tertiary-fixed-dim">
               {profile.age} yosh
             </div>
-            <div className="font-label-mono text-[11px] text-on-surface-variant mt-1">
-              Yosh koeffitsiyenti: ×
-              {profile.age < 18 ? "1.1" : profile.age <= 30 ? "1.0" : profile.age <= 55 ? "0.95" : "0.90"}
+            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Yosh</div>
+            <div className="font-label-mono text-[9px] text-on-surface-variant">
+              ×{profile.age < 18 ? "1.1" : profile.age <= 30 ? "1.0" : profile.age <= 55 ? "0.95" : "0.90"}
             </div>
           </div>
         </div>
 
-        {/* Ilmiy izoh */}
-        <div className="bg-white/5 rounded-lg p-4 border border-white/5">
-          <div className="flex items-start gap-3">
-            <span className="text-[16px] mt-0.5">🔬</span>
-            <div>
-              <p className="font-body-md text-[13px] text-on-surface-variant leading-relaxed">
-                {waterIntake.note}
-              </p>
-              <p className="font-label-mono text-[10px] text-on-surface-variant/60 mt-2 leading-relaxed">
-                Manbalar: EFSA Journal 2010;8(3):1459 · IOM (2004) Dietary Reference Intakes · Popkin B.M. et
-                al. (2010) Nutrition Reviews 68(8):439–458
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <p className="font-body-md text-[12px] text-on-surface-variant/50 mt-3 italic">
-          💡 Mashg&apos;ulot paytida qo&apos;shimcha 500–1000 ml suv ichish tavsiya etiladi. Profildagi vazn
-          o&apos;zgarsa, tavsiya avtomatik yangilanadi.
+        <p className="font-body-md text-[12px] text-on-surface-variant/70 italic">
+          💡 Mashg&apos;ulot paytida qo&apos;shimcha 500–1000 ml suv ichish tavsiya etiladi.
         </p>
+
+        {/* Ilmiy izoh (yig'iladi) */}
+        <details className="mt-3 bg-white/5 rounded-lg border border-white/5 group">
+          <summary className="cursor-pointer select-none px-4 py-3 font-label-mono text-[11px] text-on-surface-variant uppercase">
+            🔬 Ilmiy izoh va manbalar
+          </summary>
+          <div className="px-4 pb-4">
+            <p className="font-body-md text-[13px] text-on-surface-variant leading-relaxed">
+              {waterIntake.note}
+            </p>
+            <p className="font-label-mono text-[10px] text-on-surface-variant/60 mt-2 leading-relaxed">
+              Manbalar: EFSA Journal 2010;8(3):1459 · IOM (2004) Dietary Reference Intakes · Popkin B.M. et
+              al. (2010) Nutrition Reviews 68(8):439–458
+            </p>
+          </div>
+        </details>
       </section>
 
       {/* Today's Meal History */}
