@@ -50,6 +50,7 @@ function route(name, userId = "user", response = "null", calls = []) {
       authorizeApi: async () => ({ userId, response: userId ? null : { status: 401 } }),
     },
     "@/lib/provider-fetch": {},
+    "@/lib/nutrition": load("src/lib/nutrition.ts"),
     "@/lib/api-validation": validation,
     "next/server": { NextResponse: { json: (body, init) => ({ body, status: init?.status ?? 200 }) } },
     "@/lib/deepseek-server": {
@@ -110,15 +111,27 @@ test("streamed JSON body limit applies without Content-Length", async () => {
 test("repeated valid food scans reuse one provider result within an account", async () => {
   const calls = [];
   const scan = route("scan-food", "account-a", JSON.stringify({
-    mealName: "Test meal", items: ["Rice"], totalCalories: 200, proteinG: 5, fatG: 2, carbG: 40, note: "Test",
+    mealName: "Test meal",
+    components: [{ name: "Rice", ref: "guruch", grams: 200 }],
+    confidence: "high",
+    note: "Test",
   }), calls);
   const input = { image: "AAAA", mimeType: "image/jpeg" };
   const responses = await Promise.all([scan.POST(request(input)), scan.POST(request(input))]);
   assert.ok(responses.every((response) => response.status === 200));
   assert.equal((await scan.POST(request(input))).status, 200);
   assert.equal(calls.length, 1);
+  // Yig'indi kodda hisoblanadi: 200 g guruch = 2 x 130 kcal.
+  assert.equal(responses[0].body.totalCalories, 260);
+  assert.equal(responses[0].body.components[0].per100g.kcal, 130);
   await scan.POST(request({ ...input, image: "AAAB" }));
   assert.equal(calls.length, 2);
+});
+test("food scan without recognizable food is reported instead of returning zeros", async () => {
+  const empty = route("scan-food", "account-a", JSON.stringify({ mealName: "Aniqlanmadi", components: [], note: "x" }));
+  const response = await empty.POST(request({ image: "AAAA", mimeType: "image/jpeg" }));
+  assert.equal(response.status, 502);
+  assert.match(response.body.error, /ovqat/);
 });
 test("cardio-only sessions have no strength calories; mixed sessions subtract cardio time", () => {
   const { computeCaloriesBurned } = load("src/lib/workout-log.ts", {
@@ -573,4 +586,67 @@ test("workout programs use catalog exercises; repeat and recent helpers behave",
   assert.equal(programs.daysAgoLabel(new Date(2026, 9, 10, 1).toISOString(), now), "bugun");
   assert.equal(programs.daysAgoLabel(new Date(2026, 9, 9, 23).toISOString(), now), "kecha");
   assert.equal(programs.daysAgoLabel(new Date(2026, 9, 5, 12).toISOString(), now), "5 kun oldin");
+});
+
+test("nutrition reference is internally consistent and components are computed in code", () => {
+  const n = load("src/lib/nutrition.ts");
+  const ids = new Set();
+  for (const entry of n.FOOD_REFERENCE) {
+    assert.ok(!ids.has(entry.id), `duplicate ${entry.id}`);
+    ids.add(entry.id);
+    const { kcal, proteinG, fatG, carbG } = entry.per100g;
+    // Atwater: kaloriya ≈ 4·oqsil + 4·uglevod + 9·yog' (±15% yoki ±12 kcal).
+    const implied = 4 * proteinG + 4 * carbG + 9 * fatG;
+    assert.ok(Math.abs(kcal - implied) <= Math.max(12, implied * 0.15), `${entry.id}: ${kcal} vs ${implied}`);
+    assert.ok(proteinG + fatG + carbG <= 100.5, `${entry.id}: macros exceed 100 g`);
+  }
+  assert.ok(n.FOOD_REFERENCE.length >= 60);
+  assert.ok(n.referencePromptList().includes("plov — Osh (palov)"));
+
+  // Ma'lumotnomadagi taomda AI qiymati e'tiborga olinmaydi.
+  const plov = n.resolveComponent({ name: "Palov", ref: "plov", grams: 350, kcalPer100g: 999, proteinPer100g: 1, fatPer100g: 1, carbPer100g: 1 });
+  assert.equal(plov.ref, "plov");
+  assert.equal(plov.per100g.kcal, 195);
+  assert.equal(plov.grams, 350);
+  // Noma'lum ref -> AI bahosi, makrolardan tekshiriladi.
+  const custom = n.resolveComponent({ name: "Mahalliy shirinlik", ref: "nope", grams: 80, kcalPer100g: 400, proteinPer100g: 5, fatPer100g: 15, carbPer100g: 60 });
+  assert.equal(custom.ref, null);
+  assert.equal(custom.per100g.kcal, 400);
+  // Ichki zid qiymat (kaloriya makrolarga mos emas) makrolardan hisoblanadi.
+  const fixed = n.resolveComponent({ name: "X", ref: null, grams: 100, kcalPer100g: 50, proteinPer100g: 10, fatPer100g: 20, carbPer100g: 10 });
+  assert.equal(fixed.per100g.kcal, 260);
+  for (const bad of [
+    null,
+    { name: "", ref: "plov", grams: 100 },
+    { name: "Palov", ref: "plov", grams: 0 },
+    { name: "Palov", ref: "plov", grams: 5000 },
+    { name: "X", ref: null, grams: 100, kcalPer100g: 2000, proteinPer100g: 1, fatPer100g: 1, carbPer100g: 1 },
+    { name: "X", ref: null, grams: 100 },
+  ])
+    assert.equal(n.resolveComponent(bad), null);
+
+  const totals = n.sumComponents([
+    { name: "Palov", ref: "plov", grams: 350, per100g: plov.per100g },
+    { name: "Non", ref: "non", grams: 80, per100g: n.FOOD_REFERENCE.find((e) => e.id === "non").per100g },
+  ]);
+  assert.equal(totals.kcal, Math.round(3.5 * 195 + 0.8 * 265));
+  assert.equal(totals.proteinG, Math.round(3.5 * 6 + 0.8 * 9));
+
+  const response = n.parseScanResponse({
+    mealName: "Osh va non",
+    components: [
+      { name: "Palov", ref: "plov", grams: 350 },
+      { name: "Non", ref: "non", grams: 80 },
+      { name: "Buzuq", ref: "plov", grams: -5 },
+    ],
+    note: "Porsiya katta",
+    confidence: "bogus",
+  });
+  assert.equal(response.components.length, 2);
+  assert.equal(response.totalCalories, totals.kcal);
+  assert.deepEqual(Array.from(response.items), ["Palov", "Non"]);
+  assert.equal(response.confidence, "medium");
+  assert.equal(n.parseScanResponse({ mealName: "X", components: [] }), null);
+  assert.equal(n.parseScanResponse({ mealName: "", components: [{ name: "a", ref: "plov", grams: 1 }] }), null);
+  assert.equal(n.parseScanResponse(null), null);
 });

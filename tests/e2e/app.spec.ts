@@ -1,5 +1,38 @@
+import { deflateSync } from "node:zlib";
 import { test, expect, type BrowserContext, type APIRequestContext } from "@playwright/test";
 const backend = "http://127.0.0.1:54329";
+
+// Brauzer haqiqatan dekodlay oladigan 1x1 PNG (rasm yuklash testlari uchun).
+function crc32(buffer: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit++) crc = crc & 1 ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1;
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+function pngChunk(type: string, data: Buffer): Buffer {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length);
+  const body = Buffer.concat([Buffer.from(type), data]);
+  const checksum = Buffer.alloc(4);
+  checksum.writeUInt32BE(crc32(body));
+  return Buffer.concat([length, body, checksum]);
+}
+function tinyPng(): Buffer {
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(1, 0);
+  header.writeUInt32BE(1, 4);
+  header[8] = 8; // bit chuqurligi
+  header[9] = 2; // RGB
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk("IHDR", header),
+    pngChunk("IDAT", deflateSync(Buffer.from([0, 255, 0, 0]))),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
 async function signIn(context: BrowserContext, request: APIRequestContext, userId?: string) {
   const response = await request.get(`${backend}/__test/session${userId ? `?user=${userId}` : ""}`);
   const session = await response.json();
@@ -51,6 +84,7 @@ test("profile preferences persist and survive reload", async ({ page, context, r
 test("weight history saves and renders a chart", async ({ page, context, request }) => {
   await signIn(context, request);
   await page.goto("/analytics");
+  await page.getByRole("button", { name: /^monitor_weight Vazn/ }).click();
   await page.getByLabel("Bugungi vazn (kg)").fill("79.5");
   await page.getByRole("button", { name: "Vaznni yozish" }).click();
   await expect
@@ -265,3 +299,49 @@ test("favorites and reordered plans persist; technique comparison works", async 
   await expect(picker.getByRole("button", { name: "Sevimlilar (0)", exact: true })).toBeVisible();
   await expect(rows).toHaveCount(0);
 });
+
+test("food scan: component grams are editable and totals are recalculated live", async ({ page, context, request }) => {
+  await page.route("**/api/scan-food", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        mealName: "Osh va non",
+        items: ["Palov", "Non"],
+        components: [
+          { name: "Palov", ref: "plov", grams: 350, per100g: { kcal: 195, proteinG: 6, fatG: 9, carbG: 22.5 } },
+          { name: "Non", ref: "non", grams: 100, per100g: { kcal: 265, proteinG: 9, fatG: 3.2, carbG: 49 } },
+        ],
+        totalCalories: 948,
+        proteinG: 30,
+        fatG: 35,
+        carbG: 128,
+        note: "Porsiya katta",
+        confidence: "medium",
+      }),
+    }),
+  );
+  await signIn(context, request);
+  await page.goto("/analytics");
+  await page.getByRole("button", { name: /Tushlik/ }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "meal.png",
+    mimeType: "image/png",
+    buffer: tinyPng(),
+  });
+  await expect(page.getByLabel("Palov: og'irlik, gramm")).toHaveValue("350");
+  await expect(page.getByText("948", { exact: true }).first()).toBeVisible();
+  await page.getByLabel("Palov: og'irlik, gramm").fill("200");
+  // 200 g palov (390) + 100 g non (265) = 655
+  await expect(page.getByText("655", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Non: ro'yxatdan olib tashlash" }).click();
+  await expect(page.getByText("390", { exact: true }).first()).toBeVisible();
+  await page.getByRole("button", { name: "Jurnalga Qo'shish" }).click();
+  await expect
+    .poll(async () => (await (await request.get(`${backend}/__test/rows`)).json()).meals.length)
+    .toBe(1);
+  const rows = await (await request.get(`${backend}/__test/rows`)).json();
+  expect(rows.meals[0].calories).toBe(390);
+  expect(rows.meals[0].meal_type).toBe("lunch");
+});
+

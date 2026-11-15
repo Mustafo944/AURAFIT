@@ -34,16 +34,6 @@ export function validRecovery(value: unknown): boolean {
     numbers(value.nutrition.target, ["calories", "proteinG", "fatG", "carbG"])
   );
 }
-export function validFood(value: unknown): boolean {
-  return (
-    record(value) &&
-    text(value.mealName) &&
-    list(value.items, text) &&
-    numbers(value, ["totalCalories", "proteinG", "fatG", "carbG"]) &&
-    typeof value.note === "string"
-  );
-}
-
 // Bound streamed bodies as well as Content-Length; clients can omit that header.
 export async function readJson(request: Request, maxBytes = 64 * 1024): Promise<unknown> {
   if (Number(request.headers.get("content-length")) > maxBytes) throw new Error("BODY_TOO_LARGE");

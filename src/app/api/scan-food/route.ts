@@ -1,26 +1,32 @@
 import { createHash } from "node:crypto";
 import { createRequestCache } from "@/lib/request-cache";
-import { readJson, record, validFood } from "@/lib/api-validation";
+import { readJson, record } from "@/lib/api-validation";
+import { parseScanResponse, referencePromptList } from "@/lib/nutrition";
 import { authorizeApi } from "@/lib/api-access";
 import { NextResponse } from "next/server";
 import { callDeepSeek, friendlyDeepSeekError, DEEPSEEK_MODEL } from "@/lib/deepseek-server";
 
-const PROMPT = `Siz tajribali ovqatlanish mutaxassisisiz. Rasmda tasvirlangan taom(lar)ni aniqlang va ularning taxminiy ozuqaviy tarkibini hisoblang.
-Hisoblash usuli (har qanday taom uchun):
-1. Rasmdagi har bir alohida taom yoki komponentni ajrating (masalan: palov, salat, non, go'sht, ichimlik, sous, shirinlik).
-2. Har biri uchun porsiyani baholang: dona soni yoki taxminiy gramm (idish, qo'l, non, vilka kabi narsalarga qarab o'lchamni taqqoslang).
-3. Har biri uchun shu porsiyaning kaloriyasini yozing, so'ng hammasini qo'shib totalCalories ni chiqaring.
-4. Yashirin kaloriyani unutmang: yog'da qovurilgan yoki moyli taomlar (palov, somsa, qovurma), mayonez, kremli va shirin souslar, yog'li go'sht. Rasmda ko'ringan butun porsiyani hisoblang, kichraytirib yubormang.
-Faqat JSON formatida, o'zbek tilida javob bering. Namuna: {"mealName":"Osh (Palov)","breakdown":["Palov, 350 g × 1.8 kkal/g = 630 kkal","Salat, 100 g = 60 kkal"],"items":["guruch","go'sht","sabzi"],"totalCalories":690,"proteinG":25,"fatG":30,"carbG":70,"note":"..."}. Maydonlar:
-- mealName: taomning umumiy nomi (masalan, "Osh (Palov)")
-- breakdown: har bir komponent bo'yicha hisob-kitob qatorlari (porsiya × kaloriya = natija, 1-8 ta)
-- items: rasmda ko'ringan asosiy tarkibiy qismlar ro'yxati (o'zbek tilida, 2-6 ta)
-- totalCalories: breakdown yig'indisiga teng umumiy taxminiy kaloriya (kcal, butun son)
-- proteinG: protein miqdori (gramm, butun son)
-- fatG: yog' miqdori (gramm, butun son)
-- carbG: uglevod miqdori (gramm, butun son)
-- note: bitta qisqa, foydali tavsiya jumlasi (o'zbek tilida)
-Agar rasmda ovqat ko'rinmasa, mealName ni "Aniqlanmadi" deb qo'ying, items bo'sh massiv, boshqa raqamli maydonlarni 0 ga tenglashtiring va note ga sababini yozing.`;
+// AI vazifasi: nima borligini aniqlash va porsiyani (gramm) baholash. Kaloriya va
+// BJU hisobi, yig'indi va tekshiruv serverda (src/lib/nutrition.ts) — arifmetikani
+// AI'ga qoldirmaymiz. Statik matn oldinda turadi, rasm esa oxirida: shunda DeepSeek
+// prefiks keshi ishlaydi va takroriy so'rovlar arzonroq bo'ladi.
+const PROMPT = `Siz tajribali ovqatlanish mutaxassisisiz. Rasmdagi taomni komponentlarga ajrating va har birining og'irligini (gramm) iloji boricha aniq baholang. Kaloriya hisobini biz o'zimiz qilamiz: sizning vazifangiz — nima borligini to'g'ri aniqlash va porsiyani to'g'ri baholash.
+
+QOIDALAR
+1. Har bir alohida taom yoki mahsulotni alohida komponent qiling (palov, non, salat, ichimlik, sous...). Murakkab taomni ichki qismlarga bo'lmang: palov — bitta komponent (guruch, go'sht, sabzi, yog' u yerga kiradi). Mayda narsalarni birlashtiring. Eng ko'pi bilan 8 ta komponent.
+2. "ref" maydoniga quyidagi ro'yxatdan eng mos mahsulot identifikatorini yozing. Aniq mos keladigani bo'lmasa, ref ni null qiling va 100 g uchun kcalPer100g, proteinPer100g, fatPer100g, carbPer100g ni o'zingiz yozing (kaloriya ≈ 4·oqsil + 4·uglevod + 9·yog' bo'lsin).
+3. grams — rasmda ko'ringan, yeyiladigan qismning (suyak, qobiq va idishsiz) og'irligi, gramm. Porsiyani idish (standart likopcha ~ 24-26 sm, choy piyolasi ~ 200-250 ml), vilka/qoshiq, qo'l, non va stakan bilan taqqoslab baholang. Odatiy og'irliklar: 1 tuxum ~ 50 g; 1 somsa ~ 110-130 g; 1 manti ~ 55 g; 1 chuchvara ~ 10 g; butun tandir non ~ 350 g, bir bo'lak non ~ 40-60 g; 1 banan (tozalangan) ~ 100 g; 1 olma ~ 170 g; 1 kotlet ~ 90 g; 1 lagan palov ~ 350-450 g; 1 piyola sho'rva ~ 300 g; 1 stakan ichimlik ~ 200 g; 1 osh qoshiq yog' ~ 15 g.
+4. Yog'da qovurilgan yoki moyli taomlar uchun mos ref ni tanlang (qovurilgan kartoshka, qovurilgan baliq...) — yashirin yog'ni kamaytirib yubormang. Alohida ko'rinadigan sous, mayonez, smetana yoki yog'ni ayrim komponent qiling.
+5. Bir narsani ikki marta sanamang.
+6. confidence: "high" — hammasi aniq va o'lchamni taqqoslash mumkin; "medium" — porsiya taxminiy; "low" — rasm sifatsiz yoki porsiyani baholash qiyin.
+
+MA'LUMOTNOMA (ref — nomi):
+${referencePromptList()}
+
+Faqat JSON bilan, o'zbek tilida javob bering. Namuna:
+{"mealName":"Osh va non","components":[{"name":"Palov","ref":"plov","grams":350},{"name":"Non","ref":"non","grams":60},{"name":"Mahalliy shirinlik","ref":null,"grams":80,"kcalPer100g":400,"proteinPer100g":5,"fatPer100g":15,"carbPer100g":60}],"confidence":"medium","note":"..."}
+note — porsiya yoki taom haqida bitta qisqa foydali jumla.
+Agar rasmda ovqat bo'lmasa: {"mealName":"Aniqlanmadi","components":[],"confidence":"low","note":"sababi"}.`;
 
 const cachedScan = createRequestCache<unknown>(15 * 60_000);
 
@@ -59,7 +65,7 @@ export async function POST(request: Request) {
       const attempt = await callDeepSeek(apiKey, {
         prompt: PROMPT,
         image: { mimeType, data: image },
-        maxTokens: 1000,
+        maxTokens: 1200,
       });
       if (!attempt.ok) throw new Error(friendlyDeepSeekError(attempt));
       if (!attempt.text) throw new Error("AI javobi bo'sh keldi.");
@@ -69,8 +75,11 @@ export async function POST(request: Request) {
       } catch {
         throw new Error("AI javobini o'qib bo'lmadi.");
       }
-      if (!validFood(parsed)) throw new Error("AI javobi noto'g'ri.");
-      return parsed;
+      if (record(parsed) && Array.isArray(parsed.components) && parsed.components.length === 0)
+        throw new Error("Rasmda ovqat ko'rinmadi. Taomni aniqroq suratga oling.");
+      const scan = parseScanResponse(parsed);
+      if (!scan) throw new Error("AI javobi noto'g'ri.");
+      return scan;
     });
     return NextResponse.json(result, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

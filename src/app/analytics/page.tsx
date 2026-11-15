@@ -4,6 +4,9 @@ import { SyncStatus } from "@/components/sync-status";
 
 import { WeightHistory } from "@/components/weight-history";
 import { MealHistory } from "@/components/meal-history";
+import { CollapsiblePanel } from "@/components/collapsible-panel";
+import { ScanComponentsEditor } from "@/components/scan-components-editor";
+import { sumComponents, type ScanComponent, type ScanConfidence } from "@/lib/nutrition";
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useUserProfile } from "@/context/user-profile-context";
 import { calculateFitnessMetrics } from "@/lib/fitness";
@@ -115,7 +118,16 @@ interface ScanResult {
   fatG: number;
   carbG: number;
   note: string;
+  // Faqat rasm-skaner: tahrirlanadigan komponentlar (barkod natijasida yo'q).
+  components?: ScanComponent[];
+  confidence?: ScanConfidence;
 }
+
+const CONFIDENCE_HINT: Record<ScanConfidence, string> = {
+  high: "Aniqlik: yuqori",
+  medium: "Aniqlik: o'rtacha. Porsiya taxminiy, grammni to'g'rilang",
+  low: "Aniqlik: past. Rasm yoki porsiya noaniq, grammlarni albatta tekshiring",
+};
 
 // Rasm AI'ga yuborilishidan oldin brauzerda kichraytiriladi (uzun tomoni 1024 px,
 // JPEG): telefon suratlari 3-6 MB — kichraytirilgani ~10 baravar yengil,
@@ -151,6 +163,7 @@ export default function AnalyticsPage() {
   const { meals, error: mealError, addMeal, removeMeal } = useMealLog();
 
   const [activeMealType, setActiveMealType] = useState<MealType | null>(null);
+  const [waterOpen, setWaterOpen] = useState(false);
   const consumedByType = useMemo(() => {
     const totals: Record<MealType, number> = { breakfast: 0, lunch: 0, dinner: 0, snack: 0 };
     for (const meal of meals) totals[meal.mealType] += meal.calories;
@@ -162,6 +175,8 @@ export default function AnalyticsPage() {
   const [scanning, setScanning] = useState(false);
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
+  // Rasm-skaner komponentlarining tahrirlangan og'irliklari (gramm), result.components bilan bir xil tartibda.
+  const [editedGrams, setEditedGrams] = useState<string[]>([]);
   // Barkod natijasi 100g uchun keladi — mahsulotning umumiy og'irligi
   // (topilsa) shu bilan birga saqlanadi, "necha foizini yedingiz" hisobi
   // shunga tayanadi. Rasm-skaner uchun bazasi to'g'ridan-to'g'ri AI natijasi.
@@ -185,6 +200,7 @@ export default function AnalyticsPage() {
   const resetScan = () => {
     setPreviewUrl(null);
     setResult(null);
+    setEditedGrams([]);
     setError(null);
     setIsPer100g(false);
     setPackageGrams(null);
@@ -245,6 +261,7 @@ export default function AnalyticsPage() {
         setError(data.error || "Xatolik yuz berdi.");
       } else {
         setResult(data);
+        setEditedGrams((data.components ?? []).map((component: ScanComponent) => String(component.grams)));
       }
     } catch {
       setError("Tarmoq xatosi yuz berdi.");
@@ -261,12 +278,35 @@ export default function AnalyticsPage() {
   const eatenFraction = Math.max(0, Math.min(100, Number(eatenPct) || 0)) / 100;
   const scaleToPackage = (value: number) =>
     isPer100g && packageGrams ? (value * packageGrams) / 100 : value;
-  const displayResult: ScanResult | null = result && {
-    ...result,
-    totalCalories: Math.round(scaleToPackage(result.totalCalories) * eatenFraction),
-    proteinG: Math.round(scaleToPackage(result.proteinG) * eatenFraction),
-    fatG: Math.round(scaleToPackage(result.fatG) * eatenFraction),
-    carbG: Math.round(scaleToPackage(result.carbG) * eatenFraction),
+  // Rasm-skaner: yig'indi tahrirlangan gramm va 100 g qiymatlaridan jonli hisoblanadi.
+  const adjustedComponents = result?.components?.map((component, i) => ({
+    ...component,
+    grams: Number(editedGrams[i]) || 0,
+  }));
+  const componentTotals = adjustedComponents ? sumComponents(adjustedComponents) : null;
+  const displayResult: ScanResult | null =
+    result &&
+    (adjustedComponents && componentTotals
+      ? {
+          ...result,
+          items: adjustedComponents.filter((c) => c.grams > 0).map((c) => c.name),
+          totalCalories: componentTotals.kcal,
+          proteinG: componentTotals.proteinG,
+          fatG: componentTotals.fatG,
+          carbG: componentTotals.carbG,
+        }
+      : {
+          ...result,
+          totalCalories: Math.round(scaleToPackage(result.totalCalories) * eatenFraction),
+          proteinG: Math.round(scaleToPackage(result.proteinG) * eatenFraction),
+          fatG: Math.round(scaleToPackage(result.fatG) * eatenFraction),
+          carbG: Math.round(scaleToPackage(result.carbG) * eatenFraction),
+        });
+  const removeComponent = (index: number) => {
+    setResult((current) =>
+      current?.components ? { ...current, components: current.components.filter((_, i) => i !== index) } : current,
+    );
+    setEditedGrams((current) => current.filter((_, i) => i !== index));
   };
   const eatenGramsHint = isPer100g && packageGrams ? Math.round(packageGrams * eatenFraction) : null;
 
@@ -327,6 +367,23 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
+      {result?.components ? (
+        <div className="space-y-2">
+          <ScanComponentsEditor
+            components={result.components}
+            grams={editedGrams}
+            onGramsChange={(index, value) =>
+              setEditedGrams((current) => current.map((grams, i) => (i === index ? value : grams)))
+            }
+            onRemove={removeComponent}
+          />
+          {result.confidence && (
+            <p className="font-label-mono text-[10px] text-on-surface-variant/80">
+              {CONFIDENCE_HINT[result.confidence]}
+            </p>
+          )}
+        </div>
+      ) : (
       <div>
         <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">
           NECHA FOIZINI YEDINGIZ?
@@ -351,6 +408,7 @@ export default function AnalyticsPage() {
           Hammasini yegan bo&apos;lsangiz 100% qoldiring — bo&apos;lak qoldirgan bo&apos;lsangiz kamaytiring.
         </p>
       </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <MacroBar label="Oqsil" grams={displayResult.proteinG} color="#abd600" max={resultMaxMacro} />
@@ -370,8 +428,8 @@ export default function AnalyticsPage() {
       <div className="flex flex-col md:flex-row gap-3 pt-2">
         <button
           onClick={handleAddToLog}
-          disabled={addingMeal}
-          className="flex-1 bg-primary-container text-on-primary-container font-headline-md text-sm px-6 py-3 rounded-lg uppercase tracking-wider glow-button hover:bg-primary-fixed transition-colors"
+          disabled={addingMeal || (result?.components !== undefined && displayResult.totalCalories === 0)}
+          className="flex-1 bg-primary-container text-on-primary-container font-headline-md text-sm px-6 py-3 rounded-lg uppercase tracking-wider glow-button hover:bg-primary-fixed transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Jurnalga Qo&apos;shish
         </button>
@@ -676,70 +734,6 @@ export default function AnalyticsPage() {
         )}
       </section>
 
-      {/* Suv Iste'moli Tavsiyasi */}
-      <section className="glass-card ai-accent-border rounded-xl p-6">
-        <div className="flex items-center gap-3 mb-4 border-b border-white/10 pb-4">
-          <span className="text-[24px]">💧</span>
-          <h3 className="font-headline-md text-headline-md text-primary uppercase">Suv Iste&apos;moli</h3>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {/* Kunlik norma */}
-          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
-            <div className="text-[16px] mb-1">🥤</div>
-            <div className="font-headline-md text-[20px] leading-tight font-bold" style={{ color: "#00bcd4" }}>
-              {waterIntake.liters} L
-            </div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Norma</div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant">
-              {waterIntake.glasses} stakan
-            </div>
-          </div>
-
-          {/* Vazn asosida */}
-          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
-            <div className="text-[16px] mb-1">⚖️</div>
-            <div className="font-headline-md text-[20px] leading-tight font-bold text-primary">
-              {profile.weightKg} kg
-            </div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Vazn</div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant">35 ml/kg</div>
-          </div>
-
-          {/* Yosh asosida */}
-          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
-            <div className="text-[16px] mb-1">🎂</div>
-            <div className="font-headline-md text-[20px] leading-tight font-bold text-tertiary-fixed-dim">
-              {profile.age} yosh
-            </div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Yosh</div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant">
-              ×{profile.age < 18 ? "1.1" : profile.age <= 30 ? "1.0" : profile.age <= 55 ? "0.95" : "0.90"}
-            </div>
-          </div>
-        </div>
-
-        <p className="font-body-md text-[12px] text-on-surface-variant/70 italic">
-          💡 Mashg&apos;ulot paytida qo&apos;shimcha 500–1000 ml suv ichish tavsiya etiladi.
-        </p>
-
-        {/* Ilmiy izoh (yig'iladi) */}
-        <details className="mt-3 bg-white/5 rounded-lg border border-white/5 group">
-          <summary className="cursor-pointer select-none px-4 py-3 font-label-mono text-[11px] text-on-surface-variant uppercase">
-            🔬 Ilmiy izoh va manbalar
-          </summary>
-          <div className="px-4 pb-4">
-            <p className="font-body-md text-[13px] text-on-surface-variant leading-relaxed">
-              {waterIntake.note}
-            </p>
-            <p className="font-label-mono text-[10px] text-on-surface-variant/60 mt-2 leading-relaxed">
-              Manbalar: EFSA Journal 2010;8(3):1459 · IOM (2004) Dietary Reference Intakes · Popkin B.M. et
-              al. (2010) Nutrition Reviews 68(8):439–458
-            </p>
-          </div>
-        </details>
-      </section>
-
       {/* Today's Meal History */}
       <section>
         <h3 className="font-headline-md text-headline-md text-primary uppercase italic mb-stack-sm flex items-center gap-2">
@@ -802,6 +796,70 @@ export default function AnalyticsPage() {
           {mealError}
         </p>
       )}
+      {/* Suv iste'moli tavsiyasi — sahifa uzun bo'lib ketmasligi uchun yig'iladi */}
+      <CollapsiblePanel
+        title="Suv iste'moli"
+        icon="water_drop"
+        open={waterOpen}
+        onToggle={() => setWaterOpen((v) => !v)}
+      >
+        <div className="grid grid-cols-3 gap-2">
+          {/* Kunlik norma */}
+          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
+            <div className="text-[16px] mb-1">🥤</div>
+            <div className="font-headline-md text-[20px] leading-tight font-bold" style={{ color: "#00bcd4" }}>
+              {waterIntake.liters} L
+            </div>
+            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Norma</div>
+            <div className="font-label-mono text-[9px] text-on-surface-variant">
+              {waterIntake.glasses} stakan
+            </div>
+          </div>
+
+          {/* Vazn asosida */}
+          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
+            <div className="text-[16px] mb-1">⚖️</div>
+            <div className="font-headline-md text-[20px] leading-tight font-bold text-primary">
+              {profile.weightKg} kg
+            </div>
+            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Vazn</div>
+            <div className="font-label-mono text-[9px] text-on-surface-variant">35 ml/kg</div>
+          </div>
+
+          {/* Yosh asosida */}
+          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
+            <div className="text-[16px] mb-1">🎂</div>
+            <div className="font-headline-md text-[20px] leading-tight font-bold text-tertiary-fixed-dim">
+              {profile.age} yosh
+            </div>
+            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Yosh</div>
+            <div className="font-label-mono text-[9px] text-on-surface-variant">
+              ×{profile.age < 18 ? "1.1" : profile.age <= 30 ? "1.0" : profile.age <= 55 ? "0.95" : "0.90"}
+            </div>
+          </div>
+        </div>
+
+        <p className="font-body-md text-[12px] text-on-surface-variant/70 italic">
+          💡 Mashg&apos;ulot paytida qo&apos;shimcha 500–1000 ml suv ichish tavsiya etiladi.
+        </p>
+
+        {/* Ilmiy izoh (yig'iladi) */}
+        <details className="mt-3 bg-white/5 rounded-lg border border-white/5 group">
+          <summary className="cursor-pointer select-none px-4 py-3 font-label-mono text-[11px] text-on-surface-variant uppercase">
+            🔬 Ilmiy izoh va manbalar
+          </summary>
+          <div className="px-4 pb-4">
+            <p className="font-body-md text-[13px] text-on-surface-variant leading-relaxed">
+              {waterIntake.note}
+            </p>
+            <p className="font-label-mono text-[10px] text-on-surface-variant/60 mt-2 leading-relaxed">
+              Manbalar: EFSA Journal 2010;8(3):1459 · IOM (2004) Dietary Reference Intakes · Popkin B.M. et
+              al. (2010) Nutrition Reviews 68(8):439–458
+            </p>
+          </div>
+        </details>
+      </CollapsiblePanel>
+
       <WeightHistory />
     </div>
   );

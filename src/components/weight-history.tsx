@@ -5,10 +5,12 @@ import { useState } from "react";
 import { useWeightHistory, logWeightEntry } from "@/lib/weight-log";
 import { useAuth } from "@/context/auth-context";
 import { TrendLineChart } from "@/components/trend-line-chart";
+import { CollapsiblePanel } from "@/components/collapsible-panel";
 
 export function WeightHistory() {
   const { entries, loading, error, retry } = useWeightHistory();
   const { userId } = useAuth();
+  const [open, setOpen] = useState(false);
   const [weight, setWeight] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -29,44 +31,41 @@ export function WeightHistory() {
     }
   };
   return (
-    <>
-      <section className="glass-card rounded-xl p-6 space-y-4">
-        <h3 className="font-headline-md text-headline-md text-primary">Bugungi vazn</h3>
-        <form onSubmit={save} className="flex flex-wrap gap-3 items-end">
-          <label className="text-sm flex-1 min-w-40">
-            Bugungi vazn (kg)
-            <input
-              aria-label="Bugungi vazn (kg)"
-              type="number"
-              required
-              min="20"
-              max="500"
-              step="0.1"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              className="block mt-1 w-full bg-black rounded-lg border border-white/10 p-3"
-            />
-          </label>
-          <button
-            disabled={saving || !userId}
-            className="rounded-lg px-4 py-3 bg-primary-container text-on-primary-container disabled:opacity-50"
-          >
-            {saving ? "Saqlanmoqda..." : "Vaznni yozish"}
-          </button>
-        </form>
-        <p className="text-xs text-on-surface-variant">
-          Bu yozuv vazn tarixiga qo&apos;shiladi. Kaloriya hisobidagi vazn profil orqali o&apos;zgartiriladi.
+    <CollapsiblePanel title="Vazn" icon="monitor_weight" open={open} onToggle={() => setOpen((v) => !v)}>
+      <form onSubmit={save} className="flex flex-wrap gap-3 items-end">
+        <label className="text-sm flex-1 min-w-40">
+          Bugungi vazn (kg)
+          <input
+            aria-label="Bugungi vazn (kg)"
+            type="number"
+            required
+            min="20"
+            max="500"
+            step="0.1"
+            value={weight}
+            onChange={(e) => setWeight(e.target.value)}
+            className="block mt-1 w-full bg-black rounded-lg border border-white/10 p-3"
+          />
+        </label>
+        <button
+          disabled={saving || !userId}
+          className="rounded-lg px-4 py-3 bg-primary-container text-on-primary-container disabled:opacity-50"
+        >
+          {saving ? "Saqlanmoqda..." : "Vaznni yozish"}
+        </button>
+      </form>
+      <p className="text-xs text-on-surface-variant">
+        Bu yozuv vazn tarixiga qo&apos;shiladi. Kaloriya hisobidagi vazn profil orqali o&apos;zgartiriladi.
+      </p>
+      {saveError && (
+        <p role="alert" className="text-error text-sm">
+          {saveError}
         </p>
-        {saveError && (
-          <p role="alert" className="text-error text-sm">
-            {saveError}
-          </p>
-        )}
-      </section>
+      )}
 
-      <section className="glass-card rounded-xl p-6 space-y-4">
+      <div className="space-y-3 border-t border-white/10 pt-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-headline-md text-headline-md text-primary">Vazn tarixi</h3>
+          <h4 className="font-headline-md text-[16px] text-primary">Vazn tarixi</h4>
           {delta !== null && (
             <span className="text-sm text-on-surface-variant">
               Davr farqi: {delta > 0 ? "+" : ""}
@@ -101,7 +100,7 @@ export function WeightHistory() {
             </button>
           </p>
         )}
-      </section>
-    </>
+      </div>
+    </CollapsiblePanel>
   );
 }
