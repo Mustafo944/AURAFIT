@@ -2,6 +2,7 @@ import Link from "next/link";
 import { signIn } from "@/lib/supabase/actions";
 import { AuthShell } from "@/components/auth-shell";
 import { SubmitButton } from "@/components/submit-button";
+import { friendlyAuthError } from "@/lib/auth-input";
 
 export default async function LoginPage({
   searchParams,
@@ -15,7 +16,7 @@ export default async function LoginPage({
       title="Tizimga Kirish"
       subtitle="Davom etish uchun hisobingizga kiring"
       message={message}
-      error={error}
+      error={friendlyAuthError(error)}
       footer={
         <>
           Hisobingiz yo&apos;qmi?{" "}

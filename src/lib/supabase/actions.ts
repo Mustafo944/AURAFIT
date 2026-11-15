@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { isValidEmail, normalizeEmail, parseVerificationCode, retryAfterSeconds } from "@/lib/auth-input";
+import { friendlyAuthError, isValidEmail, normalizeEmail, parseVerificationCode, retryAfterSeconds } from "@/lib/auth-input";
 
 function isRedirectError(err: unknown): boolean {
   return (
@@ -56,7 +56,7 @@ export async function signIn(formData: FormData) {
       if (error.code === "email_not_confirmed" && isValidEmail(email)) {
         redirect(verifyUrl(email, { message: "Emailingiz tasdiqlanmagan. Pochtaga kelgan kodni kiriting." }));
       }
-      redirect(`/login?error=${encodeURIComponent(error.message)}`);
+      redirect(`/login?error=${encodeURIComponent(friendlyAuthError(error.message) ?? error.message)}`);
     }
   } catch (err) {
     if (isRedirectError(err)) throw err;

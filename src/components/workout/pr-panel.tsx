@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { getPersonalRecords, type PersonalRecord } from "@/lib/personal-records";
 import { getExerciseHistory, type WorkoutSession } from "@/lib/workout-log";
 import { MUSCLE_GROUPS } from "@/lib/exercise-metadata";
@@ -30,6 +31,19 @@ export function PrPanel({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [openExerciseId, setOpenExerciseId] = useState<string | null>(null);
+  const [confirmRecord, setConfirmRecord] = useState<PersonalRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!onDeleteSession || !confirmRecord?.sessionId || deleting) return;
+    setDeleting(true);
+    try {
+      await onDeleteSession(confirmRecord.sessionId);
+      setConfirmRecord(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const grouped = useMemo(() => {
     const records = getPersonalRecords(sessions);
@@ -99,7 +113,11 @@ export function PrPanel({
                   record={record}
                   open={openExerciseId === record.exerciseId}
                   sessions={sessions}
-                  onDeleteSession={onDeleteSession}
+                  onRequestDelete={
+                    onDeleteSession && record.sessionId
+                      ? () => setConfirmRecord(record)
+                      : undefined
+                  }
                   onToggle={() =>
                     setOpenExerciseId(openExerciseId === record.exerciseId ? null : record.exerciseId)
                   }
@@ -109,6 +127,52 @@ export function PrPanel({
           ))}
         </div>
       )}
+
+      {confirmRecord &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-record-title"
+            className="fixed inset-0 z-[100] bg-black/75 backdrop-blur-sm flex items-center justify-center p-6"
+            onClick={() => !deleting && setConfirmRecord(null)}
+          >
+            <div
+              className="glass-card rounded-2xl p-6 w-full max-w-sm space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-error text-2xl">delete</span>
+                <h3 id="delete-record-title" className="font-headline-md text-headline-md text-primary uppercase italic">
+                  Mashg&apos;ulotni O&apos;chirish
+                </h3>
+              </div>
+              <p className="font-body-md text-on-surface-variant text-sm">
+                &ldquo;{confirmRecord.exerciseName}&rdquo; ({confirmRecord.weightKg}kg) natijasi qayd etilgan ushbu mashg&apos;ulot o&apos;chirilsinmi?
+              </p>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={() => setConfirmRecord(null)}
+                  className="rounded-lg border border-white/15 py-3 font-label-mono text-[12px] uppercase text-on-surface hover:bg-white/5 transition-colors disabled:opacity-50 active:scale-[0.97]"
+                >
+                  Bekor qilish
+                </button>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={handleConfirmDelete}
+                  className="rounded-lg bg-error text-on-error py-3 font-label-mono text-[12px] uppercase hover:bg-error/80 transition-colors disabled:opacity-50 active:scale-[0.97]"
+                >
+                  {deleting ? "O'chirilmoqda..." : "Ha, O'chirish"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -118,31 +182,14 @@ function RecordRow({
   open,
   sessions,
   onToggle,
-  onDeleteSession,
+  onRequestDelete,
 }: {
   record: PersonalRecord;
   open: boolean;
   sessions: WorkoutSession[];
   onToggle: () => void;
-  onDeleteSession?: (sessionId: string) => Promise<void> | void;
+  onRequestDelete?: () => void;
 }) {
-  const [deleting, setDeleting] = useState(false);
-
-  const handleDelete = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!onDeleteSession || !record.sessionId) return;
-    const ok = window.confirm(
-      `"${record.exerciseName}" (${record.weightKg}kg) qayd etilgan ushbu mashg'ulot o'chirilsinmi?`
-    );
-    if (!ok) return;
-    setDeleting(true);
-    try {
-      await onDeleteSession(record.sessionId);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   // Grafik faqat qator ochilganda hisoblanadi — panel katta tarixda ham yengil qoladi.
   const points = useMemo<TrendPoint[]>(() => {
     if (!open) return [];
@@ -181,14 +228,16 @@ function RecordRow({
             {open ? "expand_more" : "trending_up"}
           </span>
         </button>
-        {onDeleteSession && record.sessionId && (
+        {onRequestDelete && (
           <button
             type="button"
-            disabled={deleting}
-            onClick={handleDelete}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRequestDelete();
+            }}
             aria-label={`${record.exerciseName} rekordini o'chirish`}
             title="Ushbu rekord qayd etilgan mashg'ulotni o'chirish"
-            className="p-2 rounded-lg text-on-surface-variant/40 hover:text-error hover:bg-error/10 transition-colors shrink-0 disabled:opacity-50"
+            className="p-2 rounded-lg text-on-surface-variant/40 hover:text-error hover:bg-error/10 transition-colors shrink-0"
           >
             <svg
               className="w-4 h-4"

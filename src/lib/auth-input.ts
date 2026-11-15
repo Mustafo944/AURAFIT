@@ -33,3 +33,22 @@ export function parseResendAt(value: unknown, now: number): number | null {
   const at = typeof value === "string" ? Number(value) : NaN;
   return Number.isFinite(at) && at > now && at - now <= 10 * 60_000 ? at : null;
 }
+
+// Supabase standart xatolarini o'zbek tiliga o'giradi.
+export function friendlyAuthError(message?: string): string | undefined {
+  if (!message) return undefined;
+  const lower = message.toLowerCase();
+  if (lower.includes("invalid login credentials")) {
+    return "Parol yoki login xato.";
+  }
+  if (lower.includes("user already registered")) {
+    return "Bu email allaqachon ro'yxatdan o'tgan.";
+  }
+  if (lower.includes("password should be at least")) {
+    return "Parol kamida 8 ta belgidan iborat bo'lishi kerak.";
+  }
+  if (lower.includes("rate limit") || lower.includes("too many requests")) {
+    return "Juda ko'p urinish bo'ldi. Birozdan so'ng qayta urinib ko'ring.";
+  }
+  return message;
+}

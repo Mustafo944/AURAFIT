@@ -220,7 +220,7 @@ export function DayDetail({
                         onClick={() => setConfirmDeleteId(null)}
                         className="bg-white/10 text-on-surface font-label-mono text-[12px] uppercase px-4 py-2 rounded-lg hover:bg-white/20 transition-colors active:scale-[0.97]"
                       >
-                        Bekor
+                        Bekor qilish
                       </button>
                     </div>
                   ) : (

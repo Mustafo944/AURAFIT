@@ -42,7 +42,7 @@ export function LogoutButton({ className, children }: { className: string; child
                 onClick={() => setConfirmOpen(false)}
                 className="flex-1 px-4 py-3 rounded-lg bg-white/5 text-on-surface-variant border border-white/10 hover:bg-white/10 transition-colors font-label-mono text-label-mono uppercase active:scale-[0.97]"
               >
-                Bekor
+                Bekor qilish
               </button>
               <form action={signOut} className="flex-1">
                 <button
