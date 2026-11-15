@@ -1,8 +1,8 @@
 begin;
--- Avatar bucket'ida server tomonidan cheklov: faqat JPEG/PNG/WebP va <= 5 MB.
+-- Avatar bucket'ida server tomonidan cheklov: faqat JPEG/PNG/WebP va <= 7 MB.
 -- (Avval fayl turi va hajmi faqat brauzerda tekshirilardi.)
 update storage.buckets
-  set file_size_limit = 5242880,
+  set file_size_limit = 7340032,
       allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp']
   where id = 'avatars';
 

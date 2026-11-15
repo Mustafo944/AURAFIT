@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 
-const MAX_SOURCE_BYTES = 15 * 1024 * 1024; // telefon suratlari katta bo'ladi — yuklashdan oldin kichraytiriladi
+const MAX_SOURCE_BYTES = 7 * 1024 * 1024; // yuklangan asl rasmning chegarasi; rasm yuborishdan oldin brauzerda kichraytiriladi
 const AVATAR_SIDE = 512;
 const REMOVABLE_OLD_PATHS = ["png", "webp", "jpeg"];
 
@@ -45,7 +45,7 @@ export async function uploadAvatar(userId: string, file: File): Promise<{ url: s
     return { url: null, error: "Faqat rasm fayli yuklash mumkin." };
   }
   if (file.size > MAX_SOURCE_BYTES) {
-    return { url: null, error: "Rasm hajmi 15MB dan oshmasligi kerak." };
+    return { url: null, error: "Rasm hajmi 7MB dan oshmasligi kerak." };
   }
 
   let jpeg: Blob;
