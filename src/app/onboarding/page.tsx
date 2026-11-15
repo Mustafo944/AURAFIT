@@ -126,7 +126,7 @@ function StepTitle({ children }: { children: ReactNode }) {
 
 // Birinchi kirishdagi tanishuv: 4 qisqa qadam. Shu ma'lumotlarsiz kaloriya, BMI va
 // BJU maqsadlarini to'g'ri hisoblab bo'lmaydi.
-export default function OnboardingPage() {
+function OnboardingForm() {
   const router = useRouter();
   const { profile, setProfile } = useUserProfile();
   const [step, setStep] = useState(0);
@@ -337,4 +337,31 @@ export default function OnboardingPage() {
       </div>
     </div>
   );
+}
+
+// Forma faqat profil yuklangandan keyin ochiladi: yuklanayotganda ochilsa, boshlang'ich qiymatlar
+// namunaviy bo'lib qoladi va saqlashda ism/rasm bo'sh qiymat bilan ustidan yozilib ketardi.
+export default function OnboardingPage() {
+  const { loading, loadError, reload } = useUserProfile();
+  if (loading) {
+    return <div role="status" aria-label="Yuklanmoqda" className="glass-card rounded-2xl h-48 animate-pulse" />;
+  }
+  if (loadError) {
+    return (
+      <section role="alert" className="glass-card rounded-2xl p-6 space-y-4 border-l-[4px] border-l-error">
+        <h2 className="font-headline-md text-[20px] text-primary">Ma&apos;lumotlaringiz yuklanmadi</h2>
+        <p className="text-sm text-on-surface-variant">
+          Serverga ulanib bo&apos;lmadi. Ma&apos;lumotlaringiz o&apos;chmagan — qayta urinib ko&apos;ring.
+        </p>
+        <button
+          type="button"
+          onClick={reload}
+          className="rounded-xl bg-primary-container px-5 py-3 font-headline-md text-[15px] uppercase tracking-wider text-on-primary-container"
+        >
+          Qayta urinish
+        </button>
+      </section>
+    );
+  }
+  return <OnboardingForm />;
 }

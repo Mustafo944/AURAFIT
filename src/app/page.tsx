@@ -9,7 +9,7 @@ import { useMealLog, sumMeals } from "@/lib/meal-log";
 import { ProfileSetupCard } from "@/components/profile-setup-card";
 
 export default function DashboardPage() {
-  const { profile, loading } = useUserProfile();
+  const { profile, loading, loadError, reload } = useUserProfile();
   const metrics = calculateFitnessMetrics(
     profile.age,
     profile.gender,
@@ -27,9 +27,29 @@ export default function DashboardPage() {
   // Parametrlar kiritilmagan bo'lsa, namunaviy qiymatlardan hisoblangan raqamlar
   // ko'rsatilmaydi: yuklanayotganda bo'sh joy, keyin anketaga taklif.
   if (!profile.onboarded) {
-    return loading ? (
-      <div role="status" aria-label="Yuklanmoqda" className="glass-card rounded-2xl h-48 animate-pulse" />
-    ) : (
+    if (loading) {
+      return <div role="status" aria-label="Yuklanmoqda" className="glass-card rounded-2xl h-48 animate-pulse" />;
+    }
+    // Server xatosi "yangi akkaunt" emas: anketani taklif qilmaymiz (aks holda haqiqiy ma'lumot ustidan yozilishi mumkin).
+    if (loadError) {
+      return (
+        <section role="alert" className="glass-card rounded-2xl p-6 md:p-8 space-y-4 border-l-[4px] border-l-error">
+          <h2 className="font-headline-md text-[20px] text-primary">Ma&apos;lumotlaringiz yuklanmadi</h2>
+          <p className="text-sm text-on-surface-variant">
+            Serverga ulanib bo&apos;lmadi. Ma&apos;lumotlaringiz o&apos;chmagan — internetni tekshirib, qayta urinib
+            ko&apos;ring. Dastur o&apos;zi ham qayta urinib turadi.
+          </p>
+          <button
+            type="button"
+            onClick={reload}
+            className="rounded-xl bg-primary-container px-5 py-3 font-headline-md text-[15px] uppercase tracking-wider text-on-primary-container glow-button hover:bg-primary-fixed transition-colors"
+          >
+            Qayta urinish
+          </button>
+        </section>
+      );
+    }
+    return (
       <div className="space-y-stack-lg">
         <ProfileSetupCard />
       </div>
