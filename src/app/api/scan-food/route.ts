@@ -6,10 +6,16 @@ import { NextResponse } from "next/server";
 import { callDeepSeek, friendlyDeepSeekError, DEEPSEEK_MODEL } from "@/lib/deepseek-server";
 
 const PROMPT = `Siz tajribali ovqatlanish mutaxassisisiz. Rasmda tasvirlangan taom(lar)ni aniqlang va ularning taxminiy ozuqaviy tarkibini hisoblang.
-Faqat JSON formatida, o'zbek tilida javob bering. Namuna: {"mealName":"Osh (Palov)","items":["guruch","go'sht","sabzi"],"totalCalories":650,"proteinG":25,"fatG":30,"carbG":70,"note":"..."}. Maydonlar:
+Hisoblash usuli (har qanday taom uchun):
+1. Rasmdagi har bir alohida taom yoki komponentni ajrating (masalan: palov, salat, non, go'sht, ichimlik, sous, shirinlik).
+2. Har biri uchun porsiyani baholang: dona soni yoki taxminiy gramm (idish, qo'l, non, vilka kabi narsalarga qarab o'lchamni taqqoslang).
+3. Har biri uchun shu porsiyaning kaloriyasini yozing, so'ng hammasini qo'shib totalCalories ni chiqaring.
+4. Yashirin kaloriyani unutmang: yog'da qovurilgan yoki moyli taomlar (palov, somsa, qovurma), mayonez, kremli va shirin souslar, yog'li go'sht. Rasmda ko'ringan butun porsiyani hisoblang, kichraytirib yubormang.
+Faqat JSON formatida, o'zbek tilida javob bering. Namuna: {"mealName":"Osh (Palov)","breakdown":["Palov, 350 g × 1.8 kkal/g = 630 kkal","Salat, 100 g = 60 kkal"],"items":["guruch","go'sht","sabzi"],"totalCalories":690,"proteinG":25,"fatG":30,"carbG":70,"note":"..."}. Maydonlar:
 - mealName: taomning umumiy nomi (masalan, "Osh (Palov)")
+- breakdown: har bir komponent bo'yicha hisob-kitob qatorlari (porsiya × kaloriya = natija, 1-8 ta)
 - items: rasmda ko'ringan asosiy tarkibiy qismlar ro'yxati (o'zbek tilida, 2-6 ta)
-- totalCalories: umumiy taxminiy kaloriya (kcal, butun son)
+- totalCalories: breakdown yig'indisiga teng umumiy taxminiy kaloriya (kcal, butun son)
 - proteinG: protein miqdori (gramm, butun son)
 - fatG: yog' miqdori (gramm, butun son)
 - carbG: uglevod miqdori (gramm, butun son)
@@ -50,7 +56,11 @@ export async function POST(request: Request) {
     .digest("hex");
   try {
     const result = await cachedScan(key, async () => {
-      const attempt = await callDeepSeek(apiKey, { prompt: PROMPT, image: { mimeType, data: image } });
+      const attempt = await callDeepSeek(apiKey, {
+        prompt: PROMPT,
+        image: { mimeType, data: image },
+        maxTokens: 1000,
+      });
       if (!attempt.ok) throw new Error(friendlyDeepSeekError(attempt));
       if (!attempt.text) throw new Error("AI javobi bo'sh keldi.");
       let parsed: unknown;
