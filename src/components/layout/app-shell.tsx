@@ -7,7 +7,8 @@ import { MobileHeader } from "@/components/layout/mobile-header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { OfflineSyncManager } from "@/components/offline-sync";
 
-const AUTH_ROUTES = ["/login", "/signup"];
+// Ilova menyusiz, to'liq ekranli sahifalar: kirish, ro'yxatdan o'tish va tanishuv anketasi.
+const AUTH_ROUTES = ["/login", "/signup", "/onboarding"];
 
 // "/signup/verify" kabi ichki sahifalar ham kirish sahifasi hisoblanadi.
 function isAuthRoute(pathname: string): boolean {

@@ -369,3 +369,51 @@ test("auth pages never show the signed-in app chrome", async ({ page, context, r
   await expect(page.getByRole("button", { name: /Chiqish/ })).toHaveCount(0);
 });
 
+test("new accounts see a setup card instead of sample numbers and complete onboarding", async ({
+  page,
+  context,
+  request,
+}) => {
+  await request.post(`${backend}/__test/seed`, {
+    data: {
+      table: "profiles",
+      rows: [
+        {
+          id: USER_ID,
+          first_name: "",
+          last_name: "",
+          age: 28,
+          gender: "male",
+          weight_kg: 78,
+          height_cm: 178,
+          goal: "maintain",
+          target_weight_kg: null,
+          avatar_url: null,
+          activity_level: "moderate",
+          training_preferences: { experience: "beginner", equipment: ["bodyweight"], daysPerWeek: 3 },
+          onboarded: false,
+        },
+      ],
+    },
+  });
+  await signIn(context, request);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Kunlik kaloriyangizni hisoblaylik" })).toBeVisible();
+  // Namunaviy profil bo'yicha hisoblangan raqamlar ko'rinmaydi.
+  await expect(page.getByText("Kunlik Maqsad")).toHaveCount(0);
+  await page.getByRole("link", { name: /Ma'lumotlarni kiritish/ }).click();
+  await expect(page).toHaveURL(/\/onboarding$/);
+  await page.getByRole("button", { name: "Ayol" }).click();
+  await page.getByRole("button", { name: "Yosh: oshirish" }).click();
+  await page.getByRole("button", { name: "Keyingi" }).click();
+  await page.getByRole("button", { name: "Keyingi" }).click();
+  await expect(page.getByRole("button", { name: "Hisoblash va boshlash" })).toBeDisabled();
+  await page.getByRole("button", { name: /Vazn Yo'qotish/ }).click();
+  await page.getByRole("button", { name: "Hisoblash va boshlash" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByText("Kunlik Maqsad")).toBeVisible();
+  await expect
+    .poll(async () => (await (await request.get(`${backend}/__test/rows`)).json()).profiles[0])
+    .toMatchObject({ onboarded: true, gender: "female", age: 26, goal: "lose" });
+});
+

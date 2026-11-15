@@ -6,6 +6,7 @@ import { WeightHistory } from "@/components/weight-history";
 import { MealHistory } from "@/components/meal-history";
 import { CollapsiblePanel } from "@/components/collapsible-panel";
 import { ScanComponentsEditor } from "@/components/scan-components-editor";
+import { ProfileSetupCard } from "@/components/profile-setup-card";
 import { sumComponents, type ScanComponent, type ScanConfidence } from "@/lib/nutrition";
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useUserProfile } from "@/context/user-profile-context";
@@ -15,22 +16,19 @@ import { ProgressRing } from "@/components/progress-ring";
 import { MacroBar } from "@/components/macro-bar";
 import dynamic from "next/dynamic";
 
-const BarcodeScanner = dynamic(
-  () => import("@/components/barcode-scanner").then((m) => m.BarcodeScanner),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex flex-col items-center justify-center gap-3 py-12">
-        <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">
-          progress_activity
-        </span>
-        <span className="font-label-mono text-label-mono text-primary-fixed-dim uppercase tracking-widest">
-          Skaner yuklanmoqda...
-        </span>
-      </div>
-    ),
-  },
-);
+const BarcodeScanner = dynamic(() => import("@/components/barcode-scanner").then((m) => m.BarcodeScanner), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col items-center justify-center gap-3 py-12">
+      <span className="material-symbols-outlined text-4xl text-primary-fixed-dim animate-spin">
+        progress_activity
+      </span>
+      <span className="font-label-mono text-label-mono text-primary-fixed-dim uppercase tracking-widest">
+        Skaner yuklanmoqda...
+      </span>
+    </div>
+  ),
+});
 
 // Nonushta/Tushlik/Kechki ovqat kunning ma'lum vaqtiga tavsiya etiladi,
 // Qo'shimcha taom esa istalgan payt qo'shilishi mumkin — shu sabab alohida
@@ -304,7 +302,9 @@ export default function AnalyticsPage() {
         });
   const removeComponent = (index: number) => {
     setResult((current) =>
-      current?.components ? { ...current, components: current.components.filter((_, i) => i !== index) } : current,
+      current?.components
+        ? { ...current, components: current.components.filter((_, i) => i !== index) }
+        : current,
     );
     setEditedGrams((current) => current.filter((_, i) => i !== index));
   };
@@ -384,30 +384,31 @@ export default function AnalyticsPage() {
           )}
         </div>
       ) : (
-      <div>
-        <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">
-          NECHA FOIZINI YEDINGIZ?
-        </label>
-        <div className="flex items-center gap-3">
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={eatenPct}
-            onChange={(e) => setEatenPct(e.target.value)}
-            className="w-24 bg-black/40 border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
-          />
-          <span className="font-label-mono text-label-mono text-on-surface-variant">%</span>
-          {eatenGramsHint != null && (
-            <span className="font-label-mono text-[11px] text-on-surface-variant ml-auto whitespace-nowrap">
-              &asymp; {eatenGramsHint}g / {packageGrams}g
-            </span>
-          )}
+        <div>
+          <label className="block font-label-mono text-label-mono text-on-surface-variant mb-2">
+            NECHA FOIZINI YEDINGIZ?
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={eatenPct}
+              onChange={(e) => setEatenPct(e.target.value)}
+              className="w-24 bg-black/40 border border-white/10 rounded px-4 py-3 text-on-surface font-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container transition-colors outline-none"
+            />
+            <span className="font-label-mono text-label-mono text-on-surface-variant">%</span>
+            {eatenGramsHint != null && (
+              <span className="font-label-mono text-[11px] text-on-surface-variant ml-auto whitespace-nowrap">
+                &asymp; {eatenGramsHint}g / {packageGrams}g
+              </span>
+            )}
+          </div>
+          <p className="font-label-mono text-[10px] text-on-surface-variant/70 mt-1.5">
+            Hammasini yegan bo&apos;lsangiz 100% qoldiring — bo&apos;lak qoldirgan bo&apos;lsangiz
+            kamaytiring.
+          </p>
         </div>
-        <p className="font-label-mono text-[10px] text-on-surface-variant/70 mt-1.5">
-          Hammasini yegan bo&apos;lsangiz 100% qoldiring — bo&apos;lak qoldirgan bo&apos;lsangiz kamaytiring.
-        </p>
-      </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -457,56 +458,60 @@ export default function AnalyticsPage() {
 
       <MealHistory />
 
-      {/* Today's Summary */}
-      <section className="glass-card rounded-xl p-6 relative overflow-hidden glow-button border-l-[3px] border-l-primary-fixed-dim">
-        <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary-fixed-dim/10 rounded-full blur-2xl" />
-        <h3 className="font-headline-md text-headline-md text-primary uppercase italic mb-stack-sm flex items-center gap-2 relative z-10">
-          <span className="material-symbols-outlined text-primary-fixed-dim">data_usage</span> Bugungi
-          Ovqatlanish
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center relative z-10">
-          <div className="md:col-span-4 flex items-center gap-6 border-b md:border-b-0 md:border-r border-white/10 pb-4 md:pb-0 md:pr-6">
-            <ProgressRing percentage={caloriePct} color="#abd600" glowColor="rgba(171,214,0,0.5)" />
-            <div>
-              <div className="font-display-lg-mobile text-display-lg-mobile text-primary font-bold">
-                {consumed.calories}
-              </div>
-              <div className="font-label-mono text-label-mono text-on-surface-variant">
-                / {metrics.targetCalories} KCAL MAQSAD
-              </div>
-              <div className="font-label-mono text-label-mono text-tertiary-fixed-dim mt-1">
-                {remainingCalories >= 0
-                  ? `${remainingCalories} KCAL QOLDI`
-                  : `${Math.abs(remainingCalories)} KCAL ORTIQCHA`}
+      {/* Today's Summary — faqat parametrlar kiritilgan bo'lsa (aks holda maqsad raqamlari noto'g'ri) */}
+      {profile.onboarded ? (
+        <section className="glass-card rounded-xl p-6 relative overflow-hidden glow-button border-l-[3px] border-l-primary-fixed-dim">
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary-fixed-dim/10 rounded-full blur-2xl" />
+          <h3 className="font-headline-md text-headline-md text-primary uppercase italic mb-stack-sm flex items-center gap-2 relative z-10">
+            <span className="material-symbols-outlined text-primary-fixed-dim">data_usage</span> Bugungi
+            Ovqatlanish
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center relative z-10">
+            <div className="md:col-span-4 flex items-center gap-6 border-b md:border-b-0 md:border-r border-white/10 pb-4 md:pb-0 md:pr-6">
+              <ProgressRing percentage={caloriePct} color="#abd600" glowColor="rgba(171,214,0,0.5)" />
+              <div>
+                <div className="font-display-lg-mobile text-display-lg-mobile text-primary font-bold">
+                  {consumed.calories}
+                </div>
+                <div className="font-label-mono text-label-mono text-on-surface-variant">
+                  / {metrics.targetCalories} KCAL MAQSAD
+                </div>
+                <div className="font-label-mono text-label-mono text-tertiary-fixed-dim mt-1">
+                  {remainingCalories >= 0
+                    ? `${remainingCalories} KCAL QOLDI`
+                    : `${Math.abs(remainingCalories)} KCAL ORTIQCHA`}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="md:col-span-8 space-y-3">
-            <MacroBar
-              label="Oqsil"
-              grams={consumed.proteinG}
-              max={metrics.proteinG}
-              color="#abd600"
-              rightLabel={`${consumed.proteinG}g / ${metrics.proteinG}g`}
-            />
-            <MacroBar
-              label="Yog'"
-              grams={consumed.fatG}
-              max={metrics.fatG}
-              color="#ffb4ab"
-              rightLabel={`${consumed.fatG}g / ${metrics.fatG}g`}
-            />
-            <MacroBar
-              label="Uglevod"
-              grams={consumed.carbG}
-              max={metrics.carbG}
-              color="#00dbe9"
-              rightLabel={`${consumed.carbG}g / ${metrics.carbG}g`}
-            />
+            <div className="md:col-span-8 space-y-3">
+              <MacroBar
+                label="Oqsil"
+                grams={consumed.proteinG}
+                max={metrics.proteinG}
+                color="#abd600"
+                rightLabel={`${consumed.proteinG}g / ${metrics.proteinG}g`}
+              />
+              <MacroBar
+                label="Yog'"
+                grams={consumed.fatG}
+                max={metrics.fatG}
+                color="#ffb4ab"
+                rightLabel={`${consumed.fatG}g / ${metrics.fatG}g`}
+              />
+              <MacroBar
+                label="Uglevod"
+                grams={consumed.carbG}
+                max={metrics.carbG}
+                color="#00dbe9"
+                rightLabel={`${consumed.carbG}g / ${metrics.carbG}g`}
+              />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      ) : (
+        <ProfileSetupCard compact />
+      )}
 
       {/* Ovqat Qo'shish */}
       <section>
@@ -541,7 +546,13 @@ export default function AnalyticsPage() {
                         {label}
                       </h4>
                       <p className="font-label-mono text-[11px] text-on-surface-variant uppercase truncate">
-                        {eaten > 0 ? `${eaten} / ${target} kkal` : `Tavsiya etiladi: ${target} kkal`}
+                        {profile.onboarded
+                          ? eaten > 0
+                            ? `${eaten} / ${target} kkal`
+                            : `Tavsiya etiladi: ${target} kkal`
+                          : eaten > 0
+                            ? `${eaten} kkal`
+                            : "Taom qo'shing"}
                       </p>
                     </div>
                   </div>
@@ -576,7 +587,11 @@ export default function AnalyticsPage() {
                         Qo&apos;shimcha taom
                       </h4>
                       <p className="font-label-mono text-[11px] text-on-surface-variant uppercase truncate">
-                        {eaten > 0 ? `${eaten} / ${target} kkal` : `Istalgancha qo'shishingiz mumkin`}
+                        {eaten > 0
+                          ? profile.onboarded
+                            ? `${eaten} / ${target} kkal`
+                            : `${eaten} kkal`
+                          : `Istalgancha qo'shishingiz mumkin`}
                       </p>
                     </div>
                   </div>
@@ -796,69 +811,74 @@ export default function AnalyticsPage() {
           {mealError}
         </p>
       )}
-      {/* Suv iste'moli tavsiyasi — sahifa uzun bo'lib ketmasligi uchun yig'iladi */}
-      <CollapsiblePanel
-        title="Suv iste'moli"
-        icon="water_drop"
-        open={waterOpen}
-        onToggle={() => setWaterOpen((v) => !v)}
-      >
-        <div className="grid grid-cols-3 gap-2">
-          {/* Kunlik norma */}
-          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
-            <div className="text-[16px] mb-1">🥤</div>
-            <div className="font-headline-md text-[20px] leading-tight font-bold" style={{ color: "#00bcd4" }}>
-              {waterIntake.liters} L
+      {/* Suv iste'moli tavsiyasi — vazn va yoshdan hisoblanadi, shuning uchun parametrlar kerak */}
+      {profile.onboarded && (
+        <CollapsiblePanel
+          title="Suv iste'moli"
+          icon="water_drop"
+          open={waterOpen}
+          onToggle={() => setWaterOpen((v) => !v)}
+        >
+          <div className="grid grid-cols-3 gap-2">
+            {/* Kunlik norma */}
+            <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
+              <div className="text-[16px] mb-1">🥤</div>
+              <div
+                className="font-headline-md text-[20px] leading-tight font-bold"
+                style={{ color: "#00bcd4" }}
+              >
+                {waterIntake.liters} L
+              </div>
+              <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Norma</div>
+              <div className="font-label-mono text-[9px] text-on-surface-variant">
+                {waterIntake.glasses} stakan
+              </div>
             </div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Norma</div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant">
-              {waterIntake.glasses} stakan
+
+            {/* Vazn asosida */}
+            <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
+              <div className="text-[16px] mb-1">⚖️</div>
+              <div className="font-headline-md text-[20px] leading-tight font-bold text-primary">
+                {profile.weightKg} kg
+              </div>
+              <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Vazn</div>
+              <div className="font-label-mono text-[9px] text-on-surface-variant">35 ml/kg</div>
+            </div>
+
+            {/* Yosh asosida */}
+            <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
+              <div className="text-[16px] mb-1">🎂</div>
+              <div className="font-headline-md text-[20px] leading-tight font-bold text-tertiary-fixed-dim">
+                {profile.age} yosh
+              </div>
+              <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Yosh</div>
+              <div className="font-label-mono text-[9px] text-on-surface-variant">
+                ×{profile.age < 18 ? "1.1" : profile.age <= 30 ? "1.0" : profile.age <= 55 ? "0.95" : "0.90"}
+              </div>
             </div>
           </div>
 
-          {/* Vazn asosida */}
-          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
-            <div className="text-[16px] mb-1">⚖️</div>
-            <div className="font-headline-md text-[20px] leading-tight font-bold text-primary">
-              {profile.weightKg} kg
-            </div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Vazn</div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant">35 ml/kg</div>
-          </div>
+          <p className="font-body-md text-[12px] text-on-surface-variant/70 italic">
+            💡 Mashg&apos;ulot paytida qo&apos;shimcha 500–1000 ml suv ichish tavsiya etiladi.
+          </p>
 
-          {/* Yosh asosida */}
-          <div className="bg-white/5 rounded-xl px-2 py-3 text-center border border-white/5">
-            <div className="text-[16px] mb-1">🎂</div>
-            <div className="font-headline-md text-[20px] leading-tight font-bold text-tertiary-fixed-dim">
-              {profile.age} yosh
+          {/* Ilmiy izoh (yig'iladi) */}
+          <details className="mt-3 bg-white/5 rounded-lg border border-white/5 group">
+            <summary className="cursor-pointer select-none px-4 py-3 font-label-mono text-[11px] text-on-surface-variant uppercase">
+              🔬 Ilmiy izoh va manbalar
+            </summary>
+            <div className="px-4 pb-4">
+              <p className="font-body-md text-[13px] text-on-surface-variant leading-relaxed">
+                {waterIntake.note}
+              </p>
+              <p className="font-label-mono text-[10px] text-on-surface-variant/60 mt-2 leading-relaxed">
+                Manbalar: EFSA Journal 2010;8(3):1459 · IOM (2004) Dietary Reference Intakes · Popkin B.M. et
+                al. (2010) Nutrition Reviews 68(8):439–458
+              </p>
             </div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant uppercase mt-1">Yosh</div>
-            <div className="font-label-mono text-[9px] text-on-surface-variant">
-              ×{profile.age < 18 ? "1.1" : profile.age <= 30 ? "1.0" : profile.age <= 55 ? "0.95" : "0.90"}
-            </div>
-          </div>
-        </div>
-
-        <p className="font-body-md text-[12px] text-on-surface-variant/70 italic">
-          💡 Mashg&apos;ulot paytida qo&apos;shimcha 500–1000 ml suv ichish tavsiya etiladi.
-        </p>
-
-        {/* Ilmiy izoh (yig'iladi) */}
-        <details className="mt-3 bg-white/5 rounded-lg border border-white/5 group">
-          <summary className="cursor-pointer select-none px-4 py-3 font-label-mono text-[11px] text-on-surface-variant uppercase">
-            🔬 Ilmiy izoh va manbalar
-          </summary>
-          <div className="px-4 pb-4">
-            <p className="font-body-md text-[13px] text-on-surface-variant leading-relaxed">
-              {waterIntake.note}
-            </p>
-            <p className="font-label-mono text-[10px] text-on-surface-variant/60 mt-2 leading-relaxed">
-              Manbalar: EFSA Journal 2010;8(3):1459 · IOM (2004) Dietary Reference Intakes · Popkin B.M. et
-              al. (2010) Nutrition Reviews 68(8):439–458
-            </p>
-          </div>
-        </details>
-      </CollapsiblePanel>
+          </details>
+        </CollapsiblePanel>
+      )}
 
       <WeightHistory />
     </div>

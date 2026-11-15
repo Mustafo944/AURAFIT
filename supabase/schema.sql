@@ -13,6 +13,8 @@ create table if not exists public.profiles (
   weight_kg numeric not null default 78,
   height_cm numeric not null default 178,
   goal text not null default 'maintain' check (goal in ('lose', 'maintain', 'gain')),
+  -- Tanishuv anketasi to'ldirilganmi (yangi hisoblar false bilan boshlanadi).
+  onboarded boolean not null default false,
   updated_at timestamptz not null default now()
 );
 
@@ -281,4 +283,15 @@ end;
 $$;
 revoke all on function public.consume_api_limit(text) from public, anon;
 grant execute on function public.consume_api_limit(text) to authenticated;
+commit;
+
+-- Eski o'rnatishlar uchun (202611150007_profile_onboarded.sql)
+begin;
+-- Foydalanuvchi o'z parametrlarini (jins, yosh, bo'y, vazn, maqsad) kiritganmi.
+-- Yangi hisoblar false bilan boshlanadi va tanishuv anketasini ko'radi;
+-- mavjud foydalanuvchilar allaqachon profil bilan ishlagani uchun true qilinadi.
+alter table public.profiles add column if not exists onboarded boolean;
+update public.profiles set onboarded = true where onboarded is null;
+alter table public.profiles alter column onboarded set default false;
+alter table public.profiles alter column onboarded set not null;
 commit;

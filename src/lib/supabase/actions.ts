@@ -99,7 +99,7 @@ export async function signUp(formData: FormData) {
   if (failure) redirect(`/signup?error=${encodeURIComponent(failure)}`);
   if (signedIn) {
     revalidatePath("/", "layout");
-    redirect("/");
+    redirect("/onboarding");
   }
   // Email mavjudligini oshkor qilmaslik uchun natija har doim bir xil: kod sahifasi.
   redirect(verifyUrl(email, { message, cooldownSeconds }));
@@ -128,7 +128,8 @@ export async function verifyEmailCode(formData: FormData) {
 
   if (failure) redirect(verifyUrl(email, { error: failure }));
   revalidatePath("/", "layout");
-  redirect("/");
+  // Yangi hisob: avval qisqa tanishuv anketasi (jins, yosh, bo'y, vazn, maqsad).
+  redirect("/onboarding");
 }
 
 // Kod kelmagan yoki muddati o'tgan bo'lsa, yangisini yuboradi (Supabase 60 soniyada bir martaga cheklaydi).

@@ -105,6 +105,8 @@ export default function ProfilePage() {
       avatarUrl: form.avatarUrl,
       activityLevel: form.activityLevel,
       training: form.training,
+      // Profilda saqlash — foydalanuvchi parametrlarini o'zi kiritdi.
+      onboarded: true,
     };
     setSaveError(null);
     const { error } = await setProfile(next);

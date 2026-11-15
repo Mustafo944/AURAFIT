@@ -27,6 +27,9 @@ export interface UserProfile {
   avatarUrl: string | null;
   activityLevel: ActivityLevel;
   training: TrainingPreferences;
+  // Foydalanuvchi o'z parametrlarini kiritganmi. Kiritilmaguncha bosh sahifa
+  // namunaviy raqamlar o'rniga "ma'lumotlaringizni kiriting" kartasini ko'rsatadi.
+  onboarded: boolean;
 }
 
 export const DEFAULT_PROFILE: UserProfile = {
@@ -41,6 +44,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   avatarUrl: null,
   activityLevel: "moderate",
   training: DEFAULT_TRAINING,
+  onboarded: false,
 };
 
 interface UserProfileContextValue {
@@ -89,6 +93,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
                 ...cached,
                 activityLevel: normalizeActivity(cached.activityLevel),
                 training: normalizeTraining(cached.training),
+                // Bu maydon paydo bo'lishidan oldingi kesh — foydalanuvchi profilni allaqachon ishlatgan.
+                onboarded: cached.onboarded ?? true,
               }
             : prev,
         );
@@ -116,6 +122,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
             avatarUrl: data.avatar_url ?? null,
             activityLevel: normalizeActivity(data.activity_level),
             training: normalizeTraining(data.training_preferences),
+            // Ustun yo'q (migratsiya qo'llanmagan) bo'lsa, anketani majburlamaymiz.
+            onboarded: data.onboarded ?? true,
           };
           const pending = [...pendingBefore, ...(await getSyncQueue().catch(() => []))];
           if (cancelled) return;

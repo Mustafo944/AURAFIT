@@ -31,10 +31,13 @@ test("migrations are repeatable; database enforces owner deletion and shared quo
         "202609260003_shared_api_limits.sql",
         "202610010004_workout_cardio.sql",
         "202611130005_daily_api_limits.sql",
+        "202611150007_profile_onboarded.sql",
       ]) {
         await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), "utf8"));
       }
     }
+    // Mavjud profillar anketani qayta ko'rmasligi kerak.
+    assert.equal((await db.query("select onboarded from public.profiles where id = $1", [A])).rows[0].onboarded, true);
     await db.query("select set_config('request.jwt.claim.sub', $1, false)", [A]);
     const cardio = await db.query("select cardio from public.workout_sessions limit 1");
     assert.deepEqual(cardio.rows[0].cardio, []);

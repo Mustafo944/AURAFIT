@@ -91,6 +91,11 @@ export async function applySyncTask(task: SyncTask, supabase = createClient()) {
       },
       updated_at: new Date().toISOString(),
     });
+    // "onboarded" alohida yoziladi: bu ustun hali qo'shilmagan bazada asosiy
+    // yozuv xato bermasin (bu yerdagi xato e'tiborsiz qoldiriladi).
+    if (!result.error && profile.onboarded) {
+      await supabase.from("profiles").update({ onboarded: true }).eq("id", userId);
+    }
   }
 
   if (!result) throw new Error("Noma'lum sinxronizatsiya vazifasi");

@@ -23,6 +23,8 @@ export interface Database {
           updated_at: string;
           activity_level: ActivityLevel;
           training_preferences: TrainingPreferences;
+          // Migratsiya 202611150007 qo'llanmagan bazada ustun yo'q bo'lishi mumkin.
+          onboarded?: boolean;
         };
         Insert: {
           id: string;
@@ -38,6 +40,7 @@ export interface Database {
           updated_at?: string;
           activity_level?: ActivityLevel;
           training_preferences?: TrainingPreferences;
+          onboarded?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
         Relationships: [];

@@ -6,9 +6,10 @@ import { calculateFitnessMetrics, GOAL_LABELS } from "@/lib/fitness";
 import { ProgressRing } from "@/components/progress-ring";
 import { BmiCard } from "@/components/bmi-card";
 import { useMealLog, sumMeals } from "@/lib/meal-log";
+import { ProfileSetupCard } from "@/components/profile-setup-card";
 
 export default function DashboardPage() {
-  const { profile } = useUserProfile();
+  const { profile, loading } = useUserProfile();
   const metrics = calculateFitnessMetrics(
     profile.age,
     profile.gender,
@@ -23,6 +24,17 @@ export default function DashboardPage() {
   const fatPct = metrics.fatG > 0 ? (consumed.fatG / metrics.fatG) * 100 : 0;
   const carbPct = metrics.carbG > 0 ? (consumed.carbG / metrics.carbG) * 100 : 0;
 
+  // Parametrlar kiritilmagan bo'lsa, namunaviy qiymatlardan hisoblangan raqamlar
+  // ko'rsatilmaydi: yuklanayotganda bo'sh joy, keyin anketaga taklif.
+  if (!profile.onboarded) {
+    return loading ? (
+      <div role="status" aria-label="Yuklanmoqda" className="glass-card rounded-2xl h-48 animate-pulse" />
+    ) : (
+      <div className="space-y-stack-lg">
+        <ProfileSetupCard />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-stack-lg">
@@ -51,11 +63,15 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-2 gap-3 md:gap-4 relative z-10">
             <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/5">
-              <div className="font-headline-md text-[22px] md:text-[26px] text-primary font-bold tracking-tight">{metrics.bmr}</div>
+              <div className="font-headline-md text-[22px] md:text-[26px] text-primary font-bold tracking-tight">
+                {metrics.bmr}
+              </div>
               <div className="font-label-mono text-[10px] text-on-surface-variant uppercase mt-0.5">BMR</div>
             </div>
             <div className="text-center p-3 rounded-xl bg-white/[0.02] border border-white/5">
-              <div className="font-headline-md text-[22px] md:text-[26px] text-primary font-bold tracking-tight">{metrics.tdee}</div>
+              <div className="font-headline-md text-[22px] md:text-[26px] text-primary font-bold tracking-tight">
+                {metrics.tdee}
+              </div>
               <div className="font-label-mono text-[10px] text-on-surface-variant uppercase mt-0.5">TDEE</div>
             </div>
           </div>
@@ -74,7 +90,10 @@ export default function DashboardPage() {
             href="/analytics"
             className="font-label-mono text-label-mono text-primary-fixed-dim hover:text-primary transition-colors flex items-center gap-1 group"
           >
-            TAHLIL <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">chevron_right</span>
+            TAHLIL{" "}
+            <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">
+              chevron_right
+            </span>
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-gutter">
@@ -82,7 +101,9 @@ export default function DashboardPage() {
           <div className="glass-card glass-card-hover rounded-2xl p-6 relative overflow-hidden group">
             <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary-fixed-dim/10 rounded-full blur-2xl group-hover:bg-primary-fixed-dim/20 transition-all duration-500" />
             <div className="flex items-center justify-between mb-4 relative z-10">
-              <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider">Oqsil</span>
+              <span className="font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider">
+                Oqsil
+              </span>
               <div className="flex items-center gap-2">
                 <span className="font-label-mono text-[11px] text-primary-fixed-dim font-bold">
                   {Math.round(proteinPct)}%
