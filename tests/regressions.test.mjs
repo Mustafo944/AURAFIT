@@ -650,3 +650,18 @@ test("nutrition reference is internally consistent and components are computed i
   assert.equal(n.parseScanResponse({ mealName: "", components: [{ name: "a", ref: "plov", grams: 1 }] }), null);
   assert.equal(n.parseScanResponse(null), null);
 });
+
+test("auth input helpers normalize emails and accept only numeric verification codes", () => {
+  const { normalizeEmail, isValidEmail, parseVerificationCode } = load("src/lib/auth-input.ts");
+  assert.equal(normalizeEmail("  Test.User@Gmail.COM "), "test.user@gmail.com");
+  assert.equal(normalizeEmail(null), "");
+  assert.equal(isValidEmail("test.user@gmail.com"), true);
+  for (const bad of ["", "plain", "a@b", "a b@c.com", "@gmail.com", `${"a".repeat(250)}@gmail.com`])
+    assert.equal(isValidEmail(bad), false, bad);
+  assert.equal(parseVerificationCode("123456"), "123456");
+  assert.equal(parseVerificationCode(" 123 456 "), "123456");
+  assert.equal(parseVerificationCode("123-456"), "123456");
+  assert.equal(parseVerificationCode("12345678"), "12345678");
+  for (const bad of ["", "12345", "12a456", "12345678901", null, 123456])
+    assert.equal(parseVerificationCode(bad), null, String(bad));
+});

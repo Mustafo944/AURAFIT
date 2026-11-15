@@ -345,3 +345,16 @@ test("food scan: component grams are editable and totals are recalculated live",
   expect(rows.meals[0].meal_type).toBe("lunch");
 });
 
+test("signup verification page asks for the emailed code and rejects bad links", async ({ page }) => {
+  await page.goto("/signup/verify?email=Test.User%40Gmail.com");
+  await expect(page.getByRole("heading", { name: "Emailni Tasdiqlash" })).toBeVisible();
+  await expect(page.getByText("test.user@gmail.com")).toBeVisible();
+  await expect(page.getByLabel("TASDIQLASH KODI")).toHaveAttribute("autocomplete", "one-time-code");
+  await expect(page.getByRole("button", { name: "Kodni qayta yuborish" })).toBeVisible();
+  await page.goto("/signup/verify?email=not-an-email");
+  await expect(page).toHaveURL(/\/signup$/);
+  await page.goto("/signup/verify");
+  await expect(page).toHaveURL(/\/signup$/);
+  await expect(page.getByRole("heading", { name: "Ro'yxatdan O'tish" })).toBeVisible();
+});
+
