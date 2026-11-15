@@ -665,3 +665,18 @@ test("auth input helpers normalize emails and accept only numeric verification c
   for (const bad of ["", "12345", "12a456", "12345678901", null, 123456])
     assert.equal(parseVerificationCode(bad), null, String(bad));
 });
+
+test("resend cooldown is parsed from Supabase messages and bounded", () => {
+  const { retryAfterSeconds, parseResendAt } = load("src/lib/auth-input.ts");
+  assert.equal(retryAfterSeconds("For security purposes, you can only request this after 53 seconds."), 53);
+  assert.equal(retryAfterSeconds("after 1 second"), 1);
+  assert.equal(retryAfterSeconds("Email rate limit exceeded"), null);
+  assert.equal(retryAfterSeconds(undefined), null);
+  const now = 1_000_000;
+  assert.equal(parseResendAt(String(now + 30_000), now), now + 30_000);
+  assert.equal(parseResendAt(String(now - 1), now), null);
+  assert.equal(parseResendAt(String(now + 11 * 60_000), now), null);
+  assert.equal(parseResendAt("abc", now), null);
+  assert.equal(parseResendAt(undefined, now), null);
+});
+

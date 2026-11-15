@@ -350,11 +350,22 @@ test("signup verification page asks for the emailed code and rejects bad links",
   await expect(page.getByRole("heading", { name: "Emailni Tasdiqlash" })).toBeVisible();
   await expect(page.getByText("test.user@gmail.com")).toBeVisible();
   await expect(page.getByLabel("TASDIQLASH KODI")).toHaveAttribute("autocomplete", "one-time-code");
-  await expect(page.getByRole("button", { name: "Kodni qayta yuborish" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Kodni qayta yuborish" })).toBeEnabled();
+  // Qayta yuborish vaqti kelmaguncha tugma bloklangan va soniyalar sanaladi.
+  await page.goto(`/signup/verify?email=test.user%40gmail.com&resendAt=${Date.now() + 45_000}`);
+  await expect(page.getByRole("button", { name: /Qayta yuborish: 0:4\d/ })).toBeDisabled();
   await page.goto("/signup/verify?email=not-an-email");
   await expect(page).toHaveURL(/\/signup$/);
   await page.goto("/signup/verify");
   await expect(page).toHaveURL(/\/signup$/);
   await expect(page.getByRole("heading", { name: "Ro'yxatdan O'tish" })).toBeVisible();
+});
+
+test("auth pages never show the signed-in app chrome", async ({ page, context, request }) => {
+  await signIn(context, request);
+  await page.goto("/signup/verify?email=other.user%40gmail.com");
+  await expect(page.getByRole("heading", { name: "Emailni Tasdiqlash" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /DIETA/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Chiqish/ })).toHaveCount(0);
 });
 

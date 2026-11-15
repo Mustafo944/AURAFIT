@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signUp } from "@/lib/supabase/actions";
 import { AuthShell } from "@/components/auth-shell";
+import { SubmitButton } from "@/components/submit-button";
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
@@ -52,13 +53,13 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
           </div>
           <p className="font-label-mono text-[10px] text-on-surface-variant mt-1.5">Kamida 8 belgi</p>
         </div>
-        <button
-          type="submit"
-          className="w-full flex items-center justify-center gap-2 bg-primary-container text-on-primary-container font-headline-md text-sm uppercase tracking-wider py-3 rounded-lg glow-button hover:bg-primary-fixed transition-colors"
+        <SubmitButton
+          pendingLabel="Kod yuborilmoqda..."
+          className="w-full flex items-center justify-center gap-2 bg-primary-container text-on-primary-container font-headline-md text-sm uppercase tracking-wider py-3 rounded-lg glow-button hover:bg-primary-fixed transition-colors disabled:opacity-70"
         >
           Ro&apos;yxatdan O&apos;tish
           <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-        </button>
+        </SubmitButton>
       </form>
     </AuthShell>
   );

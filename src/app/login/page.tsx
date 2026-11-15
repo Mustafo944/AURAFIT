@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { signIn } from "@/lib/supabase/actions";
 import { AuthShell } from "@/components/auth-shell";
+import { SubmitButton } from "@/components/submit-button";
 
 export default async function LoginPage({
   searchParams,
@@ -55,13 +56,13 @@ export default async function LoginPage({
             />
           </div>
         </div>
-        <button
-          type="submit"
-          className="w-full flex items-center justify-center gap-2 bg-primary-container text-on-primary-container font-headline-md text-sm uppercase tracking-wider py-3 rounded-lg glow-button hover:bg-primary-fixed transition-colors"
+        <SubmitButton
+          pendingLabel="Kirilmoqda..."
+          className="w-full flex items-center justify-center gap-2 bg-primary-container text-on-primary-container font-headline-md text-sm uppercase tracking-wider py-3 rounded-lg glow-button hover:bg-primary-fixed transition-colors disabled:opacity-70"
         >
           Kirish
           <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-        </button>
+        </SubmitButton>
       </form>
     </AuthShell>
   );

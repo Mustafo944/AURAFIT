@@ -19,3 +19,17 @@ export function parseVerificationCode(value: unknown): string | null {
   const digits = value.replace(/[\s-]/g, "");
   return /^\d{6,10}$/.test(digits) ? digits : null;
 }
+
+// Supabase cheklov xabaridan ("...you can only request this after 53 seconds.")
+// kutish soniyasini oladi; topilmasa null.
+export function retryAfterSeconds(message: unknown): number | null {
+  if (typeof message !== "string") return null;
+  const match = message.match(/after\s+(\d{1,4})\s+seconds?/i);
+  return match ? Number(match[1]) : null;
+}
+
+// Qayta yuborish vaqti (epoch ms) URL'dan: noto'g'ri yoki 10 daqiqadan uzoq bo'lsa null.
+export function parseResendAt(value: unknown, now: number): number | null {
+  const at = typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(at) && at > now && at - now <= 10 * 60_000 ? at : null;
+}

@@ -9,12 +9,17 @@ import { OfflineSyncManager } from "@/components/offline-sync";
 
 const AUTH_ROUTES = ["/login", "/signup"];
 
+// "/signup/verify" kabi ichki sahifalar ham kirish sahifasi hisoblanadi.
+function isAuthRoute(pathname: string): boolean {
+  return AUTH_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
 // Login/signup sahifalarida sidebar, mobil header va pastki navigatsiya
 // ko'rsatilmaydi — bu sahifalar hali autentifikatsiya qilinmagan holatda ochiladi.
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
-  if (AUTH_ROUTES.includes(pathname)) {
+  if (isAuthRoute(pathname)) {
     return <>{children}</>;
   }
 
