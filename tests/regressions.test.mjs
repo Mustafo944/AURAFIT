@@ -680,3 +680,15 @@ test("resend cooldown is parsed from Supabase messages and bounded", () => {
   assert.equal(parseResendAt(undefined, now), null);
 });
 
+
+test("weight guidance gives a healthy range for the height and the distance from it", () => {
+  const { weightGuidance } = load("src/lib/fitness.ts", {
+    "@/lib/training-preferences": load("src/lib/training-preferences.ts", { "@/lib/exercises": load("src/lib/exercises.ts") }),
+  });
+  // 170 sm: BMI 18.5-24.9 -> 54-71 kg
+  assert.deepEqual({ ...weightGuidance(70, 170) }, { minKg: 54, maxKg: 71, status: "normal", deltaKg: 0 });
+  assert.deepEqual({ ...weightGuidance(80, 170) }, { minKg: 54, maxKg: 71, status: "over", deltaKg: 9 });
+  assert.deepEqual({ ...weightGuidance(50.5, 170) }, { minKg: 54, maxKg: 71, status: "under", deltaKg: 3.5 });
+  assert.equal(weightGuidance(54, 170).status, "normal");
+  assert.equal(weightGuidance(71, 170).status, "normal");
+});

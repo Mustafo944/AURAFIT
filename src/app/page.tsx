@@ -96,7 +96,12 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        <BmiCard bmi={metrics.bmi} category={metrics.bmiCategory} />
+        <BmiCard
+          bmi={metrics.bmi}
+          category={metrics.bmiCategory}
+          weightKg={profile.weightKg}
+          heightCm={profile.heightCm}
+        />
       </section>
 
       {/* Bugungi Ozuqa Moddalari (Rings) */}

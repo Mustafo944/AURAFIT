@@ -60,3 +60,23 @@ export const GOAL_LABELS: Record<Goal, string> = {
   maintain: "Vaznni Saqlash",
   gain: "Mushak Massasi Orttirish",
 };
+
+export interface WeightGuidance {
+  // Sog'lom vazn oralig'i (BMI 18.5-24.9), butun kg.
+  minKg: number;
+  maxKg: number;
+  status: "under" | "normal" | "over";
+  // Oraliqdan qancha chetda ekani (kg, 1 xona); normada 0.
+  deltaKg: number;
+}
+
+// Bo'yga qarab sog'lom vazn oralig'i va hozirgi vaznning unga nisbati —
+// BMI raqamining odam uchun tushunarli talqini.
+export function weightGuidance(weightKg: number, heightCm: number): WeightGuidance {
+  const heightM = heightCm / 100;
+  const minKg = Math.ceil(18.5 * heightM * heightM);
+  const maxKg = Math.floor(24.9 * heightM * heightM);
+  if (weightKg > maxKg) return { minKg, maxKg, status: "over", deltaKg: Math.round((weightKg - maxKg) * 10) / 10 };
+  if (weightKg < minKg) return { minKg, maxKg, status: "under", deltaKg: Math.round((minKg - weightKg) * 10) / 10 };
+  return { minKg, maxKg, status: "normal", deltaKg: 0 };
+}

@@ -1,4 +1,4 @@
-import { ProgressRing } from "@/components/progress-ring";
+import { weightGuidance } from "@/lib/fitness";
 
 // Shkala 15..40 oralig'ida chiziladi; zona chegaralari fitness.ts'dagi
 // bmiCategory bilan bir xil (18.5 / 25 / 30).
@@ -15,7 +15,18 @@ const ZONES = [
 const toPercent = (bmi: number) =>
   Math.max(0, Math.min(100, ((bmi - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100));
 
-export function BmiCard({ bmi, category }: { bmi: number; category: string }) {
+export function BmiCard({
+  bmi,
+  category,
+  weightKg,
+  heightCm,
+}: {
+  bmi: number;
+  category: string;
+  weightKg: number;
+  heightCm: number;
+}) {
+  const guidance = weightGuidance(weightKg, heightCm);
   const zone = ZONES.find((z) => bmi < z.upTo) ?? ZONES[ZONES.length - 1];
   const position = toPercent(bmi);
   const gradientStops = [
@@ -31,7 +42,10 @@ export function BmiCard({ bmi, category }: { bmi: number; category: string }) {
 
   return (
     <div className="glass-card glass-card-hover rounded-2xl p-6 md:p-8 relative overflow-hidden border-l-[4px] border-l-tertiary-fixed-dim shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex flex-col gap-5">
-      <div className="absolute -right-12 -top-12 w-48 h-48 rounded-full blur-3xl pointer-events-none opacity-20" style={{ backgroundColor: zone.color }} />
+      <div
+        className="absolute -right-12 -top-12 w-48 h-48 rounded-full blur-3xl pointer-events-none opacity-20"
+        style={{ backgroundColor: zone.color }}
+      />
       <div className="relative z-10">
         <div className="flex items-center gap-2 mb-1.5">
           <span className="w-1.5 h-4 rounded-full" style={{ backgroundColor: zone.color }} />
@@ -54,7 +68,6 @@ export function BmiCard({ bmi, category }: { bmi: number; category: string }) {
             {category}
           </span>
         </div>
-        <ProgressRing percentage={position} color={zone.color} glowColor={`${zone.color}80`} />
       </div>
 
       <div className="relative z-10 space-y-2">
@@ -80,6 +93,32 @@ export function BmiCard({ bmi, category }: { bmi: number; category: string }) {
             </span>
           ))}
         </div>
+      </div>
+
+      {/* Raqam nimani anglatishi: bo'yga mos sog'lom vazn va hozirgi holat. */}
+      <div
+        className="relative z-10 rounded-xl border px-4 py-3 space-y-1"
+        style={{ borderColor: `${zone.color}40`, backgroundColor: `${zone.color}12` }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[20px]" style={{ color: zone.color }}>
+            {guidance.status === "normal" ? "check_circle" : "warning"}
+          </span>
+          <span className="font-body-md text-[15px] font-semibold text-on-surface">
+            {guidance.status === "normal"
+              ? "Vazningiz normada"
+              : guidance.status === "over"
+                ? `Normadan ${guidance.deltaKg} kg yuqori`
+                : `Normadan ${guidance.deltaKg} kg past`}
+          </span>
+        </div>
+        <p className="font-body-md text-[12px] text-on-surface-variant">
+          Bo&apos;yingiz {heightCm} sm uchun sog&apos;lom vazn:{" "}
+          <span className="text-on-surface font-semibold">
+            {guidance.minKg}–{guidance.maxKg} kg
+          </span>
+          . Hozir: {weightKg} kg.
+        </p>
       </div>
     </div>
   );
